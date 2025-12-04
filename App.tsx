@@ -141,7 +141,7 @@ const App: React.FC = () => {
             <div className="bg-brand-600 p-2 rounded-lg shadow-lg shadow-brand-900/50">
               <ShieldCheck className="w-6 h-6 text-white" />
             </div>
-            <h1 className="text-xl font-bold text-white tracking-tight hidden sm:block">Gestor EPI Seguro</h1>
+            <h1 className="text-xl font-bold text-white tracking-tight hidden sm:block">Gestão EPI Luandre</h1>
             <h1 className="text-xl font-bold text-white tracking-tight sm:hidden">Luandre EPI</h1>
           </div>
           <div className="flex items-center gap-2">
@@ -161,7 +161,7 @@ const App: React.FC = () => {
               title="Catálogo de EPIs"
             >
               <Package className="w-5 h-5" />
-              <span className="hidden md:inline">Catálogo</span>
+              <span className="hidden md:inline">Catálogo de EPI</span>
             </button>
 
             <button 

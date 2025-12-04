@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { HardHat, Eraser, User, ListPlus, Trash, Save, Search, CalendarClock, Plus, AlertCircle } from 'lucide-react';
+import { HardHat, Eraser, User, ListPlus, Trash, Save, Search, CalendarClock, Plus, AlertCircle, Clock } from 'lucide-react';
 import { EpiRecord, EpiItem, EpiCatalogItem, AutoDeleteConfig, AutoDeleteUnit, Collaborator } from '../types';
 
 interface AssignmentFormProps {

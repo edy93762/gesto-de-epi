@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Users, UserPlus, Trash2, FileText, Calendar } from 'lucide-react';
+import { X, Users, UserPlus, Trash2, FileText, Calendar, Clock } from 'lucide-react';
 import { Collaborator } from '../types';
 
 interface CollaboratorModalProps {
@@ -17,7 +17,7 @@ const CollaboratorModal: React.FC<CollaboratorModalProps> = ({
 }) => {
   const [newCollabName, setNewCollabName] = useState('');
   const [newCollabCpf, setNewCollabCpf] = useState('');
-  const [newCollabShift, setNewCollabShift] = useState('1º Turno');
+  const [newCollabShift, setNewCollabShift] = useState('');
   const [newCollabAdmission, setNewCollabAdmission] = useState('');
 
   if (!isOpen) return null;
@@ -34,14 +34,14 @@ const CollaboratorModal: React.FC<CollaboratorModalProps> = ({
         id: Date.now().toString(),
         name: newCollabName,
         cpf: newCollabCpf,
-        shift: newCollabShift,
+        shift: newCollabShift || 'Geral',
         admissionDate: newCollabAdmission
     };
 
     onUpdateCollaborators([...collaborators, newCollab]);
     setNewCollabName('');
     setNewCollabCpf('');
-    setNewCollabShift('1º Turno');
+    setNewCollabShift('');
     setNewCollabAdmission('');
   };
 
@@ -91,16 +91,14 @@ const CollaboratorModal: React.FC<CollaboratorModalProps> = ({
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="relative">
-                    <span className="text-[10px] text-zinc-500 uppercase font-bold absolute -top-2 left-2 bg-dark-950 px-1">Turno</span>
-                    <select
+                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                    <input
+                      type="text"
+                      placeholder="Turno"
                       value={newCollabShift}
                       onChange={(e) => setNewCollabShift(e.target.value)}
-                      className="w-full px-3 py-2 bg-dark-900 border border-dark-700 rounded-lg text-sm text-white focus:ring-1 focus:ring-brand-500 outline-none h-10 appearance-none"
-                    >
-                      <option value="1º Turno">1º Turno</option>
-                      <option value="2º Turno">2º Turno</option>
-                      <option value="3º Turno">3º Turno</option>
-                    </select>
+                      className="w-full pl-9 pr-3 py-2 bg-dark-900 border border-dark-700 rounded-lg text-sm text-white focus:ring-1 focus:ring-brand-500 outline-none"
+                    />
                   </div>
                   
                   <div className="relative">
