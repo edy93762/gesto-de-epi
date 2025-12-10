@@ -25,6 +25,7 @@ export interface Collaborator {
   cpf?: string; // Substituído matrícula por CPF
   shift?: string;
   admissionDate?: string; // Data de admissão
+  faceReference?: string; // Foto de referência para reconhecimento facial
 }
 
 export interface EpiRecord {
@@ -38,6 +39,7 @@ export interface EpiRecord {
   safetyInstructions?: string;
   signed: boolean;
   autoDeleteAt?: string; // Data de expiração específica para este registro
+  facePhoto?: string; // Foto de reconhecimento facial (base64)
 }
 
 export interface DashboardStats {
@@ -52,4 +54,5 @@ export interface AutoDeleteConfig {
   defaultEnabled: boolean;
   defaultValue: number;
   defaultUnit: AutoDeleteUnit;
+  autoBackup: boolean; // Nova configuração para download automático
 }

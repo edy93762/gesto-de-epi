@@ -1,5 +1,7 @@
 {
   "name": "Gestão EPI Luandre",
   "description": "Sistema completo para gestão de entrega de EPIs (Equipamentos de Proteção Individual), com geração de termos de responsabilidade em PDF e instruções de segurança geradas por IA.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [
+    "camera"
+  ]
 }

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { ShieldCheck, Users, History, FileCheck, Settings, Package, BarChart3 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { ShieldCheck, Users, History, FileCheck, Settings, Package, BarChart3, Loader2, Database, UploadCloud } from 'lucide-react';
 import AssignmentForm from './components/AssignmentForm';
 import HistoryTable from './components/HistoryTable';
 import StatsCard from './components/StatsCard';
@@ -8,106 +8,139 @@ import SettingsModal from './components/SettingsModal';
 import CatalogModal from './components/CatalogModal';
 import CollaboratorModal from './components/CollaboratorModal';
 import { EpiRecord, AutoDeleteConfig, EpiCatalogItem, Collaborator } from './types';
+import * as db from './utils/db';
 
 const App: React.FC = () => {
-  // Load initial state from local storage or empty array
-  const [records, setRecords] = useState<EpiRecord[]>(() => {
-    try {
-      const saved = localStorage.getItem('epi_records');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        return parsed.map((r: any) => ({
-             ...r,
-             items: r.items || (r.ppeName ? [{ id: 'legacy', name: r.ppeName, ca: r.caNumber }] : [])
-        }));
-      }
-    } catch (e) {
-      console.error("Erro ao processar registros salvos", e);
-    }
-    return [];
+  const [isLoading, setIsLoading] = useState(true);
+
+  // States
+  const [records, setRecords] = useState<EpiRecord[]>([]);
+  const [catalog, setCatalog] = useState<EpiCatalogItem[]>([]);
+  const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
+  
+  // Configuração Padrão agora com autoBackup ATIVO (true)
+  const [defaultConfig, setDefaultConfig] = useState<AutoDeleteConfig>({ 
+    defaultEnabled: false, 
+    defaultValue: 30, 
+    defaultUnit: 'days',
+    autoBackup: true // Sempre ativo por padrão
   });
 
-  // Catalog State
-  const [catalog, setCatalog] = useState<EpiCatalogItem[]>(() => {
-    try {
-      const saved = localStorage.getItem('epi_catalog');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  // Collaborators State
-  const [collaborators, setCollaborators] = useState<Collaborator[]>(() => {
-    try {
-      const saved = localStorage.getItem('epi_collaborators');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  // Settings / Modals State
+  // Modals State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
   const [isCollabOpen, setIsCollabOpen] = useState(false);
   const [isStockOpen, setIsStockOpen] = useState(false);
 
-  const [defaultConfig, setDefaultConfig] = useState<AutoDeleteConfig>(() => {
-    try {
-      const saved = localStorage.getItem('epi_config');
-      return saved ? JSON.parse(saved) : { defaultEnabled: false, defaultValue: 30, defaultUnit: 'days' };
-    } catch {
-      return { defaultEnabled: false, defaultValue: 30, defaultUnit: 'days' };
-    }
-  });
+  // Temporary state for transferring photo from Assignment to Registration
+  const [tempRegisterPhoto, setTempRegisterPhoto] = useState<string | null>(null);
 
-  // Save to local storage whenever records change
+  // Reference for invisible file input
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // --- INITIAL DATA LOADING (IndexedDB) ---
   useEffect(() => {
-    localStorage.setItem('epi_records', JSON.stringify(records));
-  }, [records]);
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        await db.initDB();
+        
+        const [loadedRecords, loadedCatalog, loadedCollabs, loadedConfig] = await Promise.all([
+          db.getAllData<EpiRecord>('records'),
+          db.getAllData<EpiCatalogItem>('catalog'),
+          db.getAllData<Collaborator>('collaborators'),
+          db.getConfig()
+        ]);
 
-  // Save config to local storage
-  useEffect(() => {
-    localStorage.setItem('epi_config', JSON.stringify(defaultConfig));
-  }, [defaultConfig]);
+        // Fix legacy data structure if needed
+        const processedRecords = loadedRecords.map((r: any) => ({
+             ...r,
+             items: r.items || (r.ppeName ? [{ id: 'legacy', name: r.ppeName, ca: r.caNumber }] : [])
+        }));
 
-  // Save catalog to local storage
-  useEffect(() => {
-    localStorage.setItem('epi_catalog', JSON.stringify(catalog));
-  }, [catalog]);
+        setRecords(processedRecords);
+        setCatalog(loadedCatalog);
+        setCollaborators(loadedCollabs);
+        
+        if (loadedConfig) {
+          // Se já existe config salva, usa ela, mas garante que autoBackup exista
+          setDefaultConfig((prev) => ({ ...prev, ...loadedConfig }));
+        } else {
+          // Se não existe config (primeira vez), força o padrão com autoBackup: true e salva
+          const initialConfig = { 
+            defaultEnabled: false, 
+            defaultValue: 30, 
+            defaultUnit: 'days' as const,
+            autoBackup: true 
+          };
+          setDefaultConfig(initialConfig);
+          await db.saveConfig(initialConfig);
+        }
 
-  // Save collaborators to local storage
-  useEffect(() => {
-    localStorage.setItem('epi_collaborators', JSON.stringify(collaborators));
-  }, [collaborators]);
-
-  // Individual cleanup logic
-  const performCleanup = () => {
-    const now = new Date().getTime();
-    
-    setRecords(prev => {
-      const filtered = prev.filter(r => {
-         if (!r.autoDeleteAt) return true; 
-         const expiry = new Date(r.autoDeleteAt).getTime();
-         return expiry > now; 
-      });
-
-      if (filtered.length !== prev.length) {
-        console.log(`Limpeza realizada: ${prev.length - filtered.length} registros expirados removidos`);
+      } catch (error) {
+        console.error("Erro ao carregar banco de dados:", error);
+      } finally {
+        setIsLoading(false);
       }
-      return filtered;
-    });
-  };
+    };
 
-  useEffect(() => {
-    performCleanup();
-    const interval = setInterval(performCleanup, 60000);
-    return () => clearInterval(interval);
+    loadData();
   }, []);
 
+  // --- PERSISTENCE EFFECT (Save on Change) ---
+  
+  // Save Records
+  useEffect(() => {
+    if (!isLoading) {
+      db.saveAllData('records', records).catch(e => console.error("Erro ao salvar registros:", e));
+    }
+  }, [records, isLoading]);
+
+  // Save Catalog
+  useEffect(() => {
+    if (!isLoading) {
+      db.saveAllData('catalog', catalog).catch(e => console.error("Erro ao salvar catálogo:", e));
+    }
+  }, [catalog, isLoading]);
+
+  // Save Collaborators
+  useEffect(() => {
+    if (!isLoading) {
+      db.saveAllData('collaborators', collaborators).catch(e => console.error("Erro ao salvar colaboradores:", e));
+    }
+  }, [collaborators, isLoading]);
+
+  // Save Config
+  useEffect(() => {
+    if (!isLoading) {
+      db.saveConfig(defaultConfig).catch(e => console.error("Erro ao salvar config:", e));
+    }
+  }, [defaultConfig, isLoading]);
+
+  // --- HELPER PARA DOWNLOAD AUTOMÁTICO ---
+  const downloadBackupData = (currentRecords: EpiRecord[], currentCatalog: EpiCatalogItem[], currentCollabs: Collaborator[], currentConfig: AutoDeleteConfig) => {
+    const fullData = {
+        records: currentRecords,
+        catalog: currentCatalog,
+        collaborators: currentCollabs,
+        config: currentConfig
+    };
+    const dataStr = JSON.stringify(fullData, null, 2);
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const date = new Date().toISOString().split('T')[0];
+    const time = new Date().toTimeString().split(' ')[0].replace(/:/g, '-');
+    link.href = url;
+    link.download = `backup_auto_luandre_${date}_${time}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const handleAddRecord = (newRecord: EpiRecord) => {
-    setRecords(prev => [newRecord, ...prev]);
+    const updatedRecords = [newRecord, ...records];
+    setRecords(updatedRecords);
 
     // Decrease Stock Logic
     const updatedCatalog = catalog.map(catItem => {
@@ -121,19 +154,102 @@ const App: React.FC = () => {
     });
 
     setCatalog(updatedCatalog);
+
+    // DOWNLOAD AUTOMÁTICO SE ATIVADO
+    if (defaultConfig.autoBackup) {
+        // Usamos um pequeno timeout para não travar a UI
+        setTimeout(() => {
+            downloadBackupData(updatedRecords, updatedCatalog, collaborators, defaultConfig);
+        }, 500);
+    }
   };
 
   const handleDeleteRecord = (id: string) => {
-    setRecords(prev => prev.filter(r => r.id !== id));
+    if (confirm("Deseja realmente apagar este registro?")) {
+        setRecords(prev => prev.filter(r => r.id !== id));
+    }
   };
+
+  const handleImportBackup = (data: any) => {
+    try {
+        // Lógica de Substituição Total (Overwrite)
+        if (confirm("ATENÇÃO: Restaurar o backup irá SUBSTITUIR TODOS os dados atuais pelos dados do arquivo. \n\nOs dados atuais serão apagados. Deseja continuar?")) {
+            // Limpa estados primeiro para garantir
+            setRecords([]);
+            setCatalog([]);
+            setCollaborators([]);
+
+            // Aplica novos dados
+            if (data.records) setRecords(data.records);
+            if (data.catalog) setCatalog(data.catalog);
+            if (data.collaborators) setCollaborators(data.collaborators);
+            
+            // Ao importar, mantém o autoBackup ligado se o usuário quiser, ou usa o do arquivo se preferir.
+            // Aqui vamos forçar manter o que está no arquivo, mas se não tiver, padrão true.
+            const newConfig = data.config || defaultConfig;
+            setDefaultConfig({ ...newConfig, autoBackup: true }); // Força autoBackup ativo após restore
+            
+            alert('Backup restaurado com sucesso! Os dados antigos foram substituídos.');
+        }
+    } catch (e) {
+        alert('Erro ao restaurar backup. Arquivo inválido.');
+        console.error(e);
+    }
+  };
+
+  // Handler para o input de arquivo oculto no cabeçalho
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const content = e.target?.result as string;
+            const parsedData = JSON.parse(content);
+            handleImportBackup(parsedData);
+        } catch (error) {
+            alert("Erro ao ler arquivo. Certifique-se de que é um backup válido.");
+        }
+    };
+    reader.readAsText(file);
+    event.target.value = ''; // Reset input
+  };
+
+  // Callback to open registration modal with a photo from assignment screen
+  const handleRegisterWithPhoto = (photo: string) => {
+    setTempRegisterPhoto(photo);
+    setIsCollabOpen(true);
+  };
+
+  // --- RENDER ---
+  
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-dark-950 flex flex-col items-center justify-center text-white">
+        <Loader2 className="w-10 h-10 animate-spin text-brand-500 mb-4" />
+        <h2 className="text-xl font-semibold">Carregando Banco de Dados...</h2>
+        <p className="text-zinc-500 mt-2 text-sm">Preparando ambiente offline.</p>
+      </div>
+    );
+  }
 
   // Stats calculation
   const totalAssignments = records.length;
   const totalItems = records.reduce((acc, curr) => acc + (curr.items ? curr.items.length : 0), 0);
   const uniqueEmployees = new Set(records.map(r => r.employeeName)).size;
-  
+
   return (
     <div className="min-h-screen bg-dark-950 pb-12 text-zinc-100">
+      {/* Hidden File Input for Quick Restore */}
+      <input 
+          type="file" 
+          ref={fileInputRef} 
+          onChange={handleFileUpload} 
+          className="hidden" 
+          accept=".json"
+      />
+
       {/* Header */}
       <header className="bg-dark-900 border-b border-dark-800 sticky top-0 z-10 backdrop-blur-md bg-opacity-90">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -143,11 +259,31 @@ const App: React.FC = () => {
             </div>
             <h1 className="text-xl font-bold text-white tracking-tight hidden sm:block">Gestão EPI Luandre</h1>
             <h1 className="text-xl font-bold text-white tracking-tight sm:hidden">Luandre EPI</h1>
+            
+            {/* Database Indicator & Quick Restore */}
+            <div className="hidden md:flex items-center gap-2 ml-4">
+              <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-emerald-400 text-xs font-medium">
+                <Database className="w-3 h-3" />
+                <span>Offline</span>
+              </div>
+              
+              <button 
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-1.5 px-3 py-1 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 hover:border-amber-500/40 rounded-full text-amber-400 text-xs font-medium transition-colors"
+                title="Restaurar Backup (Upload)"
+              >
+                <UploadCloud className="w-3 h-3" />
+                <span>Restaurar</span>
+              </button>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             
             <button 
-              onClick={() => setIsCollabOpen(true)}
+              onClick={() => {
+                setTempRegisterPhoto(null);
+                setIsCollabOpen(true);
+              }}
               className="p-2 px-3 text-zinc-400 hover:text-white hover:bg-dark-800 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium border border-transparent"
               title="Gerenciar Colaboradores"
             >
@@ -177,7 +313,7 @@ const App: React.FC = () => {
 
             <button 
               onClick={() => setIsSettingsOpen(true)}
-              className="p-2 text-zinc-400 hover:text-white hover:bg-dark-800 rounded-lg transition-colors flex items-center gap-2"
+              className="p-2 rounded-lg transition-colors flex items-center gap-2 text-zinc-400 hover:text-white hover:bg-dark-800"
               title="Configurações do Sistema"
             >
               <Settings className="w-5 h-5" />
@@ -219,8 +355,13 @@ const App: React.FC = () => {
               onAdd={handleAddRecord} 
               catalog={catalog}
               collaborators={collaborators}
+              records={records} // Pass records to check history
               onOpenCatalog={() => setIsCatalogOpen(true)}
-              onOpenCollaborators={() => setIsCollabOpen(true)}
+              onOpenCollaborators={() => {
+                  setTempRegisterPhoto(null);
+                  setIsCollabOpen(true);
+              }}
+              onRegisterNew={(photo) => handleRegisterWithPhoto(photo)}
               defaultConfig={defaultConfig}
             />
           </div>
@@ -238,6 +379,7 @@ const App: React.FC = () => {
         onClose={() => setIsCollabOpen(false)}
         collaborators={collaborators}
         onUpdateCollaborators={setCollaborators}
+        initialPhoto={tempRegisterPhoto}
       />
 
       <CatalogModal 
@@ -258,7 +400,9 @@ const App: React.FC = () => {
         onClose={() => setIsSettingsOpen(false)}
         config={defaultConfig}
         onSaveConfig={setDefaultConfig}
-        onRunCleanup={performCleanup}
+        onRunCleanup={() => {}} 
+        fullData={{ records, catalog, collaborators, config: defaultConfig }}
+        onImportData={handleImportBackup}
       />
     </div>
   );

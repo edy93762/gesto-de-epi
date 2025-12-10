@@ -75,6 +75,8 @@ CLT - Art. 462 § 1º - Em caso de dano causado pelo empregado o desconto será 
   // Row 4: Função (Full width)
 
   const rowHeight = 7;
+  const photoWidth = 23;
+  // If we have a photo, we'll reserve space on the right side
   
   // Row 1: Nome
   doc.rect(margin, cursorY, pageWidth - (margin * 2), rowHeight);
@@ -83,6 +85,7 @@ CLT - Art. 462 § 1º - Em caso de dano causado pelo empregado o desconto será 
   doc.text("Nome:", margin + 2, cursorY + 4.5);
   doc.setFont("helvetica", "normal");
   doc.text(record.employeeName || "", margin + 15, cursorY + 4.5);
+  
   cursorY += rowHeight;
 
   // Row 2: CPF & Admissão
@@ -90,6 +93,7 @@ CLT - Art. 462 § 1º - Em caso de dano causado pelo empregado o desconto será 
   // Vertical line for split (50%)
   doc.line(pageWidth / 2, cursorY, pageWidth / 2, cursorY + rowHeight);
   
+  doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
   doc.text("CPF:", margin + 2, cursorY + 4.5); // Changed from Matrícula to CPF
   doc.setFont("helvetica", "normal");
@@ -125,11 +129,45 @@ CLT - Art. 462 § 1º - Em caso de dano causado pelo empregado o desconto será 
 
   // Row 4: Função
   doc.rect(margin, cursorY, pageWidth - (margin * 2), rowHeight);
+  doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
   doc.text("Função:", margin + 2, cursorY + 4.5);
   // Blank for Função
 
   cursorY += rowHeight;
+
+  // --- PHOTO OVERLAY ---
+  if (record.facePhoto) {
+      // Coordinates for photo (Top right of the employee section)
+      const sectionTopY = cursorY - (rowHeight * 4);
+      const photoX = pageWidth - margin - photoWidth - 1;
+      const photoY = sectionTopY + 1;
+      const photoH = (rowHeight * 4) - 2;
+
+      // Draw white background to hide lines behind photo
+      doc.setFillColor(255, 255, 255);
+      doc.rect(photoX, photoY, photoWidth, photoH, 'F');
+
+      // Draw Image
+      try {
+        doc.addImage(record.facePhoto, 'JPEG', photoX, photoY, photoWidth, photoH);
+      } catch (e) {
+        console.error("Error adding image to PDF", e);
+        doc.setFontSize(6);
+        doc.text("Erro na Foto", photoX + 2, photoY + 10);
+      }
+
+      // Draw border around photo
+      doc.setDrawColor(0);
+      doc.rect(photoX, photoY, photoWidth, photoH);
+
+      // Add watermark text
+      doc.setFontSize(5);
+      doc.setTextColor(0, 100, 0);
+      doc.setFont("helvetica", "bold");
+      doc.text("VALIDADO", photoX + 1, photoY + photoH + 2);
+      doc.setTextColor(0);
+  }
 
   // Add a small spacing before table
   cursorY += 5;
@@ -271,6 +309,42 @@ CLT - Art. 462 § 1º - Em caso de dano causado pelo empregado o desconto será 
      doc.line(pageWidth - margin, cursorY, pageWidth - margin, cursorY + rowH);
      
      cursorY += rowH;
+  }
+  
+  // Footer with Photo if present (Evidence Copy)
+  if (record.facePhoto) {
+      if (cursorY + 45 > pageHeight - margin) {
+          doc.addPage();
+          cursorY = margin;
+      }
+      cursorY += 10;
+      doc.setDrawColor(200);
+      doc.line(margin, cursorY, pageWidth - margin, cursorY);
+      cursorY += 5;
+      
+      doc.setFontSize(8);
+      doc.setTextColor(100);
+      doc.setFont("helvetica", "bold");
+      doc.text("EVIDÊNCIA DE AUDITORIA (BIOMETRIA FACIAL)", margin, cursorY);
+      cursorY += 5;
+      
+      // Draw image larger for audit
+      doc.addImage(record.facePhoto, 'JPEG', margin, cursorY, 30, 40);
+      
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(0);
+      doc.text(`Colaborador: ${record.employeeName}`, margin + 35, cursorY + 5);
+      doc.text(`CPF: ${record.cpf || 'N/A'}`, margin + 35, cursorY + 10);
+      doc.text(`Data do Registro: ${dateStr} às ${timeStr}`, margin + 35, cursorY + 15);
+      doc.text(`ID Único: ${record.id}`, margin + 35, cursorY + 20);
+      
+      doc.setDrawColor(0, 150, 0);
+      doc.setLineWidth(0.5);
+      doc.line(margin + 35, cursorY + 25, margin + 85, cursorY + 25);
+      doc.setTextColor(0, 100, 0);
+      doc.setFontSize(6);
+      doc.text("ASSINATURA DIGITAL VÁLIDA", margin + 35, cursorY + 28);
   }
 
   // Save
