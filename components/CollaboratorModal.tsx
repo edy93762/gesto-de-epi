@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Users, UserPlus, Trash2, FileText, Calendar, Clock, ScanFace, Check, Camera } from 'lucide-react';
+import { X, Users, UserPlus, Trash2, FileText, Calendar, Clock, ScanFace, Check, Camera, Building2 } from 'lucide-react';
 import { Collaborator } from '../types';
 import FaceRecognitionModal from './FaceRecognitionModal';
 
@@ -23,6 +23,7 @@ const CollaboratorModal: React.FC<CollaboratorModalProps> = ({
   const [newCollabShift, setNewCollabShift] = useState('');
   const [newCollabAdmission, setNewCollabAdmission] = useState('');
   const [newCollabFace, setNewCollabFace] = useState<string | null>(null);
+  const [newCollabCompany, setNewCollabCompany] = useState<'Luandre' | 'Randstad'>('Luandre');
   
   // Estado para controlar a edição de foto
   const [editingCollabId, setEditingCollabId] = useState<string | null>(null);
@@ -57,7 +58,8 @@ const CollaboratorModal: React.FC<CollaboratorModalProps> = ({
         shift: newCollabShift || 'Geral',
         admissionDate: newCollabAdmission,
         faceReference: newCollabFace || undefined,
-        lastActivityDate: new Date().toISOString() // Inicializa com a data de criação
+        lastActivityDate: new Date().toISOString(), // Inicializa com a data de criação
+        company: newCollabCompany
     };
 
     onUpdateCollaborators([...collaborators, newCollab]);
@@ -68,6 +70,7 @@ const CollaboratorModal: React.FC<CollaboratorModalProps> = ({
     setNewCollabShift('');
     setNewCollabAdmission('');
     setNewCollabFace(null);
+    setNewCollabCompany('Luandre');
 
     // Se veio de uma foto inicial, talvez queira fechar
     if (initialPhoto) {
@@ -161,6 +164,20 @@ const CollaboratorModal: React.FC<CollaboratorModalProps> = ({
                     className="w-full px-3 py-2 bg-dark-900 border border-dark-700 rounded-lg text-sm text-white focus:ring-1 focus:ring-brand-500 outline-none placeholder:text-zinc-600"
                   />
                   
+                  {/* Agência Selection */}
+                  <div className="relative">
+                      <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                      <select
+                        value={newCollabCompany}
+                        onChange={(e) => setNewCollabCompany(e.target.value as 'Luandre' | 'Randstad')}
+                        className="w-full pl-9 pr-3 py-2 bg-dark-900 border border-dark-700 rounded-lg text-sm text-white focus:ring-1 focus:ring-brand-500 outline-none appearance-none"
+                      >
+                        <option value="Luandre">Agência: Luandre</option>
+                        <option value="Randstad">Agência: Randstad</option>
+                      </select>
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500 text-xs">▼</div>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-3">
                     <div className="relative">
                       <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
@@ -231,6 +248,9 @@ const CollaboratorModal: React.FC<CollaboratorModalProps> = ({
                           </div>
                           <div className="flex items-center gap-3 mt-1">
                             <p className="text-xs text-zinc-500">{collab.shift}</p>
+                            {collab.company && (
+                                <p className="text-xs text-brand-400 font-bold bg-brand-500/10 px-1.5 rounded border border-brand-500/20">{collab.company}</p>
+                            )}
                           </div>
                       </div>
                       <div className="flex items-center gap-1">

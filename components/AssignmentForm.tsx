@@ -160,6 +160,12 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
     setShift(collab.shift || '');
     setEmployeeAdmission(collab.admissionDate || '');
     setSelectedCollabId(collab.id); // Guardar ID para renovação
+    
+    // Puxa a agência automaticamente do cadastro
+    if (collab.company) {
+        setSelectedCompany(collab.company);
+    }
+
     setShowCollabSuggestions(false);
     
     // Check history
@@ -443,6 +449,11 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                                     </div>
                                     <span className="text-xs text-zinc-500 mt-0.5 block">{collab.shift}</span>
                                 </div>
+                                {collab.company && (
+                                    <span className="text-[10px] uppercase font-bold text-zinc-500 bg-dark-950 px-2 py-1 rounded border border-dark-700">
+                                        {collab.company}
+                                    </span>
+                                )}
                             </button>
                         ))
                     ) : (

@@ -27,6 +27,7 @@ export interface Collaborator {
   admissionDate?: string; // Data de admissão
   faceReference?: string; // Foto de referência para reconhecimento facial
   lastActivityDate?: string; // Data da última entrega ou criação (para controle de 40 dias)
+  company?: 'Luandre' | 'Randstad'; // Agência do colaborador
 }
 
 export interface EpiRecord {

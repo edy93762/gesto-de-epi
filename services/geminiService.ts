@@ -1,12 +1,12 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
-const apiKey = process.env.API_KEY || '';
-const genAI = new GoogleGenerativeAI(apiKey);
+import { GoogleGenAI } from "@google/genai";
 
 export const generateSafetyInstructions = async (ppeNames: string[]): Promise<string> => {
   try {
-    // Utilizando o modelo gemini-1.5-flash como padrão eficiente
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    // Initialization with process.env.API_KEY as per guidelines
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+    // Using gemini-2.5-flash for Basic Text Tasks instead of deprecated gemini-1.5-flash
+    const model = "gemini-2.5-flash";
 
     const namesList = ppeNames.join(", ");
     const prompt = `
@@ -17,9 +17,14 @@ export const generateSafetyInstructions = async (ppeNames: string[]): Promise<st
       Seja profissional e técnico, focado em segurança do trabalho no Brasil (Norma NR-6).
     `;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    // Correct usage of generateContent with model name and contents
+    const response = await ai.models.generateContent({
+      model: model,
+      contents: prompt,
+    });
+    
+    // Correctly accessing .text property
+    const text = response.text;
 
     return text || "Instruções de segurança padrão: Utilize o equipamento conforme treinamento e substitua em caso de danos.";
   } catch (error) {
