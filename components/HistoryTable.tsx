@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
-import { Trash2, FileText, Search, Package, Clock, ScanFace, AlertTriangle, CheckCircle2, ChevronRight, Calendar } from 'lucide-react';
+import { Trash2, FileText, Search, Package, Clock, ScanFace, AlertTriangle, CheckCircle2, Calendar } from 'lucide-react';
 import { EpiRecord } from '../types';
 import { generateEpiPdf } from '../utils/pdfGenerator';
 
 interface HistoryTableProps {
   records: EpiRecord[];
   onDelete: (id: string) => void;
+  compact?: boolean; // Nova propriedade para forçar modo cartão
 }
 
-const HistoryTable: React.FC<HistoryTableProps> = ({ records, onDelete }) => {
+const HistoryTable: React.FC<HistoryTableProps> = ({ records, onDelete, compact = false }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'active' | 'expired'>('active');
 
@@ -99,8 +100,9 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ records, onDelete }) => {
            </div>
         ) : (
             <>
-              {/* --- VERSÃO MOBILE (CARDS) --- */}
-              <div className="block sm:hidden p-3 space-y-3">
+              {/* --- VERSÃO MOBILE / COMPACTA (CARDS) --- */}
+              {/* Se compact for true, exibe sempre este bloco. Se false, exibe apenas em mobile */}
+              <div className={`${compact ? 'block' : 'block sm:hidden'} p-3 space-y-3`}>
                 {sortedRecords.map((record) => (
                     <div key={record.id} className="bg-dark-900 border border-dark-800 rounded-xl p-4 shadow-sm hover:border-dark-700 transition-colors">
                         <div className="flex justify-between items-start mb-3">
@@ -154,7 +156,8 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ records, onDelete }) => {
               </div>
 
               {/* --- VERSÃO DESKTOP (TABLE) --- */}
-              <table className="hidden sm:table w-full text-left text-sm text-zinc-400">
+              {/* Se compact for true, esconde a tabela */}
+              <table className={`${compact ? 'hidden' : 'hidden sm:table'} w-full text-left text-sm text-zinc-400`}>
                 <thead className="bg-dark-950 text-zinc-500 font-semibold uppercase text-xs sticky top-0 border-b border-dark-800 z-10">
                   <tr>
                     <th className="px-6 py-4">Data Entrega</th>

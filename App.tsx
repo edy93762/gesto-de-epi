@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ShieldCheck, Users, History, FileCheck, Settings, Package, BarChart3, Loader2, Database, UploadCloud } from 'lucide-react';
+import { ShieldCheck, Users, History, FileCheck, Settings, Package, BarChart3, Loader2, Database, UploadCloud, X } from 'lucide-react';
 import AssignmentForm from './components/AssignmentForm';
 import HistoryTable from './components/HistoryTable';
 import StatsCard from './components/StatsCard';
@@ -31,6 +31,7 @@ const App: React.FC = () => {
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
   const [isCollabOpen, setIsCollabOpen] = useState(false);
   const [isStockOpen, setIsStockOpen] = useState(false);
+  const [isHistorySidebarOpen, setIsHistorySidebarOpen] = useState(false);
 
   // Temporary state for transferring photo from Assignment to Registration
   const [tempRegisterPhoto, setTempRegisterPhoto] = useState<string | null>(null);
@@ -288,7 +289,7 @@ const App: React.FC = () => {
   const uniqueEmployees = new Set(records.map(r => r.employeeName)).size;
 
   return (
-    <div className="min-h-screen bg-dark-950 pb-12 text-zinc-100">
+    <div className="min-h-screen bg-dark-950 pb-12 text-zinc-100 flex flex-col relative overflow-hidden">
       {/* Hidden File Input for Quick Restore */}
       <input 
           type="file" 
@@ -299,14 +300,13 @@ const App: React.FC = () => {
       />
 
       {/* Header */}
-      <header className="bg-dark-900 border-b border-dark-800 sticky top-0 z-30 backdrop-blur-md bg-opacity-95 shadow-sm">
+      <header className="bg-dark-900 border-b border-dark-800 sticky top-0 z-30 backdrop-blur-md bg-opacity-95 shadow-sm shrink-0">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="bg-brand-600 p-1.5 sm:p-2 rounded-lg shadow-lg shadow-brand-900/50">
               <ShieldCheck className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
             
-            {/* Título responsivo: some em telas muito pequenas para dar lugar aos botões */}
             <div className="hidden min-[380px]:block">
               <h1 className="text-lg sm:text-xl font-bold text-white tracking-tight leading-tight">Gestão de EPI</h1>
               <div className="flex items-center gap-1.5 sm:hidden">
@@ -336,6 +336,17 @@ const App: React.FC = () => {
           
           <div className="flex items-center gap-1 sm:gap-2 ml-2">
             
+            {/* NOVO: Botão de Toggle do Histórico */}
+            <button
+                onClick={() => setIsHistorySidebarOpen(true)}
+                className="p-2 sm:px-3 text-zinc-400 hover:text-white hover:bg-dark-800 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium border border-transparent bg-dark-800/50"
+            >
+                <History className="w-5 h-5" />
+                <span className="hidden md:inline">Histórico</span>
+            </button>
+            
+            <div className="h-6 w-px bg-dark-700 mx-0.5 sm:mx-1"></div>
+
             <button 
               onClick={() => {
                 setTempRegisterPhoto(null);
@@ -379,10 +390,11 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
+      {/* Main Content Area */}
+      <main className="flex-1 max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8 w-full relative z-10">
         
         {/* Stats Section */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-8">
           <StatsCard 
             title="Total de Fichas" 
             value={totalAssignments} 
@@ -403,35 +415,68 @@ const App: React.FC = () => {
           />
         </div>
 
-        {/* Dashboard Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          
-          {/* Left Column: Assignment Form (4 cols) */}
-          <div className="lg:col-span-4 flex flex-col gap-6">
-            <AssignmentForm 
-              onAdd={handleAddRecord} 
-              catalog={catalog}
-              collaborators={collaborators}
-              records={records} // Pass records to check history
-              onOpenCatalog={() => setIsCatalogOpen(true)}
-              onOpenCollaborators={() => {
-                  setTempRegisterPhoto(null);
-                  setIsCollabOpen(true);
-              }}
-              onRegisterNew={(photo) => handleRegisterWithPhoto(photo)}
-              onUpdateCollaboratorActivity={handleUpdateCollaboratorActivity}
-              defaultConfig={defaultConfig}
-            />
-          </div>
-
-          {/* Right Column: History Table (8 cols) */}
-          <div className="lg:col-span-8 flex flex-col gap-6 h-full min-h-[500px]">
-             <HistoryTable records={records} onDelete={handleDeleteRecord} />
-          </div>
+        {/* Centralized Assignment Form (Full Focus) */}
+        <div className="flex justify-center">
+            {/* max-w-6xl para acomodar melhor as duas colunas */}
+            <div className="w-full max-w-6xl">
+                 <AssignmentForm 
+                  onAdd={handleAddRecord} 
+                  catalog={catalog}
+                  collaborators={collaborators}
+                  records={records}
+                  onOpenCatalog={() => setIsCatalogOpen(true)}
+                  onOpenCollaborators={() => {
+                      setTempRegisterPhoto(null);
+                      setIsCollabOpen(true);
+                  }}
+                  onRegisterNew={(photo) => handleRegisterWithPhoto(photo)}
+                  onUpdateCollaboratorActivity={handleUpdateCollaboratorActivity}
+                  defaultConfig={defaultConfig}
+                />
+            </div>
         </div>
       </main>
 
-      {/* Separate Modals */}
+      {/* --- HISTORY SIDEBAR --- */}
+      {/* Overlay Backdrop */}
+      {isHistorySidebarOpen && (
+          <div 
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity" 
+            onClick={() => setIsHistorySidebarOpen(false)}
+          />
+      )}
+      
+      {/* Sliding Panel */}
+      <div 
+        className={`fixed inset-y-0 right-0 w-full sm:w-[450px] bg-dark-900 border-l border-dark-800 shadow-2xl transform transition-transform duration-300 ease-in-out z-50 flex flex-col ${
+            isHistorySidebarOpen ? 'translate-x-0' : 'translate-x-full'
+        }`}
+      >
+        <div className="p-4 border-b border-dark-800 flex items-center justify-between bg-dark-950">
+             <div className="flex items-center gap-2">
+                 <History className="w-5 h-5 text-brand-500" />
+                 <h2 className="text-lg font-bold text-white">Histórico de Entregas</h2>
+             </div>
+             <button 
+                onClick={() => setIsHistorySidebarOpen(false)}
+                className="p-2 hover:bg-dark-800 rounded-full text-zinc-400 hover:text-white transition-colors"
+             >
+                 <X className="w-5 h-5" />
+             </button>
+        </div>
+        
+        <div className="flex-1 overflow-hidden p-2 bg-dark-950/30">
+            {/* Passando compact={true} para forçar o modo cartão */}
+            <HistoryTable 
+                records={records} 
+                onDelete={handleDeleteRecord} 
+                compact={true} 
+            />
+        </div>
+      </div>
+
+
+      {/* Modals */}
       <CollaboratorModal
         isOpen={isCollabOpen}
         onClose={() => setIsCollabOpen(false)}

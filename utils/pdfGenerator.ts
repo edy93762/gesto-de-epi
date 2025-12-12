@@ -33,7 +33,7 @@ export const generateEpiPdf = (record: EpiRecord) => {
     doc.setFontSize(26);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(0, 110, 200); // Randstad Blueish
-    doc.text("randstad", margin + 12, cursorY + 14); // Lowercase typical of logo
+    doc.text("Randstad", margin + 12, cursorY + 14); // Capitalized as requested
 
     // Small graphic lines for logo feeling
     doc.setLineWidth(1.5);
