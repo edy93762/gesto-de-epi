@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Save, Clock, Calendar, Settings, Download, Upload, Database, RefreshCw } from 'lucide-react';
-import { AutoDeleteConfig, AutoDeleteUnit, EpiRecord, EpiCatalogItem, Collaborator } from '../types';
+import { X, Save, Settings, Download, Upload, Database, RefreshCw, HardDrive } from 'lucide-react';
+import { AutoDeleteConfig, EpiRecord, EpiCatalogItem, Collaborator } from '../types';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -28,9 +28,31 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 }) => {
   const [localConfig, setLocalConfig] = useState<AutoDeleteConfig>(config);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [storageUsage, setStorageUsage] = useState({ used: 0, percent: 0 });
   
   useEffect(() => {
     setLocalConfig(config);
+    
+    // Calcular uso do armazenamento baseado no tamanho do JSON dos dados
+    if (isOpen) {
+        try {
+            // Estima o tamanho dos dados convertendo para string JSON
+            const dataString = JSON.stringify(fullData);
+            const bytes = new Blob([dataString]).size;
+            const usedKB = bytes / 1024;
+            
+            // O limite do IndexedDB é muito alto (gigabytes), mas para visualização
+            // definimos uma "meta" soft de 10MB para alertar o usuário se o arquivo está ficando grande demais para processar rápido.
+            const softLimitKB = 10240; // 10MB
+            
+            setStorageUsage({
+                used: usedKB,
+                percent: Math.min((usedKB / softLimitKB) * 100, 100)
+            });
+        } catch (e) {
+            console.error("Erro ao calcular armazenamento", e);
+        }
+    }
   }, [config, isOpen, fullData]);
 
   if (!isOpen) return null;
@@ -45,9 +67,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     const blob = new Blob([dataStr], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    const date = new Date().toISOString().split('T')[0];
+    
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('pt-BR').replace(/\//g, '-');
+    const timeStr = now.toLocaleTimeString('pt-BR').replace(/:/g, '-');
+    
     link.href = url;
-    link.download = `backup_luandre_epi_${date}.json`;
+    link.download = `backup_gestao_epi_${dateStr}_${timeStr}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -68,7 +94,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         try {
             const content = e.target?.result as string;
             const parsedData = JSON.parse(content);
-            // Confirmação movida para o App.tsx para controlar melhor o estado global
             onImportData(parsedData);
             onClose();
         } catch (error) {
@@ -98,6 +123,33 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
         <div className="overflow-y-auto p-6 space-y-8 flex-1 custom-scrollbar">
             
+            {/* Storage Usage Section */}
+            <div className="space-y-4">
+                <div className="flex items-center gap-2 text-zinc-200 font-semibold border-b border-dark-800 pb-2">
+                    <HardDrive className="w-5 h-5 text-purple-500" />
+                    <h4>Dados do Sistema (Offline)</h4>
+                </div>
+                
+                <div className="bg-dark-950 p-4 rounded-xl border border-dark-800 space-y-3">
+                    <div className="flex justify-between items-end">
+                        <span className="text-sm text-zinc-400">Tamanho da Base de Dados</span>
+                        <div className="text-right">
+                            <span className="text-lg font-bold text-white">{storageUsage.used.toFixed(2)} KB</span>
+                            <span className="text-xs text-zinc-600 block">Dados salvos no navegador</span>
+                        </div>
+                    </div>
+                    <div className="w-full bg-dark-800 rounded-full h-2.5 overflow-hidden">
+                        <div 
+                            className={`h-full rounded-full transition-all duration-500 ${storageUsage.percent > 90 ? 'bg-red-500' : 'bg-purple-500'}`}
+                            style={{ width: `${Math.max(storageUsage.percent, 2)}%` }}
+                        ></div>
+                    </div>
+                    <p className="text-xs text-zinc-600 mt-1">
+                        O sistema usa IndexedDB. A barra acima é apenas uma referência de volume de dados (Meta: 10MB).
+                    </p>
+                </div>
+            </div>
+
             {/* Backup Section */}
             <div className="space-y-4">
                 <div className="flex items-center gap-2 text-zinc-200 font-semibold border-b border-dark-800 pb-2">
@@ -154,61 +206,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                         className="hidden" 
                         accept=".json"
                     />
-                </div>
-            </div>
-
-            {/* Validity Section */}
-            <div className="space-y-6">
-                <div className="flex items-center gap-2 text-zinc-200 font-semibold border-b border-dark-800 pb-2">
-                    <Clock className="w-5 h-5 text-brand-500" />
-                    <h4>Controle de Validade</h4>
-                </div>
-                
-                <div className="flex items-center justify-between p-4 bg-dark-950 rounded-lg border border-dark-800">
-                    <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${localConfig.defaultEnabled ? 'bg-blue-500/10 text-blue-500' : 'bg-dark-800 text-zinc-600'}`}>
-                        <Calendar className="w-5 h-5" />
-                    </div>
-                    <div className="flex flex-col">
-                        <span className="font-medium text-zinc-300">Definir Validade Padrão</span>
-                        <span className="text-[10px] text-zinc-500">Itens vencidos irão para a aba "Vencidos"</span>
-                    </div>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                    <input 
-                        type="checkbox" 
-                        className="sr-only peer" 
-                        checked={localConfig.defaultEnabled}
-                        onChange={(e) => setLocalConfig({...localConfig, defaultEnabled: e.target.checked})}
-                    />
-                    <div className="w-11 h-6 bg-dark-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-600"></div>
-                    </label>
-                </div>
-
-                <div className={`space-y-4 transition-all duration-300 ${localConfig.defaultEnabled ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
-                    <div>
-                        <label className="block text-sm font-medium text-zinc-400 mb-2">
-                        Tempo de validade da entrega:
-                        </label>
-                        <div className="flex gap-4">
-                        <input 
-                            type="number" 
-                            min="1"
-                            value={localConfig.defaultValue}
-                            onChange={(e) => setLocalConfig({...localConfig, defaultValue: parseInt(e.target.value) || 1})}
-                            className="flex-1 px-4 py-2 bg-dark-950 border border-dark-700 rounded-lg focus:ring-1 focus:ring-brand-500 outline-none text-white"
-                        />
-                        <select 
-                            value={localConfig.defaultUnit}
-                            onChange={(e) => setLocalConfig({...localConfig, defaultUnit: e.target.value as AutoDeleteUnit})}
-                            className="flex-1 px-4 py-2 bg-dark-950 border border-dark-700 rounded-lg focus:ring-1 focus:ring-brand-500 outline-none text-white"
-                        >
-                            <option value="minutes">Minutos</option>
-                            <option value="days">Dias</option>
-                            <option value="months">Meses</option>
-                        </select>
-                        </div>
-                    </div>
                 </div>
             </div>
               

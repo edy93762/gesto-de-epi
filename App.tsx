@@ -38,6 +38,38 @@ const App: React.FC = () => {
   // Reference for invisible file input
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // --- FUNÇÃO DE LIMPEZA DE COLABORADORES ---
+  const runCollaboratorCleanup = (collabs: Collaborator[]): Collaborator[] => {
+    const now = new Date();
+    const fortyDaysMs = 40 * 24 * 60 * 60 * 1000; // 40 dias em milissegundos
+    const nineMonthsMs = 9 * 30 * 24 * 60 * 60 * 1000; // 9 meses (aprox) em milissegundos
+
+    const activeCollabs = collabs.filter(c => {
+        // Regra 1: Tempo Máximo de Contrato (9 meses a partir da Admissão)
+        if (c.admissionDate) {
+            const admissionTime = new Date(c.admissionDate).getTime();
+            if ((now.getTime() - admissionTime) > nineMonthsMs) {
+                console.log(`Colaborador ${c.name} removido: Contrato excedeu 9 meses.`);
+                return false;
+            }
+        }
+
+        // Regra 2: Inatividade (40 dias sem pegar EPI)
+        // Se lastActivityDate não existir, usa a data de admissão, se não existir, assume hoje (para novos)
+        const lastActivityStr = c.lastActivityDate || c.admissionDate || new Date().toISOString();
+        const lastActivityTime = new Date(lastActivityStr).getTime();
+
+        if ((now.getTime() - lastActivityTime) > fortyDaysMs) {
+            console.log(`Colaborador ${c.name} removido: Inativo por mais de 40 dias.`);
+            return false;
+        }
+
+        return true;
+    });
+
+    return activeCollabs;
+  };
+
   // --- INITIAL DATA LOADING (IndexedDB) ---
   useEffect(() => {
     const loadData = async () => {
@@ -60,7 +92,10 @@ const App: React.FC = () => {
 
         setRecords(processedRecords);
         setCatalog(loadedCatalog);
-        setCollaborators(loadedCollabs);
+        
+        // EXECUTA LIMPEZA AUTOMÁTICA AO INICIAR
+        const cleanedCollabs = runCollaboratorCleanup(loadedCollabs);
+        setCollaborators(cleanedCollabs);
         
         if (loadedConfig) {
           // Se já existe config salva, usa ela, mas garante que autoBackup exista
@@ -129,10 +164,14 @@ const App: React.FC = () => {
     const blob = new Blob([dataStr], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    const date = new Date().toISOString().split('T')[0];
-    const time = new Date().toTimeString().split(' ')[0].replace(/:/g, '-');
+    
+    // FORMATO DE DATA E HORA
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('pt-BR').replace(/\//g, '-');
+    const timeStr = now.toLocaleTimeString('pt-BR').replace(/:/g, '-');
+
     link.href = url;
-    link.download = `backup_auto_luandre_${date}_${time}.json`;
+    link.download = `backup_gestao_epi_${dateStr}_${timeStr}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -162,6 +201,15 @@ const App: React.FC = () => {
             downloadBackupData(updatedRecords, updatedCatalog, collaborators, defaultConfig);
         }, 500);
     }
+  };
+
+  // Função chamada pelo formulário para renovar o "visto" do colaborador
+  const handleUpdateCollaboratorActivity = (collabId: string) => {
+    setCollaborators(prev => prev.map(c => 
+        c.id === collabId 
+        ? { ...c, lastActivityDate: new Date().toISOString() } // Renova para 40 dias
+        : c
+    ));
   };
 
   const handleDeleteRecord = (id: string) => {
@@ -251,40 +299,49 @@ const App: React.FC = () => {
       />
 
       {/* Header */}
-      <header className="bg-dark-900 border-b border-dark-800 sticky top-0 z-10 backdrop-blur-md bg-opacity-90">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="bg-brand-600 p-2 rounded-lg shadow-lg shadow-brand-900/50">
-              <ShieldCheck className="w-6 h-6 text-white" />
+      <header className="bg-dark-900 border-b border-dark-800 sticky top-0 z-30 backdrop-blur-md bg-opacity-95 shadow-sm">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="bg-brand-600 p-1.5 sm:p-2 rounded-lg shadow-lg shadow-brand-900/50">
+              <ShieldCheck className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
-            <h1 className="text-xl font-bold text-white tracking-tight hidden sm:block">Gestão EPI Luandre</h1>
-            <h1 className="text-xl font-bold text-white tracking-tight sm:hidden">Luandre EPI</h1>
+            
+            {/* Título responsivo: some em telas muito pequenas para dar lugar aos botões */}
+            <div className="hidden min-[380px]:block">
+              <h1 className="text-lg sm:text-xl font-bold text-white tracking-tight leading-tight">Gestão de EPI</h1>
+              <div className="flex items-center gap-1.5 sm:hidden">
+                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                 <span className="text-[10px] text-zinc-400">Online</span>
+              </div>
+            </div>
             
             {/* Database Indicator & Quick Restore */}
-            <div className="hidden md:flex items-center gap-2 ml-4">
-              <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-emerald-400 text-xs font-medium">
+            <div className="flex items-center gap-2 ml-1">
+              <div className="hidden md:flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-emerald-400 text-xs font-medium">
                 <Database className="w-3 h-3" />
                 <span>Offline</span>
               </div>
               
               <button 
                 onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-1.5 px-3 py-1 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 hover:border-amber-500/40 rounded-full text-amber-400 text-xs font-medium transition-colors"
+                className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 hover:border-amber-500/40 rounded-full text-amber-400 text-xs font-medium transition-colors"
                 title="Restaurar Backup (Upload)"
               >
                 <UploadCloud className="w-3 h-3" />
-                <span>Restaurar</span>
+                <span className="hidden sm:inline">Restaurar</span>
+                <span className="sm:hidden">Rest.</span>
               </button>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          
+          <div className="flex items-center gap-1 sm:gap-2 ml-2">
             
             <button 
               onClick={() => {
                 setTempRegisterPhoto(null);
                 setIsCollabOpen(true);
               }}
-              className="p-2 px-3 text-zinc-400 hover:text-white hover:bg-dark-800 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium border border-transparent"
+              className="p-2 sm:px-3 text-zinc-400 hover:text-white hover:bg-dark-800 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium border border-transparent"
               title="Gerenciar Colaboradores"
             >
               <Users className="w-5 h-5" />
@@ -293,23 +350,23 @@ const App: React.FC = () => {
 
             <button 
               onClick={() => setIsCatalogOpen(true)}
-              className="p-2 px-3 text-zinc-400 hover:text-amber-400 hover:bg-dark-800 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium border border-transparent"
+              className="p-2 sm:px-3 text-zinc-400 hover:text-amber-400 hover:bg-dark-800 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium border border-transparent"
               title="Catálogo de EPIs"
             >
               <Package className="w-5 h-5" />
-              <span className="hidden md:inline">Catálogo de EPI</span>
+              <span className="hidden md:inline">Catálogo</span>
             </button>
 
             <button 
               onClick={() => setIsStockOpen(true)}
-              className="p-2 px-3 text-zinc-400 hover:text-purple-400 hover:bg-dark-800 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium border border-transparent"
+              className="p-2 sm:px-3 text-zinc-400 hover:text-purple-400 hover:bg-dark-800 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium border border-transparent"
               title="Monitorar Estoque"
             >
               <BarChart3 className="w-5 h-5" />
               <span className="hidden md:inline">Estoque</span>
             </button>
 
-            <div className="h-6 w-px bg-dark-700 mx-1"></div>
+            <div className="h-6 w-px bg-dark-700 mx-0.5 sm:mx-1"></div>
 
             <button 
               onClick={() => setIsSettingsOpen(true)}
@@ -322,10 +379,10 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
         
         {/* Stats Section */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
           <StatsCard 
             title="Total de Fichas" 
             value={totalAssignments} 
@@ -362,6 +419,7 @@ const App: React.FC = () => {
                   setIsCollabOpen(true);
               }}
               onRegisterNew={(photo) => handleRegisterWithPhoto(photo)}
+              onUpdateCollaboratorActivity={handleUpdateCollaboratorActivity}
               defaultConfig={defaultConfig}
             />
           </div>

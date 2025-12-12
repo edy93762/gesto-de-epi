@@ -1,10 +1,13 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const apiKey = process.env.API_KEY || '';
+const genAI = new GoogleGenerativeAI(apiKey);
 
 export const generateSafetyInstructions = async (ppeNames: string[]): Promise<string> => {
   try {
-    const model = "gemini-2.5-flash";
+    // Utilizando o modelo gemini-1.5-flash como padrão eficiente
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
     const namesList = ppeNames.join(", ");
     const prompt = `
       Crie instruções concisas e diretas de segurança para o uso conjunto dos seguintes EPIs: ${namesList}.
@@ -14,12 +17,11 @@ export const generateSafetyInstructions = async (ppeNames: string[]): Promise<st
       Seja profissional e técnico, focado em segurança do trabalho no Brasil (Norma NR-6).
     `;
 
-    const response = await ai.models.generateContent({
-      model: model,
-      contents: prompt,
-    });
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
 
-    return response.text || "Instruções de segurança padrão: Utilize o equipamento conforme treinamento e substitua em caso de danos.";
+    return text || "Instruções de segurança padrão: Utilize o equipamento conforme treinamento e substitua em caso de danos.";
   } catch (error) {
     console.error("Erro ao gerar instruções com Gemini:", error);
     return "Nota: Verifique o manual do fabricante para instruções detalhadas de segurança.";

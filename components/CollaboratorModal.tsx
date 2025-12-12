@@ -56,7 +56,8 @@ const CollaboratorModal: React.FC<CollaboratorModalProps> = ({
         cpf: newCollabCpf,
         shift: newCollabShift || 'Geral',
         admissionDate: newCollabAdmission,
-        faceReference: newCollabFace || undefined
+        faceReference: newCollabFace || undefined,
+        lastActivityDate: new Date().toISOString() // Inicializa com a data de criação
     };
 
     onUpdateCollaborators([...collaborators, newCollab]);
@@ -83,6 +84,12 @@ const CollaboratorModal: React.FC<CollaboratorModalProps> = ({
   const handleUpdatePhoto = (id: string) => {
     setEditingCollabId(id);
     setIsFaceModalOpen(true);
+  };
+
+  const handleCpfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      // Remove tudo que não for dígito
+      const val = e.target.value.replace(/\D/g, '');
+      setNewCollabCpf(val);
   };
 
   return (
@@ -114,9 +121,10 @@ const CollaboratorModal: React.FC<CollaboratorModalProps> = ({
                       <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
                       <input
                           type="text"
-                          placeholder="CPF"
+                          placeholder="CPF (Números)"
                           value={newCollabCpf}
-                          onChange={(e) => setNewCollabCpf(e.target.value)}
+                          onChange={handleCpfChange}
+                          maxLength={11}
                           className="w-full pl-9 pr-3 py-2 bg-dark-900 border border-dark-700 rounded-lg text-sm text-white focus:ring-1 focus:ring-brand-500 outline-none placeholder:text-zinc-600"
                       />
                     </div>
@@ -152,7 +160,7 @@ const CollaboratorModal: React.FC<CollaboratorModalProps> = ({
                     onChange={(e) => setNewCollabName(e.target.value)}
                     className="w-full px-3 py-2 bg-dark-900 border border-dark-700 rounded-lg text-sm text-white focus:ring-1 focus:ring-brand-500 outline-none placeholder:text-zinc-600"
                   />
-
+                  
                   <div className="grid grid-cols-2 gap-3">
                     <div className="relative">
                       <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />

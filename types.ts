@@ -26,20 +26,22 @@ export interface Collaborator {
   shift?: string;
   admissionDate?: string; // Data de admissão
   faceReference?: string; // Foto de referência para reconhecimento facial
+  lastActivityDate?: string; // Data da última entrega ou criação (para controle de 40 dias)
 }
 
 export interface EpiRecord {
   id: string;
+  company: 'Luandre' | 'Randstad'; // Nova propriedade
   employeeName: string;
-  cpf?: string; // Armazena CPF/Matrícula no registro
-  admissionDate?: string; // Armazena Data de Admissão no registro
+  cpf?: string; 
+  admissionDate?: string; 
   shift: string;
   items: EpiItem[]; 
   date: string;
   safetyInstructions?: string;
   signed: boolean;
-  autoDeleteAt?: string; // Data de expiração específica para este registro
-  facePhoto?: string; // Foto de reconhecimento facial (base64)
+  autoDeleteAt?: string; 
+  facePhoto?: string; 
 }
 
 export interface DashboardStats {
@@ -54,5 +56,5 @@ export interface AutoDeleteConfig {
   defaultEnabled: boolean;
   defaultValue: number;
   defaultUnit: AutoDeleteUnit;
-  autoBackup: boolean; // Nova configuração para download automático
+  autoBackup: boolean; 
 }
