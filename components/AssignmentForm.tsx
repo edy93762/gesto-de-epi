@@ -280,22 +280,22 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
   return (
     <>
       <div className="bg-dark-900 rounded-xl shadow-lg border border-dark-800 overflow-hidden flex flex-col h-full">
-        {/* Header */}
-        <div className="bg-dark-900 px-6 py-4 border-b border-dark-800 flex items-center justify-between">
+        {/* Header - Optimized for Mobile */}
+        <div className="bg-dark-900 px-4 py-3 sm:px-6 sm:py-4 border-b border-dark-800 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center space-x-3">
-            <div className="p-1.5 bg-brand-900/50 border border-brand-800/50 rounded-lg">
+            <div className="p-1.5 bg-brand-900/50 border border-brand-800/50 rounded-lg shrink-0">
               <HardHat className="w-5 h-5 text-brand-400" />
             </div>
-            <h2 className="text-lg font-bold text-white tracking-wide">Nova Entrega</h2>
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wide">Nova Entrega</h2>
           </div>
           
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 ml-auto">
             {/* Seletor de Empresa */}
-            <div className="relative group">
+            <div className="relative group max-w-[120px] sm:max-w-none">
                 <select
                     value={selectedCompany}
                     onChange={(e) => setSelectedCompany(e.target.value as 'Luandre' | 'Randstad')}
-                    className="appearance-none bg-dark-950 border border-dark-700 text-zinc-300 text-xs font-bold py-2 pl-3 pr-8 rounded-lg focus:outline-none focus:border-brand-500 cursor-pointer hover:bg-dark-800 transition-colors uppercase tracking-wider"
+                    className="w-full appearance-none bg-dark-950 border border-dark-700 text-zinc-300 text-[10px] sm:text-xs font-bold py-2 pl-3 pr-7 sm:pr-8 rounded-lg focus:outline-none focus:border-brand-500 cursor-pointer hover:bg-dark-800 transition-colors uppercase tracking-wider"
                 >
                     <option value="Luandre">Luandre</option>
                     <option value="Randstad">Randstad</option>
@@ -308,7 +308,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
             <button
                 type="button"
                 onClick={handleClearAll}
-                className="text-zinc-500 hover:text-red-400 transition-colors p-2 rounded-lg hover:bg-dark-800"
+                className="text-zinc-500 hover:text-red-400 transition-colors p-2 rounded-lg hover:bg-dark-800 shrink-0"
                 title="Limpar formulário"
             >
                 <Eraser className="w-4 h-4" />
@@ -316,9 +316,9 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
           </div>
         </div>
 
-        <div className="p-6 flex-1 overflow-y-auto custom-scrollbar">
+        <div className="p-4 sm:p-6 flex-1 overflow-y-auto custom-scrollbar">
           
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 h-full">
             {/* --- COLUNA ESQUERDA: COLABORADOR --- */}
             <div className="space-y-4">
                 <div className="flex items-center space-x-2 mb-2">
@@ -330,14 +330,14 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                 <div className="mb-4">
                   <label className="block text-xs font-medium text-zinc-500 mb-1.5 flex justify-between items-center">
                     <span>{employeeName ? "Validação Biométrica" : "Identificação Facial"}</span>
-                    {!facePhoto && <span className="text-brand-400 text-[10px] font-bold uppercase tracking-wider bg-brand-500/10 px-1.5 py-0.5 rounded animate-pulse">Recomendado: Iniciar por aqui</span>}
+                    {!facePhoto && <span className="text-brand-400 text-[10px] font-bold uppercase tracking-wider bg-brand-500/10 px-1.5 py-0.5 rounded animate-pulse">Recomendado</span>}
                   </label>
                   
                   {!facePhoto ? (
                       <button
                         type="button"
                         onClick={() => setIsFaceModalOpen(true)}
-                        className="w-full border-2 border-dashed border-dark-700 hover:border-brand-500/50 bg-dark-950/30 hover:bg-brand-500/5 rounded-xl p-6 flex flex-col items-center justify-center gap-3 transition-all group h-[200px]"
+                        className="w-full border-2 border-dashed border-dark-700 hover:border-brand-500/50 bg-dark-950/30 hover:bg-brand-500/5 rounded-xl p-4 sm:p-6 flex flex-col items-center justify-center gap-3 transition-all group h-auto min-h-[160px] sm:min-h-[200px]"
                       >
                         <div className="bg-dark-800 p-4 rounded-full group-hover:bg-brand-500/10 group-hover:text-brand-400 transition-colors relative">
                             <ScanFace className="w-8 h-8 text-zinc-400 group-hover:text-brand-400" />
@@ -352,7 +352,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                         </div>
                       </button>
                   ) : (
-                      <div className="flex items-center gap-3 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl relative overflow-hidden h-[100px]">
+                      <div className="flex items-center gap-3 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl relative overflow-hidden h-auto min-h-[100px]">
                           {isRecognizing && (
                               <div className="absolute inset-0 bg-dark-900/80 z-10 flex items-center justify-center backdrop-blur-sm">
                                   <div className="flex flex-col items-center gap-2">
@@ -371,7 +371,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                           <div className="flex-1 min-w-0">
                               <p className="text-sm font-bold text-emerald-400">Biometria Capturada</p>
                               <p className="text-xs text-emerald-500/70 truncate">
-                                  {employeeName ? `Vinculado a: ${employeeName}` : 'Rosto registrado. Selecione o nome abaixo.'}
+                                  {employeeName ? `Vinculado a: ${employeeName}` : 'Rosto registrado.'}
                               </p>
                           </div>
                           
@@ -380,7 +380,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                                 setFacePhoto(null);
                                 handleClearCollaborator();
                             }}
-                            className="text-zinc-500 hover:text-red-400 p-2 hover:bg-red-500/10 rounded-lg transition-colors"
+                            className="text-zinc-500 hover:text-red-400 p-2 hover:bg-red-500/10 rounded-lg transition-colors shrink-0"
                             title="Remover foto"
                           >
                               <Trash className="w-4 h-4" />
@@ -569,26 +569,26 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                             </div>
                             <ul className="divide-y divide-dark-800">
                             {items.map((item, index) => (
-                                <li key={item.id} className="px-4 py-3 flex items-center justify-between hover:bg-dark-800/50 transition-colors">
-                                <div className="flex items-center gap-3">
-                                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-dark-800 text-zinc-400 text-xs font-bold border border-dark-700">
+                                <li key={item.id} className="px-3 py-3 sm:px-4 flex items-center justify-between hover:bg-dark-800/50 transition-colors">
+                                <div className="flex items-center gap-3 overflow-hidden">
+                                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-dark-800 text-zinc-400 text-xs font-bold border border-dark-700 shrink-0">
                                     {index + 1}
                                     </span>
-                                    <div>
+                                    <div className="min-w-0">
                                     <div className="flex items-center gap-2">
                                         {item.code && (
-                                            <span className="text-xs font-mono bg-dark-800 border border-dark-700 px-1.5 rounded text-zinc-400">
+                                            <span className="text-xs font-mono bg-dark-800 border border-dark-700 px-1.5 rounded text-zinc-400 shrink-0">
                                             {item.code}
                                             </span>
                                         )}
-                                        <span className="text-sm font-medium text-zinc-200">{item.name}</span>
+                                        <span className="text-sm font-medium text-zinc-200 truncate">{item.name}</span>
                                     </div>
                                     {item.ca && <span className="text-xs text-zinc-600">CA: {item.ca}</span>}
                                     </div>
                                 </div>
                                 <button 
                                     onClick={() => handleRemoveItem(item.id)}
-                                    className="text-zinc-600 hover:text-red-400 hover:bg-red-500/10 p-2 rounded-lg transition-all"
+                                    className="text-zinc-600 hover:text-red-400 hover:bg-red-500/10 p-2 rounded-lg transition-all shrink-0"
                                     title="Remover item"
                                 >
                                     <Trash className="w-4 h-4" />
@@ -605,14 +605,14 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                     )}
                 </div>
 
-                {/* Expiration Configuration at Bottom Right */}
+                {/* Expiration Configuration at Bottom Right - Optimized for Mobile */}
                 <div className="bg-dark-950/50 p-4 rounded-xl border border-dark-800 mt-auto">
-                    <div className="flex items-center justify-between mb-3">
+                    <div className="flex flex-col sm:flex-row gap-3 sm:gap-0 sm:items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
                             <CalendarClock className="w-4 h-4 text-brand-500" />
                             <h3 className="text-sm font-bold text-zinc-300">Validade</h3>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 self-end sm:self-auto">
                             <label className="text-xs text-white mr-2 cursor-pointer select-none" htmlFor="autoDelete">Exclusão Auto</label>
                             <input 
                                 id="autoDelete"
@@ -625,13 +625,13 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                     </div>
                     
                     {enableExpiration && (
-                        <div className="flex items-center gap-3 animate-in fade-in slide-in-from-top-1 duration-200">
+                        <div className="flex items-center gap-3 animate-in fade-in slide-in-from-top-1 duration-200 justify-end">
                             <input 
                                 type="number" 
                                 min="1"
                                 value={expireValue}
                                 onChange={(e) => setExpireValue(parseInt(e.target.value) || 1)}
-                                className="w-20 px-3 py-1.5 text-sm bg-dark-900 border border-dark-700 rounded text-white focus:ring-1 focus:ring-brand-500 outline-none"
+                                className="w-16 sm:w-20 px-3 py-1.5 text-sm bg-dark-900 border border-dark-700 rounded text-white focus:ring-1 focus:ring-brand-500 outline-none"
                             />
                             <select 
                                 value={expireUnit}
@@ -650,7 +650,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
         </div>
 
         {/* Footer Submit */}
-        <div className="p-6 bg-dark-900 border-t border-dark-800">
+        <div className="p-4 sm:p-6 bg-dark-900 border-t border-dark-800">
           <button
             onClick={handleSubmit}
             disabled={items.length === 0 || (!employeeName && !collabSearchQuery) || !facePhoto}

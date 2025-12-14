@@ -311,7 +311,7 @@ const App: React.FC = () => {
               <h1 className="text-lg sm:text-xl font-bold text-white tracking-tight leading-tight">Gestão de EPI</h1>
               <div className="flex items-center gap-1.5 sm:hidden">
                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                 <span className="text-[10px] text-zinc-400">Online</span>
+                 <span className="text-[10px] text-zinc-400">Conectado</span>
               </div>
             </div>
             
@@ -319,13 +319,13 @@ const App: React.FC = () => {
             <div className="flex items-center gap-2 ml-1">
               <div className="hidden md:flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-emerald-400 text-xs font-medium">
                 <Database className="w-3 h-3" />
-                <span>Offline</span>
+                <span>Banco Local</span>
               </div>
               
               <button 
                 onClick={() => fileInputRef.current?.click()}
                 className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 hover:border-amber-500/40 rounded-full text-amber-400 text-xs font-medium transition-colors"
-                title="Restaurar Backup (Upload)"
+                title="Restaurar Backup (Arquivo)"
               >
                 <UploadCloud className="w-3 h-3" />
                 <span className="hidden sm:inline">Restaurar</span>
