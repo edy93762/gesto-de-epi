@@ -391,30 +391,8 @@ const App: React.FC = () => {
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8 w-full relative z-10">
+      <main className="flex-1 max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8 w-full relative z-10 flex flex-col gap-6">
         
-        {/* Stats Section */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-8">
-          <StatsCard 
-            title="Total de Fichas" 
-            value={totalAssignments} 
-            icon={FileCheck} 
-            color="bg-emerald-500" 
-          />
-          <StatsCard 
-            title="Colaboradores Ativos" 
-            value={uniqueEmployees} 
-            icon={Users} 
-            color="bg-blue-500" 
-          />
-          <StatsCard 
-            title="Itens Entregues (Total)" 
-            value={totalItems} 
-            icon={History} 
-            color="bg-amber-500" 
-          />
-        </div>
-
         {/* Centralized Assignment Form (Full Focus) */}
         <div className="flex justify-center">
             {/* max-w-6xl para acomodar melhor as duas colunas */}
@@ -434,6 +412,28 @@ const App: React.FC = () => {
                   defaultConfig={defaultConfig}
                 />
             </div>
+        </div>
+
+        {/* Stats Section moved below form */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mt-4 max-w-6xl mx-auto w-full">
+          <StatsCard 
+            title="Total de Fichas" 
+            value={totalAssignments} 
+            icon={FileCheck} 
+            color="bg-emerald-500" 
+          />
+          <StatsCard 
+            title="Colaboradores Ativos" 
+            value={uniqueEmployees} 
+            icon={Users} 
+            color="bg-blue-500" 
+          />
+          <StatsCard 
+            title="Itens Entregues (Total)" 
+            value={totalItems} 
+            icon={History} 
+            color="bg-amber-500" 
+          />
         </div>
       </main>
 
@@ -483,6 +483,7 @@ const App: React.FC = () => {
         collaborators={collaborators}
         onUpdateCollaborators={setCollaborators}
         initialPhoto={tempRegisterPhoto}
+        records={records} // ADDED HERE
       />
 
       <CatalogModal 

@@ -1,5 +1,5 @@
 import jsPDF from 'jspdf';
-import { EpiRecord } from '../types';
+import { EpiRecord, Collaborator } from '../types';
 
 export const generateEpiPdf = (record: EpiRecord) => {
   const doc = new jsPDF('p', 'mm', 'a4'); // Portrait, Millimeters, A4
@@ -334,4 +334,89 @@ CLT - Art. 462 § 1º - Em caso de dano causado pelo empregado o desconto será 
   // Footer Signature Line if needed, or rely on table
   
   doc.save(`${record.company}_EPI_${record.employeeName.replace(/\s+/g, '_')}_${dateStr.replace(/\//g, '-')}.pdf`);
+};
+
+// --- NOVO: GERADOR DE HISTÓRICO CONSOLIDADO POR COLABORADOR ---
+export const generateCollaboratorHistoryPdf = (collab: Collaborator, records: EpiRecord[]) => {
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 10;
+    let cursorY = 15;
+
+    // Header Simples
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text("HISTÓRICO CONSOLIDADO DE EPI", pageWidth / 2, cursorY, { align: 'center' });
+    cursorY += 8;
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Colaborador: ${collab.name}`, margin, cursorY);
+    cursorY += 5;
+    doc.text(`CPF: ${collab.cpf || 'N/A'}`, margin, cursorY);
+    cursorY += 5;
+    doc.text(`Turno: ${collab.shift || 'N/A'}`, margin, cursorY);
+    doc.text(`Empresa: ${collab.company || 'N/A'}`, margin + 80, cursorY);
+    cursorY += 10;
+
+    // Table Header
+    const colWidths = [30, 80, 20, 30, 30]; // Data, Item, Quant, CA, Status
+    const headers = ["DATA", "ITEM / EPI", "QTD", "C.A.", "VALIDAÇÃO"];
+    
+    doc.setFillColor(230, 230, 230);
+    doc.rect(margin, cursorY, pageWidth - (margin * 2), 8, 'F');
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+
+    let currentX = margin;
+    headers.forEach((h, i) => {
+        doc.text(h, currentX + 2, cursorY + 5);
+        currentX += colWidths[i];
+    });
+
+    cursorY += 8;
+    doc.setFont("helvetica", "normal");
+
+    // Loop Records
+    records.forEach(rec => {
+        const dateStr = new Date(rec.date).toLocaleDateString('pt-BR');
+        
+        rec.items.forEach(item => {
+            if (cursorY > 280) {
+                doc.addPage();
+                cursorY = 15;
+            }
+
+            currentX = margin;
+            
+            // Date
+            doc.text(dateStr, currentX + 2, cursorY + 5);
+            currentX += colWidths[0];
+
+            // Item Name (Truncate)
+            let itemName = item.name;
+            if (itemName.length > 40) itemName = itemName.substring(0, 37) + "...";
+            doc.text(itemName, currentX + 2, cursorY + 5);
+            currentX += colWidths[1];
+
+            // Qtd
+            doc.text("1", currentX + 2, cursorY + 5);
+            currentX += colWidths[2];
+
+            // CA
+            doc.text(item.ca || "-", currentX + 2, cursorY + 5);
+            currentX += colWidths[3];
+
+            // Validation (Biometria)
+            doc.text(rec.facePhoto ? "Biometria OK" : "Manual", currentX + 2, cursorY + 5);
+
+            // Line
+            doc.setDrawColor(200);
+            doc.line(margin, cursorY + 8, pageWidth - margin, cursorY + 8);
+
+            cursorY += 8;
+        });
+    });
+
+    doc.save(`Historico_${collab.name.replace(/\s+/g, '_')}.pdf`);
 };
