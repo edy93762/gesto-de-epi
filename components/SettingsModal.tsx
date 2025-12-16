@@ -18,54 +18,72 @@ interface SettingsModalProps {
 }
 
 const GOOGLE_SCRIPT_CODE = `function doPost(e) {
+  // CONFIGURAÇÃO DE SEGURANÇA PARA EVITAR ERROS CONCORRENTES
   var lock = LockService.getScriptLock();
-  lock.tryLock(10000);
+  lock.tryLock(30000); // Espera até 30s
 
   try {
     var doc = SpreadsheetApp.getActiveSpreadsheet();
     var sheet = doc.getActiveSheet();
-    var data = JSON.parse(e.postData.contents);
+    var rawData = e.postData.contents;
+    var data = JSON.parse(rawData);
 
-    // 1. Configurar Cabeçalho (se vazio)
+    // 1. Configurar Cabeçalho (se a planilha estiver vazia)
     if (sheet.getLastRow() === 0) {
-      sheet.appendRow(["Data", "Hora", "Empresa", "Colaborador", "CPF", "Itens", "Assinado", "Foto", "Link Ficha PDF"]);
+      sheet.appendRow(["Data", "Hora", "Empresa", "Colaborador", "CPF", "Itens", "Status Assinatura", "Foto Comprovante", "Link Ficha PDF"]);
+      // Formatar cabeçalho
+      sheet.getRange(1, 1, 1, 9).setFontWeight("bold").setBackground("#f3f3f3");
     }
 
-    // 2. Processar Foto (Salvar no Drive e Criar Fórmula de Imagem)
-    var fotoFormula = "Sem Foto";
-    var pdfFormula = "Sem PDF";
-    
-    // NOME PASTA
+    // NOME DA PASTA NO GOOGLE DRIVE
     var FOLDER_NAME = "EPI_Comprovantes_Fotos";
+    var folder;
     var folders = DriveApp.getFoldersByName(FOLDER_NAME);
-    var folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(FOLDER_NAME);
+    if (folders.hasNext()) {
+      folder = folders.next();
+    } else {
+      folder = DriveApp.createFolder(FOLDER_NAME);
+    }
 
-    // TRATAMENTO DA FOTO
-    if (data.facePhoto && data.facePhoto.includes("base64")) {
+    // --- PROCESSAMENTO DA FOTO (BIOMETRIA) ---
+    var fotoFormula = "Sem Foto";
+    var statusAssinatura = "Pendente";
+
+    if (data.facePhoto && data.facePhoto.length > 100) {
       try {
-        var base64 = data.facePhoto.split(",")[1];
-        var decoded = Utilities.base64Decode(base64);
+        // Limpa o cabeçalho do base64 (data:image/jpeg;base64,...)
+        var base64Image = data.facePhoto.split(",")[1] || data.facePhoto;
+        // Remove quebras de linha que podem corromper o arquivo
+        base64Image = base64Image.replace(/\\s/g, '');
+        
+        var decodedImage = Utilities.base64Decode(base64Image);
         var safeName = (data.employeeName || "Funcionario").replace(/[^a-zA-Z0-9]/g, "_");
-        var fileName = safeName + "_" + new Date().getTime() + ".jpg";
-        var blob = Utilities.newBlob(decoded, "image/jpeg", fileName);
+        var fileName = "FOTO_" + safeName + "_" + new Date().getTime() + ".jpg";
+        var blob = Utilities.newBlob(decodedImage, "image/jpeg", fileName);
         
         var file = folder.createFile(blob);
         file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
         
         var fileId = file.getId();
+        // URL direta para imagem
         var imgUrl = "https://drive.google.com/uc?export=view&id=" + fileId;
         
+        // Fórmula IMAGE do Excel/Sheets
         fotoFormula = '=HYPERLINK("' + file.getUrl() + '"; IMAGE("' + imgUrl + '"; 1))';
+        statusAssinatura = "Assinado Digitalmente";
       } catch (err) {
         fotoFormula = "Erro Foto: " + err.toString();
       }
     }
 
-    // 3. TRATAMENTO DO PDF
-    if (data.pdfFile && data.pdfFile.includes("base64")) {
+    // --- PROCESSAMENTO DO PDF ---
+    var pdfFormula = "Não Gerado";
+    
+    if (data.pdfFile && data.pdfFile.length > 100) {
       try {
-         // Salvar PDF na mesma pasta ou criar subpasta se preferir
-         var base64Pdf = data.pdfFile.split(",")[1];
+         var base64Pdf = data.pdfFile.split(",")[1] || data.pdfFile;
+         base64Pdf = base64Pdf.replace(/\\s/g, '');
+
          var decodedPdf = Utilities.base64Decode(base64Pdf);
          var safeNamePdf = (data.employeeName || "Funcionario").replace(/[^a-zA-Z0-9]/g, "_");
          var fileNamePdf = "FICHA_" + safeNamePdf + "_" + new Date().getTime() + ".pdf";
@@ -80,29 +98,35 @@ const GOOGLE_SCRIPT_CODE = `function doPost(e) {
       }
     }
 
-    // 4. Formatar Dados
+    // --- FORMATAR DADOS PARA A LINHA ---
     var dataHora = new Date(data.date);
-    var itensTexto = data.items.map(function(i) { 
-      return i.name + (i.ca ? " (CA: " + i.ca + ")" : ""); 
-    }).join(", ");
+    var itensTexto = "";
+    if (data.items && Array.isArray(data.items)) {
+        itensTexto = data.items.map(function(i) { 
+          return i.name + (i.ca ? " (CA: " + i.ca + ")" : ""); 
+        }).join(", ");
+    }
 
-    // 5. Adicionar Linha
+    // ADICIONAR LINHA
     sheet.appendRow([
       Utilities.formatDate(dataHora, Session.getScriptTimeZone(), "dd/MM/yyyy"),
       Utilities.formatDate(dataHora, Session.getScriptTimeZone(), "HH:mm:ss"),
-      data.company,
+      data.company || "N/A",
       data.employeeName,
-      data.cpf || "",
+      "'" + (data.cpf || ""), // Força formato texto para CPF não perder zeros
       itensTexto,
-      data.facePhoto ? "Sim" : "Não",
+      statusAssinatura, // "Assinado Digitalmente"
       fotoFormula,
       pdfFormula
     ]);
     
-    // 6. Ajustar Altura da Linha
+    // AJUSTAR ALTURA DA LINHA PARA CABER A FOTO
     if (data.facePhoto) {
-        sheet.setRowHeight(sheet.getLastRow(), 90);
+        sheet.setRowHeight(sheet.getLastRow(), 80);
     }
+    
+    // Alinhar verticalmente ao centro
+    sheet.getRange(sheet.getLastRow(), 1, 1, 9).setVerticalAlignment("middle");
 
     return ContentService.createTextOutput(JSON.stringify({"result":"success"})).setMimeType(ContentService.MimeType.JSON);
   } catch (e) {
@@ -324,7 +348,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 {showScriptHelp && (
                     <div className="bg-dark-950 border border-dark-700 rounded-xl p-4 space-y-4 animate-in slide-in-from-top-2">
                         <div className="space-y-2 text-sm text-zinc-300">
-                            <p><strong className="text-white">ATENÇÃO:</strong> Código atualizado para enviar o PDF para a planilha.</p>
+                            <p><strong className="text-white">ATENÇÃO:</strong> Código atualizado! Se não atualizar, as fotos não aparecem.</p>
                             <hr className="border-dark-800" />
                             <p><strong className="text-white">Passo 1:</strong> Vá em <strong>Extensões</strong> {'>'} <strong>Apps Script</strong> na sua planilha.</p>
                             <p><strong className="text-white">Passo 2:</strong> Substitua todo o código pelo código abaixo:</p>
@@ -345,7 +369,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
                         <div className="space-y-2 text-sm text-zinc-300">
                             <p><strong className="text-white">Passo 3:</strong> Clique em <strong>Implantar (Deploy)</strong> {'>'} <strong>Gerenciar Implantações</strong>.</p>
-                            <p><strong className="text-white">Passo 4:</strong> Clique no ícone de lápis, selecione "Nova Versão" e clique em Implantar.</p>
+                            <p><strong className="text-white">Passo 4:</strong> Clique no ícone de lápis (Editar) {'>'} Versão: <strong>Nova Versão</strong> {'>'} Implantar.</p>
+                            <p className="text-amber-500 text-xs">Se não criar Nova Versão, o código antigo continua rodando!</p>
                         </div>
                     </div>
                 )}
