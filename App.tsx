@@ -11,7 +11,7 @@ import { EpiRecord, AutoDeleteConfig, EpiCatalogItem, Collaborator } from './typ
 import * as db from './utils/db';
 
 // URL Fixa solicitada pelo usuário
-const FIXED_SHEETS_URL = "https://script.google.com/macros/s/AKfycbyckS0bXVgs6qI6LL_vnsxfa9lp8y75DrHNCM6ctUyH-JHeEAcM8XCGXuQvLKoFpYWt/exec";
+const FIXED_SHEETS_URL = "https://script.google.com/macros/s/AKfycbwVKdL1EIpazcFMZs341pHBi3P-EJdIdVcZugU3-QomexGnCXyD0Rn8fI4pqfgO-nQ-/exec";
 
 const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
@@ -67,11 +67,12 @@ const App: React.FC = () => {
         setCatalog(loadedCatalog);
         setCollaborators(loadedCollabs);
         
+        // CORREÇÃO CRÍTICA: Força a URL fixa mesmo se já existir configuração salva antiga
         if (loadedConfig) {
           setDefaultConfig((prev) => ({ 
             ...prev, 
             ...loadedConfig,
-            googleSheetsUrl: loadedConfig.googleSheetsUrl || FIXED_SHEETS_URL
+            googleSheetsUrl: FIXED_SHEETS_URL // Sobrescreve URL antiga com a nova fixa
           }));
         } else {
           const initialConfig = { 
@@ -191,7 +192,7 @@ const App: React.FC = () => {
             setDefaultConfig({ 
                 ...newConfig, 
                 autoBackup: true,
-                googleSheetsUrl: newConfig.googleSheetsUrl || FIXED_SHEETS_URL
+                googleSheetsUrl: FIXED_SHEETS_URL // Mantém a URL fixa mesmo ao importar
             }); 
             
             alert('Backup restaurado com sucesso! Os dados antigos foram substituídos.');

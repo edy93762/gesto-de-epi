@@ -17,8 +17,7 @@ interface SettingsModalProps {
   onImportData: (data: any) => void;
 }
 
-// CORREÇÃO: As barras invertidas foram dobradas (\\n, \\r) para que apareçam corretamente como \n e \r
-// quando o usuário copiar o código. Sem isso, o JS interpreta como quebra de linha real, quebrando o regex.
+// CORREÇÃO: Script simplificado e limpo para evitar erros de sintaxe ao copiar e colar
 const GOOGLE_SCRIPT_CODE = `function doPost(e) {
   var lock = LockService.getScriptLock();
   lock.tryLock(45000); 
@@ -26,15 +25,16 @@ const GOOGLE_SCRIPT_CODE = `function doPost(e) {
   try {
     var doc = SpreadsheetApp.getActiveSpreadsheet();
     var sheet = doc.getActiveSheet();
-    var rawData = e.postData.contents;
     
-    // Tratamento robusto para parsing (aceita text/plain e json)
+    // Tratamento de Dados
+    var rawData = e.postData.contents;
     var data;
     try {
-        data = JSON.parse(rawData);
+      data = JSON.parse(rawData);
     } catch(err) {
-        // Se falhar o parse direto, tenta limpar caracteres estranhos (newlines)
-        data = JSON.parse(rawData.replace(/\\n/g, "").replace(/\\r/g, ""));
+      // Limpeza de quebras de linha caso o JSON venha mal formatado
+      var clean = rawData.toString().replace(/\\r\\n/g, "").replace(/\\n/g, "").replace(/\\r/g, "");
+      data = JSON.parse(clean);
     }
 
     // 1. CRIAR CABEÇALHO (Se vazio)
@@ -55,19 +55,20 @@ const GOOGLE_SCRIPT_CODE = `function doPost(e) {
       folder = DriveApp.createFolder(FOLDER_NAME);
     }
     
-    // TENTA LIBERAR PERMISSÃO DA PASTA
-    var permissaoPastaOk = true;
+    // Permissão da Pasta
+    var folderOk = true;
     try {
       folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
     } catch(e) {
-      permissaoPastaOk = false; // Bloqueio corporativo ou erro
+      folderOk = false;
     }
 
-    // --- PROCESSAR FOTO ---
+    // Variaveis padrao
     var linkFoto = "-";
     var visualizacaoFoto = "-";
     var statusAssinatura = "Pendente";
 
+    // --- PROCESSAR FOTO ---
     if (data.facePhoto && data.facePhoto.length > 50) {
       try {
         var base64Image = data.facePhoto;
@@ -79,31 +80,26 @@ const GOOGLE_SCRIPT_CODE = `function doPost(e) {
         var safeName = (data.employeeName || "Func").replace(/[^a-zA-Z0-9]/g, "_");
         var fileName = "FOTO_" + safeName + "_" + Utilities.formatDate(new Date(), "GMT-3", "yyyyMMdd_HHmmss") + ".jpg";
         var blob = Utilities.newBlob(decodedImage, "image/jpeg", fileName);
-        
         var file = folder.createFile(blob);
         
-        // TENTA LIBERAR PERMISSÃO DO ARQUIVO
         try {
            file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
         } catch (e) {
-           permissaoPastaOk = false;
+           folderOk = false;
         }
         
         linkFoto = file.getUrl();
         
-        if (permissaoPastaOk) {
-            // Se tem permissão, usa a fórmula IMAGE
-            // Usando link de thumbnail que é mais rápido e confiável
+        if (folderOk) {
             var imgUrl = "https://drive.google.com/thumbnail?id=" + file.getId() + "&sz=w1000";
             visualizacaoFoto = '=IMAGE("' + imgUrl + '"; 1)';
         } else {
-            // Se não tem permissão, avisa o usuário na planilha
-            visualizacaoFoto = "⚠️ ERRO: Drive Privado (Verifique Permissões)";
+            visualizacaoFoto = "ERRO: Pasta Privada";
         }
         
         statusAssinatura = "Assinado Digitalmente";
       } catch (err) {
-        linkFoto = "Erro ao salvar: " + err.toString();
+        linkFoto = "Erro: " + err.toString();
       }
     }
 
@@ -115,12 +111,10 @@ const GOOGLE_SCRIPT_CODE = `function doPost(e) {
          if (base64Pdf.indexOf("base64,") > -1) {
             base64Pdf = base64Pdf.split("base64,")[1];
          }
-         
          var decodedPdf = Utilities.base64Decode(base64Pdf);
          var safeNamePdf = (data.employeeName || "Func").replace(/[^a-zA-Z0-9]/g, "_");
          var fileNamePdf = "FICHA_" + safeNamePdf + "_" + Utilities.formatDate(new Date(), "GMT-3", "yyyyMMdd_HHmmss") + ".pdf";
          var blobPdf = Utilities.newBlob(decodedPdf, "application/pdf", fileNamePdf);
-         
          var filePdf = folder.createFile(blobPdf);
          try {
             filePdf.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
@@ -132,7 +126,7 @@ const GOOGLE_SCRIPT_CODE = `function doPost(e) {
       }
     }
 
-    // --- FORMATAR ITENS ---
+    // --- FORMATAR DADOS ---
     var dataHora = new Date(data.date);
     var itensTexto = "";
     if (data.items && Array.isArray(data.items)) {
@@ -150,18 +144,19 @@ const GOOGLE_SCRIPT_CODE = `function doPost(e) {
       statusAssinatura,
       linkFoto, 
       linkPdf,  
-      visualizacaoFoto // Se tiver erro de permissão, vai aparecer escrito aqui
+      visualizacaoFoto
     ]);
     
-    // Ajustar Altura da Linha
+    // Ajustar Visual
     var lastRow = sheet.getLastRow();
     if (data.facePhoto) {
         sheet.setRowHeight(lastRow, 90);
     }
     sheet.getRange(lastRow, 1, 1, 10).setVerticalAlignment("middle");
-    sheet.getRange(lastRow, 10).setWrap(true); // Quebra texto se der erro
+    sheet.getRange(lastRow, 10).setWrap(true);
 
     return ContentService.createTextOutput(JSON.stringify({"result":"success"})).setMimeType(ContentService.MimeType.JSON);
+
   } catch (e) {
     return ContentService.createTextOutput(JSON.stringify({"result":"error", "error": e.toString()})).setMimeType(ContentService.MimeType.JSON);
   } finally {
@@ -170,7 +165,7 @@ const GOOGLE_SCRIPT_CODE = `function doPost(e) {
 }`;
 
 // URL Fixa
-const FIXED_SHEETS_URL = "https://script.google.com/macros/s/AKfycbyckS0bXVgs6qI6LL_vnsxfa9lp8y75DrHNCM6ctUyH-JHeEAcM8XCGXuQvLKoFpYWt/exec";
+const FIXED_SHEETS_URL = "https://script.google.com/macros/s/AKfycbwVKdL1EIpazcFMZs341pHBi3P-EJdIdVcZugU3-QomexGnCXyD0Rn8fI4pqfgO-nQ-/exec";
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ 
   isOpen, 
