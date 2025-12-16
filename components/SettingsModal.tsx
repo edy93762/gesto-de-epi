@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Save, Settings, Download, Upload, Database, RefreshCw, HardDrive } from 'lucide-react';
+import { X, Save, Settings, Download, Upload, Database, RefreshCw, HardDrive, Sheet, Link } from 'lucide-react';
 import { AutoDeleteConfig, EpiRecord, EpiCatalogItem, Collaborator } from '../types';
 
 interface SettingsModalProps {
@@ -147,6 +147,36 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     <p className="text-xs text-zinc-600 mt-1">
                         O sistema usa IndexedDB. A barra acima é apenas uma referência de volume de dados (Meta: 10MB).
                     </p>
+                </div>
+            </div>
+
+            {/* Integração Google Sheets */}
+            <div className="space-y-4">
+                <div className="flex items-center gap-2 text-zinc-200 font-semibold border-b border-dark-800 pb-2">
+                    <Sheet className="w-5 h-5 text-green-500" />
+                    <h4>Integração Google Planilhas</h4>
+                </div>
+
+                <div className="bg-dark-950 p-4 rounded-xl border border-dark-800 space-y-3">
+                     <label className="block text-sm font-medium text-zinc-400 mb-1">
+                         URL do App da Web (Google Apps Script)
+                     </label>
+                     <div className="relative">
+                         <div className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600">
+                             <Link className="w-4 h-4" />
+                         </div>
+                         <input 
+                            type="text"
+                            placeholder="https://script.google.com/macros/s/..."
+                            value={localConfig.googleSheetsUrl || ''}
+                            onChange={(e) => setLocalConfig({...localConfig, googleSheetsUrl: e.target.value})}
+                            className="w-full pl-10 pr-3 py-2 bg-dark-900 border border-dark-700 rounded-lg text-sm text-white focus:ring-1 focus:ring-green-500 outline-none"
+                         />
+                     </div>
+                     <p className="text-[10px] text-zinc-500 leading-tight">
+                         Insira a URL gerada ao implantar o script como "App da Web" no Google Apps Script. 
+                         Isso permitirá que as entregas sejam salvas automaticamente em sua planilha.
+                     </p>
                 </div>
             </div>
 

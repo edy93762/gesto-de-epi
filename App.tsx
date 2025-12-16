@@ -18,11 +18,8 @@ const App: React.FC = () => {
   const [catalog, setCatalog] = useState<EpiCatalogItem[]>([]);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   
-  // Configuração Padrão agora com autoBackup ATIVO (true)
+  // Configuração Padrão agora apenas com autoBackup
   const [defaultConfig, setDefaultConfig] = useState<AutoDeleteConfig>({ 
-    defaultEnabled: false, 
-    defaultValue: 30, 
-    defaultUnit: 'days',
     autoBackup: true // Sempre ativo por padrão
   });
 
@@ -38,38 +35,6 @@ const App: React.FC = () => {
 
   // Reference for invisible file input
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // --- FUNÇÃO DE LIMPEZA DE COLABORADORES ---
-  const runCollaboratorCleanup = (collabs: Collaborator[]): Collaborator[] => {
-    const now = new Date();
-    const fortyDaysMs = 40 * 24 * 60 * 60 * 1000; // 40 dias em milissegundos
-    const nineMonthsMs = 9 * 30 * 24 * 60 * 60 * 1000; // 9 meses (aprox) em milissegundos
-
-    const activeCollabs = collabs.filter(c => {
-        // Regra 1: Tempo Máximo de Contrato (9 meses a partir da Admissão)
-        if (c.admissionDate) {
-            const admissionTime = new Date(c.admissionDate).getTime();
-            if ((now.getTime() - admissionTime) > nineMonthsMs) {
-                console.log(`Colaborador ${c.name} removido: Contrato excedeu 9 meses.`);
-                return false;
-            }
-        }
-
-        // Regra 2: Inatividade (40 dias sem pegar EPI)
-        // Se lastActivityDate não existir, usa a data de admissão, se não existir, assume hoje (para novos)
-        const lastActivityStr = c.lastActivityDate || c.admissionDate || new Date().toISOString();
-        const lastActivityTime = new Date(lastActivityStr).getTime();
-
-        if ((now.getTime() - lastActivityTime) > fortyDaysMs) {
-            console.log(`Colaborador ${c.name} removido: Inativo por mais de 40 dias.`);
-            return false;
-        }
-
-        return true;
-    });
-
-    return activeCollabs;
-  };
 
   // --- INITIAL DATA LOADING (IndexedDB) ---
   useEffect(() => {
@@ -93,20 +58,14 @@ const App: React.FC = () => {
 
         setRecords(processedRecords);
         setCatalog(loadedCatalog);
-        
-        // EXECUTA LIMPEZA AUTOMÁTICA AO INICIAR
-        const cleanedCollabs = runCollaboratorCleanup(loadedCollabs);
-        setCollaborators(cleanedCollabs);
+        setCollaborators(loadedCollabs);
         
         if (loadedConfig) {
-          // Se já existe config salva, usa ela, mas garante que autoBackup exista
+          // Se já existe config salva, usa ela
           setDefaultConfig((prev) => ({ ...prev, ...loadedConfig }));
         } else {
           // Se não existe config (primeira vez), força o padrão com autoBackup: true e salva
           const initialConfig = { 
-            defaultEnabled: false, 
-            defaultValue: 30, 
-            defaultUnit: 'days' as const,
             autoBackup: true 
           };
           setDefaultConfig(initialConfig);
@@ -208,7 +167,7 @@ const App: React.FC = () => {
   const handleUpdateCollaboratorActivity = (collabId: string) => {
     setCollaborators(prev => prev.map(c => 
         c.id === collabId 
-        ? { ...c, lastActivityDate: new Date().toISOString() } // Renova para 40 dias
+        ? { ...c, lastActivityDate: new Date().toISOString() } 
         : c
     ));
   };
@@ -234,7 +193,6 @@ const App: React.FC = () => {
             if (data.collaborators) setCollaborators(data.collaborators);
             
             // Ao importar, mantém o autoBackup ligado se o usuário quiser, ou usa o do arquivo se preferir.
-            // Aqui vamos forçar manter o que está no arquivo, mas se não tiver, padrão true.
             const newConfig = data.config || defaultConfig;
             setDefaultConfig({ ...newConfig, autoBackup: true }); // Força autoBackup ativo após restore
             
@@ -483,7 +441,7 @@ const App: React.FC = () => {
         collaborators={collaborators}
         onUpdateCollaborators={setCollaborators}
         initialPhoto={tempRegisterPhoto}
-        records={records} // ADDED HERE
+        records={records} 
       />
 
       <CatalogModal 

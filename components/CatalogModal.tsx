@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Package, Plus, Barcode, Trash2, Box, Pencil, Check } from 'lucide-react';
+import { X, Package, Plus, Barcode, Trash2, Box, Pencil, Check, Search } from 'lucide-react';
 import { EpiCatalogItem } from '../types';
 
 interface CatalogModalProps {
@@ -19,6 +19,7 @@ const CatalogModal: React.FC<CatalogModalProps> = ({
   const [newItemName, setNewItemName] = useState('');
   const [newItemStock, setNewItemStock] = useState<string>('0');
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   if (!isOpen) return null;
 
@@ -84,6 +85,12 @@ const CatalogModal: React.FC<CatalogModalProps> = ({
         if (editingId === id) resetForm();
     }
   };
+
+  // Filter catalog based on search query
+  const filteredCatalog = catalog.filter(item => 
+    item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    item.code.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
@@ -165,51 +172,64 @@ const CatalogModal: React.FC<CatalogModalProps> = ({
             </div>
             </div>
 
-            <div className="space-y-2">
-            <h4 className="text-sm font-bold text-zinc-400 flex items-center justify-between">
-                <span>Itens Cadastrados</span>
-                <span className="text-xs font-normal text-zinc-600 bg-dark-800 px-2 py-0.5 rounded-full">{catalog.length}</span>
-            </h4>
-            
-            {catalog.length === 0 ? (
-                <div className="text-center py-8 bg-dark-950/50 rounded-lg border border-dashed border-dark-800">
-                <Package className="w-8 h-8 text-dark-700 mx-auto mb-2" />
-                <p className="text-sm text-zinc-600">Nenhum item no catálogo.</p>
+            <div className="space-y-3">
+                <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                    <input
+                        type="text"
+                        placeholder="Filtrar por nome ou código..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2 bg-dark-900 border border-dark-700 rounded-lg text-sm text-white focus:ring-1 focus:ring-brand-500 outline-none placeholder:text-zinc-600 transition-all"
+                    />
                 </div>
-            ) : (
-                <div className="border border-dark-800 rounded-lg divide-y divide-dark-800 max-h-[300px] overflow-y-auto custom-scrollbar">
-                {catalog.map(item => (
-                    <div key={item.id} className={`p-3 flex items-center justify-between hover:bg-dark-800/50 transition-colors ${editingId === item.id ? 'bg-brand-900/10' : ''}`}>
-                    <div className="flex-1 mr-4">
-                        <div className="flex items-center gap-2">
-                            <span className="text-xs font-mono font-bold bg-dark-800 border border-dark-700 px-1.5 py-0.5 rounded text-zinc-400">{item.code}</span>
-                            <p className="text-sm font-medium text-zinc-200 truncate">{item.name}</p>
+
+                <h4 className="text-sm font-bold text-zinc-400 flex items-center justify-between">
+                    <span>Itens Cadastrados</span>
+                    <span className="text-xs font-normal text-zinc-600 bg-dark-800 px-2 py-0.5 rounded-full">{filteredCatalog.length}</span>
+                </h4>
+                
+                {filteredCatalog.length === 0 ? (
+                    <div className="text-center py-8 bg-dark-950/50 rounded-lg border border-dashed border-dark-800">
+                    <Package className="w-8 h-8 text-dark-700 mx-auto mb-2" />
+                    <p className="text-sm text-zinc-600">
+                        {searchQuery ? 'Nenhum item encontrado.' : 'Nenhum item no catálogo.'}
+                    </p>
+                    </div>
+                ) : (
+                    <div className="border border-dark-800 rounded-lg divide-y divide-dark-800 max-h-[300px] overflow-y-auto custom-scrollbar">
+                    {filteredCatalog.map(item => (
+                        <div key={item.id} className={`p-3 flex items-center justify-between hover:bg-dark-800/50 transition-colors ${editingId === item.id ? 'bg-brand-900/10' : ''}`}>
+                        <div className="flex-1 mr-4">
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs font-mono font-bold bg-dark-800 border border-dark-700 px-1.5 py-0.5 rounded text-zinc-400">{item.code}</span>
+                                <p className="text-sm font-medium text-zinc-200 truncate">{item.name}</p>
+                            </div>
+                            <div className="flex items-center gap-1 mt-1">
+                                <Box className="w-3 h-3 text-zinc-600" />
+                                <span className="text-xs text-zinc-500">Estoque: <strong className={item.stock === 0 ? "text-red-500" : "text-zinc-400"}>{item.stock}</strong></span>
+                            </div>
                         </div>
-                        <div className="flex items-center gap-1 mt-1">
-                            <Box className="w-3 h-3 text-zinc-600" />
-                            <span className="text-xs text-zinc-500">Estoque: <strong className={item.stock === 0 ? "text-red-500" : "text-zinc-400"}>{item.stock}</strong></span>
+                        <div className="flex items-center gap-1">
+                            <button 
+                                onClick={() => handleEditClick(item)}
+                                className="text-zinc-500 hover:text-brand-400 p-2 hover:bg-brand-500/10 rounded-lg transition-colors"
+                                title="Editar"
+                            >
+                                <Pencil className="w-4 h-4" />
+                            </button>
+                            <button 
+                                onClick={() => handleRemoveCatalogItem(item.id)}
+                                className="text-zinc-500 hover:text-red-400 p-2 hover:bg-red-500/10 rounded-lg transition-colors"
+                                title="Excluir"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                            </button>
                         </div>
+                        </div>
+                    ))}
                     </div>
-                    <div className="flex items-center gap-1">
-                        <button 
-                            onClick={() => handleEditClick(item)}
-                            className="text-zinc-500 hover:text-brand-400 p-2 hover:bg-brand-500/10 rounded-lg transition-colors"
-                            title="Editar"
-                        >
-                            <Pencil className="w-4 h-4" />
-                        </button>
-                        <button 
-                            onClick={() => handleRemoveCatalogItem(item.id)}
-                            className="text-zinc-500 hover:text-red-400 p-2 hover:bg-red-500/10 rounded-lg transition-colors"
-                            title="Excluir"
-                        >
-                            <Trash2 className="w-4 h-4" />
-                        </button>
-                    </div>
-                    </div>
-                ))}
-                </div>
-            )}
+                )}
             </div>
         </div>
       </div>

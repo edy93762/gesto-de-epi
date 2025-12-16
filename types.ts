@@ -26,13 +26,13 @@ export interface Collaborator {
   shift?: string;
   admissionDate?: string; // Data de admissão
   faceReference?: string; // Foto de referência para reconhecimento facial
-  lastActivityDate?: string; // Data da última entrega ou criação (para controle de 40 dias)
-  company?: 'Luandre' | 'Randstad'; // Agência do colaborador
+  lastActivityDate?: string; // Data da última entrega ou criação
+  company?: 'Luandre' | 'Randstad' | 'Shopee'; // Agência do colaborador
 }
 
 export interface EpiRecord {
   id: string;
-  company: 'Luandre' | 'Randstad'; // Nova propriedade
+  company: 'Luandre' | 'Randstad' | 'Shopee'; // Nova propriedade
   employeeName: string;
   cpf?: string; 
   admissionDate?: string; 
@@ -41,7 +41,6 @@ export interface EpiRecord {
   date: string;
   safetyInstructions?: string;
   signed: boolean;
-  autoDeleteAt?: string; 
   facePhoto?: string; 
 }
 
@@ -51,11 +50,7 @@ export interface DashboardStats {
   recentActivity: number;
 }
 
-export type AutoDeleteUnit = 'minutes' | 'days' | 'months';
-
 export interface AutoDeleteConfig {
-  defaultEnabled: boolean;
-  defaultValue: number;
-  defaultUnit: AutoDeleteUnit;
-  autoBackup: boolean; 
+  autoBackup: boolean;
+  googleSheetsUrl?: string; // URL do Web App do Google Apps Script
 }

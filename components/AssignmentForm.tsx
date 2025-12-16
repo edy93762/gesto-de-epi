@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { HardHat, Eraser, User, ListPlus, Trash, Save, Search, CalendarClock, Plus, AlertCircle, ScanFace, Check, X, UserPlus, History, Building2, Loader2 } from 'lucide-react';
-import { EpiRecord, EpiItem, EpiCatalogItem, AutoDeleteConfig, AutoDeleteUnit, Collaborator } from '../types';
+import { HardHat, Eraser, User, ListPlus, Trash, Save, Search, Plus, AlertCircle, ScanFace, Check, X, UserPlus, History, Building2, Loader2, Send } from 'lucide-react';
+import { EpiRecord, EpiItem, EpiCatalogItem, AutoDeleteConfig, Collaborator } from '../types';
 import FaceRecognitionModal from './FaceRecognitionModal';
 import { generateEpiPdf } from '../utils/pdfGenerator';
 
@@ -28,7 +28,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
   defaultConfig 
 }) => {
   // Company Selection
-  const [selectedCompany, setSelectedCompany] = useState<'Luandre' | 'Randstad'>('Luandre');
+  const [selectedCompany, setSelectedCompany] = useState<'Luandre' | 'Randstad' | 'Shopee'>('Luandre');
 
   // Header Data
   const [employeeName, setEmployeeName] = useState('');
@@ -53,21 +53,13 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
   // List of added items
   const [items, setItems] = useState<EpiItem[]>([]);
 
-  // Expiration Logic
-  const [enableExpiration, setEnableExpiration] = useState(defaultConfig.defaultEnabled);
-  const [expireValue, setExpireValue] = useState(defaultConfig.defaultValue);
-  const [expireUnit, setExpireUnit] = useState<AutoDeleteUnit>(defaultConfig.defaultUnit);
-
   // Face Recognition Data
   const [isFaceModalOpen, setIsFaceModalOpen] = useState(false);
   const [facePhoto, setFacePhoto] = useState<string | null>(null);
   const [isRecognizing, setIsRecognizing] = useState(false);
 
-  useEffect(() => {
-    setEnableExpiration(defaultConfig.defaultEnabled);
-    setExpireValue(defaultConfig.defaultValue);
-    setExpireUnit(defaultConfig.defaultUnit);
-  }, [defaultConfig]);
+  // Loading state for submission (PDF + Sheets)
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Handle Item Search Filtering
   useEffect(() => {
@@ -189,22 +181,34 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
     setSearchQuery('');
     setFacePhoto(null);
     setIsRecognizing(false);
+    setIsSubmitting(false);
   };
 
-  const calculateAutoDeleteDate = (): string | undefined => {
-    if (!enableExpiration) return undefined;
-    
-    const date = new Date();
-    switch (expireUnit) {
-      case 'minutes': date.setMinutes(date.getMinutes() + expireValue); break;
-      case 'days': date.setDate(date.getDate() + expireValue); break;
-      case 'months': date.setMonth(date.getMonth() + expireValue); break;
+  // --- SYNC TO GOOGLE SHEETS ---
+  const syncToGoogleSheets = async (record: EpiRecord) => {
+    if (!defaultConfig.googleSheetsUrl) return;
+
+    try {
+        // Envio usando no-cors (Opaque) pois Apps Script redireciona
+        await fetch(defaultConfig.googleSheetsUrl, {
+            method: 'POST',
+            mode: 'no-cors', 
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(record)
+        });
+        console.log('Dados enviados para Planilha Google');
+    } catch (e) {
+        console.error('Erro ao enviar para Google Sheets:', e);
+        // Não alertamos o usuário para não interromper o fluxo se a net cair
     }
-    return date.toISOString();
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+
     const finalName = employeeName || collabSearchQuery;
     
     // Validation check updated to include facePhoto
@@ -213,7 +217,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
       return;
     }
 
-    const deleteDate = calculateAutoDeleteDate();
+    setIsSubmitting(true);
 
     const newRecord: EpiRecord = {
       id: Math.random().toString(36).substr(2, 9) + Date.now().toString(36),
@@ -225,21 +229,32 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
       items: items, 
       date: new Date().toISOString(),
       signed: false,
-      autoDeleteAt: deleteDate,
       facePhoto: facePhoto || undefined
     };
 
-    onAdd(newRecord);
-    
-    // RENOVAR ATIVIDADE DO COLABORADOR (40 dias)
-    if (selectedCollabId) {
-        onUpdateCollaboratorActivity(selectedCollabId);
+    try {
+        // 1. Save Local
+        onAdd(newRecord);
+        
+        // 2. Renew Activity
+        if (selectedCollabId) {
+            onUpdateCollaboratorActivity(selectedCollabId);
+        }
+
+        // 3. Generate PDF
+        generateEpiPdf(newRecord);
+
+        // 4. Sync to Sheets (Async, don't block clearing form too long)
+        if (navigator.onLine && defaultConfig.googleSheetsUrl) {
+           await syncToGoogleSheets(newRecord);
+        }
+
+        handleClearAll();
+    } catch (error) {
+        console.error("Erro no registro:", error);
+        alert("Ocorreu um erro ao salvar o registro.");
+        setIsSubmitting(false);
     }
-
-    // DOWNLOAD AUTOMÁTICO DO PDF
-    generateEpiPdf(newRecord);
-
-    handleClearAll();
   };
 
   const handleFaceCapture = (photo: string) => {
@@ -252,28 +267,39 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
         
         // Simulação de delay de processamento (1.5s)
         setTimeout(() => {
-            // Tenta encontrar um colaborador na base (simulação simples: pega o primeiro ou busca match se possível)
-            // Em produção, aqui enviaria a 'photo' para API de reconhecimento
+            // Tenta encontrar um colaborador na base
             let found = null;
             
-            // Simulação: se tiver colaboradores, "reconhece" um aleatório para demonstração ou tenta buscar pelo rosto se tivesse hash
-            // Para o app funcionar de forma prática no teste:
+            // Simulação simples
             if (collaborators.length > 0) {
-                 // Aqui vamos simular que reconheceu o primeiro da lista ou algum aleatório
-                 // Se quiser testar o fluxo de "não encontrado", altere a lógica
                  const randomIndex = Math.floor(Math.random() * collaborators.length);
                  found = collaborators[randomIndex];
             }
 
             if (found) {
                 handleSelectCollaborator(found);
-                // Feedback visual poderia ser adicionado aqui
-            } else {
-                // Se não reconheceu
-                // Não faz nada, usuário terá que digitar ou cadastrar
             }
             setIsRecognizing(false);
         }, 1500);
+    }
+  };
+
+  // Helper para cor do botão baseado na empresa
+  const getSubmitButtonClass = () => {
+    const isDisabled = items.length === 0 || (!employeeName && !collabSearchQuery) || !facePhoto || isSubmitting;
+    
+    if (isDisabled) {
+        return 'bg-dark-700 text-zinc-500 cursor-not-allowed';
+    }
+
+    switch (selectedCompany) {
+        case 'Shopee':
+            return 'bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 text-white shadow-orange-900/20';
+        case 'Randstad':
+            return 'bg-gradient-to-r from-sky-600 to-sky-500 hover:from-sky-500 hover:to-sky-400 text-white shadow-sky-900/20';
+        case 'Luandre':
+        default:
+            return 'bg-gradient-to-r from-brand-700 to-brand-600 hover:from-brand-600 hover:to-brand-500 text-white shadow-brand-900/20';
     }
   };
 
@@ -294,11 +320,12 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
             <div className="relative group max-w-[120px] sm:max-w-none">
                 <select
                     value={selectedCompany}
-                    onChange={(e) => setSelectedCompany(e.target.value as 'Luandre' | 'Randstad')}
+                    onChange={(e) => setSelectedCompany(e.target.value as 'Luandre' | 'Randstad' | 'Shopee')}
                     className="w-full appearance-none bg-dark-950 border border-dark-700 text-zinc-300 text-[10px] sm:text-xs font-bold py-2 pl-3 pr-7 sm:pr-8 rounded-lg focus:outline-none focus:border-brand-500 cursor-pointer hover:bg-dark-800 transition-colors uppercase tracking-wider"
                 >
                     <option value="Luandre">Luandre</option>
                     <option value="Randstad">Randstad</option>
+                    <option value="Shopee">Shopee Xpress</option>
                 </select>
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">
                     <Building2 className="w-3 h-3" />
@@ -445,7 +472,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                                     </div>
                                     {collab.company && (
                                         <span className="text-[10px] uppercase font-bold text-zinc-500 bg-dark-950 px-2 py-1 rounded border border-dark-700">
-                                            {collab.company}
+                                            {collab.company === 'Shopee' ? 'Shopee Xpress' : collab.company}
                                         </span>
                                     )}
                                 </button>
@@ -604,47 +631,6 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                     </div>
                     )}
                 </div>
-
-                {/* Expiration Configuration at Bottom Right - Optimized for Mobile */}
-                <div className="bg-dark-950/50 p-4 rounded-xl border border-dark-800 mt-auto">
-                    <div className="flex flex-col sm:flex-row gap-3 sm:gap-0 sm:items-center justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                            <CalendarClock className="w-4 h-4 text-brand-500" />
-                            <h3 className="text-sm font-bold text-zinc-300">Validade</h3>
-                        </div>
-                        <div className="flex items-center gap-2 self-end sm:self-auto">
-                            <label className="text-xs text-white mr-2 cursor-pointer select-none" htmlFor="autoDelete">Exclusão Auto</label>
-                            <input 
-                                id="autoDelete"
-                                type="checkbox" 
-                                checked={enableExpiration}
-                                onChange={(e) => setEnableExpiration(e.target.checked)}
-                                className="w-4 h-4 text-brand-600 rounded border-dark-600 bg-dark-800 focus:ring-brand-500"
-                            />
-                        </div>
-                    </div>
-                    
-                    {enableExpiration && (
-                        <div className="flex items-center gap-3 animate-in fade-in slide-in-from-top-1 duration-200 justify-end">
-                            <input 
-                                type="number" 
-                                min="1"
-                                value={expireValue}
-                                onChange={(e) => setExpireValue(parseInt(e.target.value) || 1)}
-                                className="w-16 sm:w-20 px-3 py-1.5 text-sm bg-dark-900 border border-dark-700 rounded text-white focus:ring-1 focus:ring-brand-500 outline-none"
-                            />
-                            <select 
-                                value={expireUnit}
-                                onChange={(e) => setExpireUnit(e.target.value as AutoDeleteUnit)}
-                                className="px-3 py-1.5 text-sm bg-dark-900 border border-dark-700 rounded text-white focus:ring-1 focus:ring-brand-500 outline-none"
-                            >
-                                <option value="minutes">Minutos</option>
-                                <option value="days">Dias</option>
-                                <option value="months">Meses</option>
-                            </select>
-                        </div>
-                    )}
-                </div>
             </div>
           </div>
         </div>
@@ -653,15 +639,20 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
         <div className="p-4 sm:p-6 bg-dark-900 border-t border-dark-800">
           <button
             onClick={handleSubmit}
-            disabled={items.length === 0 || (!employeeName && !collabSearchQuery) || !facePhoto}
-            className={`w-full flex items-center justify-center space-x-2 py-3.5 px-4 rounded-xl text-white font-bold transition-all shadow-lg hover:shadow-brand-500/20 transform active:scale-[0.99] ${
-              items.length === 0 || (!employeeName && !collabSearchQuery) || !facePhoto
-                ? 'bg-dark-700 text-zinc-500 cursor-not-allowed' 
-                : 'bg-gradient-to-r from-brand-700 to-brand-600 hover:from-brand-600 hover:to-brand-500'
-            }`}
+            disabled={items.length === 0 || (!employeeName && !collabSearchQuery) || !facePhoto || isSubmitting}
+            className={`w-full flex items-center justify-center space-x-2 py-3.5 px-4 rounded-xl font-bold transition-all shadow-lg transform active:scale-[0.99] ${getSubmitButtonClass()}`}
           >
-            <Save className="w-5 h-5" />
-            <span>Registrar Entrega ({selectedCompany})</span>
+             {isSubmitting ? (
+                 <Loader2 className="w-5 h-5 animate-spin" />
+             ) : (
+                 <Save className="w-5 h-5" />
+             )}
+            <span>
+                {isSubmitting 
+                    ? 'Salvando e Enviando...' 
+                    : `Registrar Entrega - ${selectedCompany === 'Shopee' ? 'Shopee Xpress' : selectedCompany}`
+                }
+            </span>
           </button>
         </div>
       </div>

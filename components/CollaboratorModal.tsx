@@ -26,7 +26,7 @@ const CollaboratorModal: React.FC<CollaboratorModalProps> = ({
   const [newCollabShift, setNewCollabShift] = useState('');
   const [newCollabAdmission, setNewCollabAdmission] = useState('');
   const [newCollabFace, setNewCollabFace] = useState<string | null>(null);
-  const [newCollabCompany, setNewCollabCompany] = useState<'Luandre' | 'Randstad'>('Luandre');
+  const [newCollabCompany, setNewCollabCompany] = useState<'Luandre' | 'Randstad' | 'Shopee'>('Luandre');
   
   // Estado para controlar a edição de foto
   const [editingCollabId, setEditingCollabId] = useState<string | null>(null);
@@ -165,7 +165,7 @@ const CollaboratorModal: React.FC<CollaboratorModalProps> = ({
                                <p className="text-sm text-zinc-400 font-mono">{selectedCollabForHistory.cpf || 'Sem CPF'}</p>
                                <div className="flex gap-2 mt-2">
                                    <span className="text-xs bg-dark-800 px-2 py-0.5 rounded text-zinc-300 border border-dark-700">{selectedCollabForHistory.shift}</span>
-                                   <span className="text-xs bg-brand-900/30 px-2 py-0.5 rounded text-brand-300 border border-brand-500/20">{selectedCollabForHistory.company}</span>
+                                   <span className="text-xs bg-brand-900/30 px-2 py-0.5 rounded text-brand-300 border border-brand-500/20">{selectedCollabForHistory.company === 'Shopee' ? 'Shopee Xpress' : selectedCollabForHistory.company}</span>
                                </div>
                            </div>
                       </div>
@@ -186,7 +186,7 @@ const CollaboratorModal: React.FC<CollaboratorModalProps> = ({
                                       <div key={rec.id} className="p-3 hover:bg-dark-800/30 transition-colors">
                                           <div className="flex justify-between items-start mb-1">
                                               <span className="text-xs font-bold text-zinc-300">{new Date(rec.date).toLocaleDateString('pt-BR')}</span>
-                                              <span className="text-[10px] text-zinc-500">{new Date(rec.date).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}</span>
+                                              <span className="text-xs text-zinc-500">{new Date(rec.date).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}</span>
                                           </div>
                                           <div className="space-y-1">
                                               {rec.items.map((item, idx) => (
@@ -275,11 +275,12 @@ const CollaboratorModal: React.FC<CollaboratorModalProps> = ({
                                 <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
                                 <select
                                     value={newCollabCompany}
-                                    onChange={(e) => setNewCollabCompany(e.target.value as 'Luandre' | 'Randstad')}
+                                    onChange={(e) => setNewCollabCompany(e.target.value as 'Luandre' | 'Randstad' | 'Shopee')}
                                     className="w-full pl-9 pr-3 py-2 bg-dark-900 border border-dark-700 rounded-lg text-sm text-white focus:ring-1 focus:ring-brand-500 outline-none appearance-none"
                                 >
                                     <option value="Luandre">Agência: Luandre</option>
                                     <option value="Randstad">Agência: Randstad</option>
+                                    <option value="Shopee">Agência: Shopee Xpress</option>
                                 </select>
                                 <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500 text-xs">▼</div>
                             </div>
@@ -355,7 +356,7 @@ const CollaboratorModal: React.FC<CollaboratorModalProps> = ({
                                     <div className="flex items-center gap-3 mt-1">
                                         <p className="text-xs text-zinc-500">{collab.shift}</p>
                                         {collab.company && (
-                                            <p className="text-xs text-brand-400 font-bold bg-brand-500/10 px-1.5 rounded border border-brand-500/20">{collab.company}</p>
+                                            <p className="text-xs text-brand-400 font-bold bg-brand-500/10 px-1.5 rounded border border-brand-500/20">{collab.company === 'Shopee' ? 'Shopee Xpress' : collab.company}</p>
                                         )}
                                     </div>
                                 </div>

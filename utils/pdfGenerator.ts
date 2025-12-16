@@ -9,10 +9,8 @@ export const generateEpiPdf = (record: EpiRecord) => {
   
   let cursorY = 10;
 
-  // VERIFICAÇÃO DA EMPRESA (LAYOUT SWITCH)
-  const isRandstad = record.company === 'Randstad';
-
-  if (isRandstad) {
+  // --- CONFIGURAÇÕES DE LAYOUT POR EMPRESA ---
+  if (record.company === 'Randstad') {
     // --- LAYOUT RANDSTAD ---
     
     // Draw Outline for Header
@@ -29,16 +27,14 @@ export const generateEpiPdf = (record: EpiRecord) => {
     doc.line(dividerX, cursorY, dividerX, cursorY + headerHeight);
 
     // -- Left Side: Logo & Title --
-    // Randstad Logo (Text simulation)
     doc.setFontSize(26);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(0, 110, 200); // Randstad Blueish
-    doc.text("Randstad", margin + 12, cursorY + 14); // Capitalized as requested
+    doc.text("Randstad", margin + 12, cursorY + 14);
 
     // Small graphic lines for logo feeling
     doc.setLineWidth(1.5);
     doc.setDrawColor(0, 110, 200);
-    // Simulating the logo shape roughly
     doc.line(margin + 5, cursorY + 5, margin + 10, cursorY + 5); 
     doc.line(margin + 5, cursorY + 5, margin + 5, cursorY + 12);
 
@@ -54,12 +50,12 @@ export const generateEpiPdf = (record: EpiRecord) => {
     doc.text("FICHA DE CONTROLE DE EPI - EQUIPAMENTO", margin + 35, cursorY + 25, { align: 'center' });
     doc.text("DE PROTEÇÃO INDIVIDUAL", margin + 35, cursorY + 30, { align: 'center' });
 
-    // -- Right Side: Legal Text (Termo de Responsabilidade) --
+    // -- Right Side: Legal Text --
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     doc.text("TERMO DE RESPONSABILIDADE", dividerX + ((pageWidth - margin - dividerX) / 2), cursorY + 5, { align: 'center' });
     
-    doc.setFontSize(5); // Tiny font for legal text to fit
+    doc.setFontSize(5); 
     doc.setFont("helvetica", "normal");
     
     const legalText = `Declaro que recebi orientação sobre o uso correto do EPI fornecido pela empresa e que estou ciente da Legislação abaixo discriminada.
@@ -76,56 +72,67 @@ CLT - Art. 462 § 1º - Em caso de dano causado pelo empregado o desconto será 
 
     cursorY += headerHeight;
 
-    // --- INFO FIELDS (Randstad Style) ---
-    // Row 1: Nome (Full)
-    const rowH = 7;
-    doc.rect(margin, cursorY, pageWidth - (margin * 2), rowH);
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "bold");
-    doc.text("Nome:", margin + 2, cursorY + 4.5);
-    doc.setFont("helvetica", "normal");
-    doc.text(record.employeeName || "", margin + 15, cursorY + 4.5);
-    cursorY += rowH;
-
-    // Row 2: Matrícula & Admissão
-    doc.rect(margin, cursorY, pageWidth - (margin * 2), rowH);
-    // Vertical split
-    doc.line(margin + 80, cursorY, margin + 80, cursorY + rowH);
-    
-    doc.setFont("helvetica", "bold");
-    doc.text("Matrícula/CPF:", margin + 2, cursorY + 4.5);
-    doc.setFont("helvetica", "normal");
-    doc.text(record.cpf || "", margin + 25, cursorY + 4.5);
-
-    doc.setFont("helvetica", "bold");
-    doc.text("Data de Admissão:", margin + 82, cursorY + 4.5);
-    if (record.admissionDate) {
-        const [y, m, d] = record.admissionDate.split('-');
-        doc.setFont("helvetica", "normal");
-        doc.text(`${d}/${m}/${y}`, margin + 110, cursorY + 4.5);
-    }
-    cursorY += rowH;
-
-    // Row 3: Unidade & Turno
-    doc.rect(margin, cursorY, pageWidth - (margin * 2), rowH);
-    doc.line(margin + 80, cursorY, margin + 80, cursorY + rowH);
-
-    doc.setFont("helvetica", "bold");
-    doc.text("Unidade:", margin + 2, cursorY + 4.5);
-    // Blank Unidade
-
-    doc.setFont("helvetica", "bold");
-    doc.text("Turno:", margin + 82, cursorY + 4.5);
-    doc.setFont("helvetica", "normal");
-    doc.text(record.shift || "", margin + 95, cursorY + 4.5);
-    cursorY += rowH;
-
-    // REMOVIDO: Row 4 (Função)
-
-  } else {
-    // --- LAYOUT LUANDRE (Original) ---
+  } else if (record.company === 'Shopee') {
+    // --- LAYOUT SHOPEE ---
     
     // Draw Outline for Header
+    doc.setLineWidth(0.3);
+    doc.setDrawColor(0);
+    const headerHeight = 35;
+    doc.rect(margin, cursorY, pageWidth - (margin * 2), headerHeight);
+    
+    const dividerX = margin + 80;
+    doc.line(dividerX, cursorY, dividerX, cursorY + headerHeight);
+
+    // -- Left Side: Logo & Title --
+    doc.setFontSize(26);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(238, 77, 45); // Shopee Orange (#ee4d2d)
+    doc.text("Shopee Xpress", margin + 12, cursorY + 14);
+
+    // Shopee shopping bag icon simulation
+    doc.setLineWidth(1.5);
+    doc.setDrawColor(238, 77, 45);
+    doc.rect(margin + 5, cursorY + 8, 5, 6); 
+    doc.line(margin + 6, cursorY + 8, margin + 6, cursorY + 6);
+    doc.line(margin + 9, cursorY + 8, margin + 9, cursorY + 6);
+
+    // Divider Line
+    doc.setLineWidth(0.3);
+    doc.setDrawColor(0);
+    doc.setTextColor(0);
+    doc.line(margin, cursorY + 20, dividerX, cursorY + 20);
+
+    // Title
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.text("FICHA DE CONTROLE DE EPI", margin + 35, cursorY + 25, { align: 'center' });
+    doc.text("LOGÍSTICA & OPERAÇÕES", margin + 35, cursorY + 30, { align: 'center' });
+
+    // -- Right Side: Legal Text (Shared) --
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.text("TERMO DE RESPONSABILIDADE", dividerX + ((pageWidth - margin - dividerX) / 2), cursorY + 5, { align: 'center' });
+    
+    doc.setFontSize(5); 
+    doc.setFont("helvetica", "normal");
+    
+    const legalText = `Declaro que recebi orientação sobre o uso correto do EPI fornecido pela empresa e que estou ciente da Legislação abaixo discriminada.
+Portaria 3214, 08/06/78 do M T E, NR-01 e NR-06. Cabe ao trabalhador:
+a) cumprir as disposições legais e regulamentares sobre segurança e saúde no trabalho; b) usar o equipamento de proteção individual fornecido pelo empregador.
+Constitui ato faltoso a recusa injustificada do empregado ao cumprimento do disposto.
+Cabe ao empregado quanto ao EPI:
+a) usar apenas para a finalidade a que se destina; b) responsabilizar-se pela guarda e conservação; c) comunicar qualquer alteração.
+CLT - Art. 462 § 1º - Em caso de dano causado pelo empregado o desconto será lícito.`;
+
+    const splitLegal = doc.splitTextToSize(legalText, (pageWidth - margin) - dividerX - 2);
+    doc.text(splitLegal, dividerX + 1, cursorY + 8);
+
+    cursorY += headerHeight;
+
+  } else {
+    // --- LAYOUT LUANDRE (Default) ---
+    
     doc.setLineWidth(0.3);
     doc.setDrawColor(0);
     const headerHeight = 40;
@@ -174,45 +181,56 @@ CLT - Art. 462 § 1º - Em caso de dano causado pelo empregado o desconto será 
     doc.text(splitLegal, dividerX + 1, cursorY + 9);
 
     cursorY += headerHeight;
-
-    // --- EMPLOYEE INFO SECTION (Luandre) ---
-    const rowHeight = 7;
-    doc.rect(margin, cursorY, pageWidth - (margin * 2), rowHeight);
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "bold");
-    doc.text("Nome:", margin + 2, cursorY + 4.5);
-    doc.setFont("helvetica", "normal");
-    doc.text(record.employeeName || "", margin + 15, cursorY + 4.5);
-    cursorY += rowHeight;
-
-    doc.rect(margin, cursorY, pageWidth - (margin * 2), rowHeight);
-    doc.line(pageWidth / 2, cursorY, pageWidth / 2, cursorY + rowHeight);
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "bold");
-    doc.text("CPF:", margin + 2, cursorY + 4.5);
-    doc.setFont("helvetica", "normal");
-    doc.text(record.cpf || "", margin + 12, cursorY + 4.5);
-    doc.setFont("helvetica", "bold");
-    doc.text("Data de Admissão:", (pageWidth / 2) + 2, cursorY + 4.5);
-    if (record.admissionDate) {
-      const [year, month, day] = record.admissionDate.split('-');
-      doc.setFont("helvetica", "normal");
-      doc.text(`${day}/${month}/${year}`, (pageWidth / 2) + 28, cursorY + 4.5);
-    }
-    cursorY += rowHeight;
-
-    doc.rect(margin, cursorY, pageWidth - (margin * 2), rowHeight);
-    doc.line(pageWidth / 2, cursorY, pageWidth / 2, cursorY + rowHeight);
-    doc.setFont("helvetica", "bold");
-    doc.text("Unidade:", margin + 2, cursorY + 4.5);
-    doc.setFont("helvetica", "bold");
-    doc.text("Turno:", (pageWidth / 2) + 2, cursorY + 4.5);
-    doc.setFont("helvetica", "normal");
-    doc.text(record.shift || "", (pageWidth / 2) + 15, cursorY + 4.5);
-    cursorY += rowHeight;
-
-    // REMOVIDO: Row 4 (Função)
   }
+
+  // --- INFO FIELDS (Shared Layout) ---
+  const rowHeight = 7;
+  
+  // Row 1: Nome
+  doc.rect(margin, cursorY, pageWidth - (margin * 2), rowHeight);
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  doc.text("Nome:", margin + 2, cursorY + 4.5);
+  doc.setFont("helvetica", "normal");
+  doc.text(record.employeeName || "", margin + 15, cursorY + 4.5);
+  cursorY += rowHeight;
+
+  // Row 2: CPF & Data Admissão
+  doc.rect(margin, cursorY, pageWidth - (margin * 2), rowHeight);
+  doc.line(pageWidth / 2, cursorY, pageWidth / 2, cursorY + rowHeight);
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  doc.text("CPF:", margin + 2, cursorY + 4.5);
+  doc.setFont("helvetica", "normal");
+  doc.text(record.cpf || "", margin + 12, cursorY + 4.5);
+  doc.setFont("helvetica", "bold");
+  doc.text("Data de Admissão:", (pageWidth / 2) + 2, cursorY + 4.5);
+  if (record.admissionDate) {
+    const [year, month, day] = record.admissionDate.split('-');
+    doc.setFont("helvetica", "normal");
+    doc.text(`${day}/${month}/${year}`, (pageWidth / 2) + 28, cursorY + 4.5);
+  }
+  cursorY += rowHeight;
+
+  // Row 3: Unidade & Turno
+  doc.rect(margin, cursorY, pageWidth - (margin * 2), rowHeight);
+  doc.line(pageWidth / 2, cursorY, pageWidth / 2, cursorY + rowHeight);
+  doc.setFont("helvetica", "bold");
+  doc.text("Unidade:", margin + 2, cursorY + 4.5);
+  doc.setFont("helvetica", "normal");
+  
+  // LOGIC PARA UNIDADE SHOPEE
+  if (record.company === 'Shopee') {
+    doc.text("FUL-SP1", margin + 17, cursorY + 4.5);
+  } else {
+    doc.text("", margin + 17, cursorY + 4.5);
+  }
+  
+  doc.setFont("helvetica", "bold");
+  doc.text("Turno:", (pageWidth / 2) + 2, cursorY + 4.5);
+  doc.setFont("helvetica", "normal");
+  doc.text(record.shift || "", (pageWidth / 2) + 15, cursorY + 4.5);
+  cursorY += rowHeight;
 
   // Add a small spacing before table
   cursorY += 5;
@@ -294,8 +312,16 @@ CLT - Art. 462 § 1º - Em caso de dano causado pelo empregado o desconto será 
     // Col 6: ASSINATURA (ENTREGA) - BIOMETRIA FACIAL
     doc.setFontSize(5);
     doc.setTextColor(0, 100, 0); // Verde Escuro
-    doc.text("VALIDADO VIA", currentX + (colWidths[5]/2), cursorY + 3.5, { align: 'center' });
-    doc.text("BIOMETRIA FACIAL", currentX + (colWidths[5]/2), cursorY + 6.5, { align: 'center' });
+    
+    // LÓGICA DE ASSINATURA PARA SHOPEE
+    if (record.company === 'Shopee') {
+        doc.text("ASSINADO DIGITALMENTE", currentX + (colWidths[5]/2), cursorY + 3.5, { align: 'center' });
+        doc.text("SHOPEE XPRESS", currentX + (colWidths[5]/2), cursorY + 6.5, { align: 'center' });
+    } else {
+        doc.text("VALIDADO VIA", currentX + (colWidths[5]/2), cursorY + 3.5, { align: 'center' });
+        doc.text("BIOMETRIA FACIAL", currentX + (colWidths[5]/2), cursorY + 6.5, { align: 'center' });
+    }
+
     doc.setTextColor(0); // Reset
     doc.setFontSize(7);
     currentX += colWidths[5]; 
@@ -331,9 +357,9 @@ CLT - Art. 462 § 1º - Em caso de dano causado pelo empregado o desconto será 
      cursorY += rowH;
   }
   
-  // Footer Signature Line if needed, or rely on table
-  
-  doc.save(`${record.company}_EPI_${record.employeeName.replace(/\s+/g, '_')}_${dateStr.replace(/\//g, '-')}.pdf`);
+  // ADICIONADO HORA AO NOME DO ARQUIVO PARA EVITAR SOBRESCRITA
+  const filenameTime = dateObj.toLocaleTimeString('pt-BR').replace(/:/g, '-');
+  doc.save(`${record.company}_EPI_${record.employeeName.replace(/\s+/g, '_')}_${dateStr.replace(/\//g, '-')}_${filenameTime}.pdf`);
 };
 
 // --- NOVO: GERADOR DE HISTÓRICO CONSOLIDADO POR COLABORADOR ---
