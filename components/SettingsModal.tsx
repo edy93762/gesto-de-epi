@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Save, Settings, Download, Upload, Database, RefreshCw, HardDrive, Sheet, Link } from 'lucide-react';
+import { X, Save, Settings, Download, Upload, Database, RefreshCw, HardDrive, Sheet, Link, HelpCircle, Copy, Check, ExternalLink } from 'lucide-react';
 import { AutoDeleteConfig, EpiRecord, EpiCatalogItem, Collaborator } from '../types';
 
 interface SettingsModalProps {
@@ -17,6 +17,42 @@ interface SettingsModalProps {
   onImportData: (data: any) => void;
 }
 
+const GOOGLE_SCRIPT_CODE = `function doPost(e) {
+  var lock = LockService.getScriptLock();
+  lock.tryLock(10000);
+
+  try {
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    var data = JSON.parse(e.postData.contents);
+
+    // Cria o cabeçalho se a planilha estiver vazia
+    if (sheet.getLastRow() === 0) {
+      sheet.appendRow(["Data", "Hora", "Empresa", "Colaborador", "CPF", "Itens", "Assinado"]);
+    }
+
+    var dataHora = new Date(data.date);
+    var itensTexto = data.items.map(function(i) { 
+      return i.name + (i.ca ? " (CA: " + i.ca + ")" : ""); 
+    }).join(", ");
+
+    sheet.appendRow([
+      Utilities.formatDate(dataHora, Session.getScriptTimeZone(), "dd/MM/yyyy"),
+      Utilities.formatDate(dataHora, Session.getScriptTimeZone(), "HH:mm:ss"),
+      data.company,
+      data.employeeName,
+      data.cpf || "",
+      itensTexto,
+      data.facePhoto ? "Sim (Biometria)" : "Não"
+    ]);
+
+    return ContentService.createTextOutput(JSON.stringify({"result":"success"})).setMimeType(ContentService.MimeType.JSON);
+  } catch (e) {
+    return ContentService.createTextOutput(JSON.stringify({"result":"error", "error": e})).setMimeType(ContentService.MimeType.JSON);
+  } finally {
+    lock.releaseLock();
+  }
+}`;
+
 const SettingsModal: React.FC<SettingsModalProps> = ({ 
   isOpen, 
   onClose, 
@@ -29,6 +65,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const [localConfig, setLocalConfig] = useState<AutoDeleteConfig>(config);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [storageUsage, setStorageUsage] = useState({ used: 0, percent: 0 });
+  
+  // Estado para o tutorial
+  const [showScriptHelp, setShowScriptHelp] = useState(false);
+  const [copied, setCopied] = useState(false);
   
   useEffect(() => {
     setLocalConfig(config);
@@ -54,6 +94,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         }
     }
   }, [config, isOpen, fullData]);
+
+  const handleCopyScript = () => {
+    navigator.clipboard.writeText(GOOGLE_SCRIPT_CODE);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   if (!isOpen) return null;
 
@@ -105,9 +151,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-      <div className="bg-dark-900 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden border border-dark-800 animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh]">
-        <div className="bg-dark-900 px-6 py-4 border-b border-dark-800 flex items-center justify-between shrink-0">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
+      <div className="bg-dark-900 rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden border border-dark-800 animate-in fade-in zoom-in duration-200 flex flex-col my-auto max-h-[90vh]">
+        <div className="bg-dark-900 px-4 py-3 sm:px-6 sm:py-4 border-b border-dark-800 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
             <div className="bg-dark-800 p-2 rounded-lg text-zinc-400">
                 <Settings className="w-5 h-5" />
@@ -116,15 +162,15 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 Configurações
             </h3>
           </div>
-          <button onClick={onClose} className="text-zinc-500 hover:text-white transition-colors">
-            <X className="w-5 h-5" />
+          <button onClick={onClose} className="text-zinc-500 hover:text-white transition-colors p-2 -mr-2">
+            <X className="w-6 h-6" />
           </button>
         </div>
 
-        <div className="overflow-y-auto p-6 space-y-8 flex-1 custom-scrollbar">
+        <div className="overflow-y-auto p-4 sm:p-6 space-y-6 sm:space-y-8 flex-1 custom-scrollbar">
             
             {/* Storage Usage Section */}
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
                 <div className="flex items-center gap-2 text-zinc-200 font-semibold border-b border-dark-800 pb-2">
                     <HardDrive className="w-5 h-5 text-purple-500" />
                     <h4>Dados do Sistema (Offline)</h4>
@@ -150,12 +196,53 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
             </div>
 
-            {/* Integração Google Sheets */}
-            <div className="space-y-4">
-                <div className="flex items-center gap-2 text-zinc-200 font-semibold border-b border-dark-800 pb-2">
-                    <Sheet className="w-5 h-5 text-green-500" />
-                    <h4>Integração Google Planilhas</h4>
+            {/* Integração Google Sheets - MOBILE OPTIMIZED */}
+            <div className="space-y-3 sm:space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-dark-800 pb-2 gap-2">
+                    <div className="flex items-center gap-2 text-zinc-200 font-semibold">
+                        <Sheet className="w-5 h-5 text-green-500 shrink-0" />
+                        <h4>Integração Google Planilhas</h4>
+                    </div>
+                    <button 
+                        onClick={() => setShowScriptHelp(!showScriptHelp)}
+                        className="text-xs text-brand-400 hover:text-brand-300 flex items-center justify-center gap-1 font-medium bg-brand-500/10 px-3 py-2 sm:py-1.5 rounded-full border border-brand-500/20 transition-colors w-full sm:w-auto"
+                    >
+                        <HelpCircle className="w-3 h-3" />
+                        {showScriptHelp ? 'Ocultar Tutorial' : 'Ver Tutorial e Script'}
+                    </button>
                 </div>
+
+                {/* Tutorial Box */}
+                {showScriptHelp && (
+                    <div className="bg-dark-950 border border-dark-700 rounded-xl p-4 space-y-4 animate-in slide-in-from-top-2">
+                        <div className="space-y-2 text-sm text-zinc-300">
+                            <p><strong className="text-white">Passo 1:</strong> Crie uma nova planilha em <a href="https://sheets.new" target="_blank" rel="noreferrer" className="text-brand-400 hover:underline inline-flex items-center gap-0.5">sheets.new <ExternalLink className="w-3 h-3"/></a></p>
+                            <p><strong className="text-white">Passo 2:</strong> Vá em <strong>Extensões</strong> {'>'} <strong>Apps Script</strong>.</p>
+                            <p><strong className="text-white">Passo 3:</strong> Apague qualquer código que estiver lá e cole o código abaixo:</p>
+                        </div>
+                        
+                        <div className="relative group">
+                            <pre className="bg-dark-900 border border-dark-800 p-3 rounded-lg text-xs text-zinc-400 font-mono overflow-x-auto custom-scrollbar max-h-40">
+                                {GOOGLE_SCRIPT_CODE}
+                            </pre>
+                            <button 
+                                onClick={handleCopyScript}
+                                className="absolute top-2 right-2 p-2 bg-dark-800 hover:bg-dark-700 text-white rounded-md border border-dark-600 transition-colors shadow-lg"
+                                title="Copiar código"
+                            >
+                                {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                            </button>
+                        </div>
+
+                        <div className="space-y-2 text-sm text-zinc-300">
+                            <p><strong className="text-white">Passo 4:</strong> Clique em <strong>Implantar (Deploy)</strong> {'>'} <strong>Nova implantação</strong>.</p>
+                            <p><strong className="text-white">Passo 5:</strong> Clique na engrenagem, selecione <strong>App da Web</strong>.</p>
+                            <p><strong className="text-white">Passo 6:</strong> Em "Quem pode acessar", escolha: <strong>"Qualquer pessoa"</strong> (Importante!).</p>
+                            <p><strong className="text-white">Passo 7:</strong> Clique em Implantar, autorize o acesso e copie a <strong>URL do App da Web</strong> gerada.</p>
+                            <p><strong className="text-white">Passo 8:</strong> Cole a URL no campo abaixo.</p>
+                        </div>
+                    </div>
+                )}
 
                 <div className="bg-dark-950 p-4 rounded-xl border border-dark-800 space-y-3">
                      <label className="block text-sm font-medium text-zinc-400 mb-1">
@@ -170,18 +257,17 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                             placeholder="https://script.google.com/macros/s/..."
                             value={localConfig.googleSheetsUrl || ''}
                             onChange={(e) => setLocalConfig({...localConfig, googleSheetsUrl: e.target.value})}
-                            className="w-full pl-10 pr-3 py-2 bg-dark-900 border border-dark-700 rounded-lg text-sm text-white focus:ring-1 focus:ring-green-500 outline-none"
+                            className="w-full pl-10 pr-3 py-3 sm:py-2 bg-dark-900 border border-dark-700 rounded-lg text-base sm:text-sm text-white focus:ring-1 focus:ring-green-500 outline-none placeholder:text-zinc-700"
                          />
                      </div>
                      <p className="text-[10px] text-zinc-500 leading-tight">
-                         Insira a URL gerada ao implantar o script como "App da Web" no Google Apps Script. 
-                         Isso permitirá que as entregas sejam salvas automaticamente em sua planilha.
+                         Cole aqui o link gerado no Passo 7 do tutorial acima.
                      </p>
                 </div>
             </div>
 
             {/* Backup Section */}
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
                 <div className="flex items-center gap-2 text-zinc-200 font-semibold border-b border-dark-800 pb-2">
                     <Database className="w-5 h-5 text-emerald-500" />
                     <h4>Backup e Restauração</h4>
@@ -194,8 +280,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                         <RefreshCw className="w-5 h-5" />
                     </div>
                     <div className="flex flex-col">
-                        <span className="font-medium text-zinc-300">Backup Automático (Download)</span>
-                        <span className="text-[10px] text-zinc-500">Baixa um arquivo JSON automaticamente a cada nova entrega</span>
+                        <span className="font-medium text-zinc-300">Backup Automático</span>
+                        <span className="text-[10px] text-zinc-500">Baixa arquivo JSON ao salvar</span>
                     </div>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
@@ -217,7 +303,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                         <div className="p-2 bg-brand-500/10 rounded-full text-brand-400 group-hover:scale-110 transition-transform">
                             <Download className="w-5 h-5" />
                         </div>
-                        <span className="text-sm font-medium text-zinc-300">Baixar Manualmente</span>
+                        <span className="text-sm font-medium text-zinc-300 text-center">Baixar Manualmente</span>
                     </button>
                     
                     <button 
@@ -227,7 +313,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                         <div className="p-2 bg-amber-500/10 rounded-full text-amber-400 group-hover:scale-110 transition-transform">
                             <Upload className="w-5 h-5" />
                         </div>
-                        <span className="text-sm font-medium text-zinc-300">Restaurar (Substituir)</span>
+                        <span className="text-sm font-medium text-zinc-300 text-center">Restaurar Backup</span>
                     </button>
                     <input 
                         type="file" 
@@ -241,9 +327,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               
             <button 
                 onClick={handleSaveConfig}
-                className="w-full bg-brand-600 hover:bg-brand-500 text-white font-medium py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2 shadow-sm"
+                className="w-full bg-brand-600 hover:bg-brand-500 text-white font-medium py-3 rounded-xl transition-colors flex items-center justify-center gap-2 shadow-sm"
             >
-                <Save className="w-4 h-4" />
+                <Save className="w-5 h-5" />
                 Salvar Configurações
             </button>
         </div>
