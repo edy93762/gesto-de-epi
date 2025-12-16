@@ -18,9 +18,9 @@ interface SettingsModalProps {
 }
 
 const GOOGLE_SCRIPT_CODE = `function doPost(e) {
-  // CONFIGURAÇÃO DE SEGURANÇA PARA EVITAR ERROS CONCORRENTES
   var lock = LockService.getScriptLock();
-  lock.tryLock(30000); // Espera até 30s
+  // Aumentado tempo de espera para evitar erros de concorrencia
+  lock.tryLock(45000); 
 
   try {
     var doc = SpreadsheetApp.getActiveSpreadsheet();
@@ -28,14 +28,14 @@ const GOOGLE_SCRIPT_CODE = `function doPost(e) {
     var rawData = e.postData.contents;
     var data = JSON.parse(rawData);
 
-    // 1. Configurar Cabeçalho (se a planilha estiver vazia)
+    // 1. CRIAR CABEÇALHO SE NECESSÁRIO
     if (sheet.getLastRow() === 0) {
-      sheet.appendRow(["Data", "Hora", "Empresa", "Colaborador", "CPF", "Itens", "Status Assinatura", "Foto Comprovante", "Link Ficha PDF"]);
-      // Formatar cabeçalho
-      sheet.getRange(1, 1, 1, 9).setFontWeight("bold").setBackground("#f3f3f3");
+      sheet.appendRow(["Data", "Hora", "Empresa", "Colaborador", "CPF", "Itens", "Status", "Link Foto", "Link PDF", "Visualização Foto"]);
+      sheet.getRange(1, 1, 1, 10).setFontWeight("bold").setBackground("#d9d9d9");
+      sheet.setFrozenRows(1);
     }
 
-    // NOME DA PASTA NO GOOGLE DRIVE
+    // PASTA NO DRIVE
     var FOLDER_NAME = "EPI_Comprovantes_Fotos";
     var folder;
     var folders = DriveApp.getFoldersByName(FOLDER_NAME);
@@ -44,89 +44,97 @@ const GOOGLE_SCRIPT_CODE = `function doPost(e) {
     } else {
       folder = DriveApp.createFolder(FOLDER_NAME);
     }
+    
+    // Garante permissão pública na pasta para evitar erro de acesso
+    try {
+      folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    } catch(e) {}
 
-    // --- PROCESSAMENTO DA FOTO (BIOMETRIA) ---
-    var fotoFormula = "Sem Foto";
+    // --- PROCESSAR FOTO ---
+    var linkFoto = "Sem Foto";
+    var visualizacaoFoto = "-";
     var statusAssinatura = "Pendente";
 
-    if (data.facePhoto && data.facePhoto.length > 100) {
+    if (data.facePhoto && data.facePhoto.length > 50) {
       try {
-        // Limpa o cabeçalho do base64 (data:image/jpeg;base64,...)
-        var base64Image = data.facePhoto.split(",")[1] || data.facePhoto;
-        // Remove quebras de linha que podem corromper o arquivo
-        base64Image = base64Image.replace(/\\s/g, '');
+        var base64Image = data.facePhoto;
+        if (base64Image.indexOf("base64,") > -1) {
+            base64Image = base64Image.split("base64,")[1];
+        }
         
         var decodedImage = Utilities.base64Decode(base64Image);
-        var safeName = (data.employeeName || "Funcionario").replace(/[^a-zA-Z0-9]/g, "_");
-        var fileName = "FOTO_" + safeName + "_" + new Date().getTime() + ".jpg";
+        var safeName = (data.employeeName || "Func").replace(/[^a-zA-Z0-9]/g, "_");
+        var fileName = "FOTO_" + safeName + "_" + Utilities.formatDate(new Date(), "GMT-3", "yyyyMMdd_HHmmss") + ".jpg";
         var blob = Utilities.newBlob(decodedImage, "image/jpeg", fileName);
         
         var file = folder.createFile(blob);
         file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
         
-        var fileId = file.getId();
-        // URL direta para imagem
-        var imgUrl = "https://drive.google.com/uc?export=view&id=" + fileId;
+        // Link direto
+        linkFoto = file.getUrl();
         
-        // Fórmula IMAGE do Excel/Sheets
-        fotoFormula = '=HYPERLINK("' + file.getUrl() + '"; IMAGE("' + imgUrl + '"; 1))';
+        // Fórmula IMAGE (Tenta exibir, se falhar o link na coluna anterior garante o acesso)
+        // Usando ID direto para thumbnail que é mais rápido no Sheets
+        var imgUrl = "https://drive.google.com/thumbnail?id=" + file.getId() + "&sz=w1000";
+        visualizacaoFoto = '=IMAGE("' + imgUrl + '"; 1)';
+        
         statusAssinatura = "Assinado Digitalmente";
       } catch (err) {
-        fotoFormula = "Erro Foto: " + err.toString();
+        linkFoto = "Erro Foto: " + err.toString();
       }
     }
 
-    // --- PROCESSAMENTO DO PDF ---
-    var pdfFormula = "Não Gerado";
-    
-    if (data.pdfFile && data.pdfFile.length > 100) {
+    // --- PROCESSAR PDF ---
+    var linkPdf = "Sem PDF";
+    if (data.pdfFile && data.pdfFile.length > 50) {
       try {
-         var base64Pdf = data.pdfFile.split(",")[1] || data.pdfFile;
-         base64Pdf = base64Pdf.replace(/\\s/g, '');
-
+         var base64Pdf = data.pdfFile;
+         if (base64Pdf.indexOf("base64,") > -1) {
+            base64Pdf = base64Pdf.split("base64,")[1];
+         }
+         
          var decodedPdf = Utilities.base64Decode(base64Pdf);
-         var safeNamePdf = (data.employeeName || "Funcionario").replace(/[^a-zA-Z0-9]/g, "_");
-         var fileNamePdf = "FICHA_" + safeNamePdf + "_" + new Date().getTime() + ".pdf";
+         var safeNamePdf = (data.employeeName || "Func").replace(/[^a-zA-Z0-9]/g, "_");
+         var fileNamePdf = "FICHA_" + safeNamePdf + "_" + Utilities.formatDate(new Date(), "GMT-3", "yyyyMMdd_HHmmss") + ".pdf";
          var blobPdf = Utilities.newBlob(decodedPdf, "application/pdf", fileNamePdf);
          
          var filePdf = folder.createFile(blobPdf);
          filePdf.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
          
-         pdfFormula = '=HYPERLINK("' + filePdf.getUrl() + '"; "Baixar Ficha PDF")';
+         // Link clicável direto
+         linkPdf = filePdf.getUrl();
       } catch (err) {
-         pdfFormula = "Erro PDF: " + err.toString();
+         linkPdf = "Erro PDF: " + err.toString();
       }
     }
 
-    // --- FORMATAR DADOS PARA A LINHA ---
+    // --- FORMATAR ITENS ---
     var dataHora = new Date(data.date);
     var itensTexto = "";
     if (data.items && Array.isArray(data.items)) {
-        itensTexto = data.items.map(function(i) { 
-          return i.name + (i.ca ? " (CA: " + i.ca + ")" : ""); 
-        }).join(", ");
+        itensTexto = data.items.map(function(i) { return i.name; }).join(", ");
     }
 
-    // ADICIONAR LINHA
+    // --- INSERIR NA PLANILHA ---
     sheet.appendRow([
       Utilities.formatDate(dataHora, Session.getScriptTimeZone(), "dd/MM/yyyy"),
       Utilities.formatDate(dataHora, Session.getScriptTimeZone(), "HH:mm:ss"),
-      data.company || "N/A",
+      data.company || "-",
       data.employeeName,
-      "'" + (data.cpf || ""), // Força formato texto para CPF não perder zeros
+      "'" + (data.cpf || ""),
       itensTexto,
-      statusAssinatura, // "Assinado Digitalmente"
-      fotoFormula,
-      pdfFormula
+      statusAssinatura,
+      linkFoto, // Coluna H: Link Puro (funciona sempre)
+      linkPdf,  // Coluna I: Link Puro (funciona sempre)
+      visualizacaoFoto // Coluna J: Fórmula da Imagem
     ]);
     
-    // AJUSTAR ALTURA DA LINHA PARA CABER A FOTO
+    // Ajustar visual
+    var lastRow = sheet.getLastRow();
     if (data.facePhoto) {
-        sheet.setRowHeight(sheet.getLastRow(), 80);
+        sheet.setRowHeight(lastRow, 90);
     }
-    
-    // Alinhar verticalmente ao centro
-    sheet.getRange(sheet.getLastRow(), 1, 1, 9).setVerticalAlignment("middle");
+    sheet.getRange(lastRow, 1, 1, 10).setVerticalAlignment("middle");
 
     return ContentService.createTextOutput(JSON.stringify({"result":"success"})).setMimeType(ContentService.MimeType.JSON);
   } catch (e) {
@@ -136,7 +144,7 @@ const GOOGLE_SCRIPT_CODE = `function doPost(e) {
   }
 }`;
 
-// URL Fixa também disponível aqui para o botão de reset
+// URL Fixa
 const FIXED_SHEETS_URL = "https://script.google.com/macros/s/AKfycbx3NKcMf8Y5CQOnevTCExz7ehQWLqaCv22MDzUHyxla2ara9-bN4eWPwYdWQ2nhmMkV_w/exec";
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ 
@@ -164,17 +172,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     setLocalConfig(config);
     setTestResult('idle');
     
-    // Calcular uso do armazenamento baseado no tamanho do JSON dos dados
     if (isOpen) {
         try {
-            // Estima o tamanho dos dados convertendo para string JSON
             const dataString = JSON.stringify(fullData);
             const bytes = new Blob([dataString]).size;
             const usedKB = bytes / 1024;
-            
-            // O limite do IndexedDB é muito alto (gigabytes), mas para visualização
-            // definimos uma "meta" soft de 10MB para alertar o usuário se o arquivo está ficando grande demais para processar rápido.
-            const softLimitKB = 10240; // 10MB
+            const softLimitKB = 10240; 
             
             setStorageUsage({
                 used: usedKB,
@@ -195,7 +198,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const handleTestConnection = async () => {
     if (!localConfig.googleSheetsUrl) return;
     
-    // Validação básica de URL
     if (!localConfig.googleSheetsUrl.includes('script.google.com')) {
         alert("A URL parece incorreta. Ela deve começar com 'https://script.google.com...'");
         return;
@@ -211,8 +213,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             employeeName: 'TESTE DE CONEXÃO',
             cpf: '000000',
             items: [{ name: 'Verificação de URL', ca: 'TESTE' }],
-            facePhoto: '', // Teste sem foto
-            pdfFile: '' // Teste sem PDF
+            facePhoto: '', 
+            pdfFile: ''
         };
 
         await fetch(localConfig.googleSheetsUrl, {
@@ -222,8 +224,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             body: JSON.stringify(testPayload)
         });
 
-        // Como usamos no-cors, não sabemos se o script falhou internamente, 
-        // mas sabemos que a requisição saiu do navegador.
         setTestResult('success');
     } catch (error) {
         console.error("Erro no teste:", error);
@@ -328,7 +328,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
             </div>
 
-            {/* Integração Google Sheets - MOBILE OPTIMIZED */}
+            {/* Integração Google Sheets */}
             <div className="space-y-3 sm:space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-dark-800 pb-2 gap-2">
                     <div className="flex items-center gap-2 text-zinc-200 font-semibold">
@@ -344,18 +344,26 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     </button>
                 </div>
 
-                {/* Tutorial Box */}
+                {/* Tutorial Box ATUALIZADO */}
                 {showScriptHelp && (
                     <div className="bg-dark-950 border border-dark-700 rounded-xl p-4 space-y-4 animate-in slide-in-from-top-2">
-                        <div className="space-y-2 text-sm text-zinc-300">
-                            <p><strong className="text-white">ATENÇÃO:</strong> Código atualizado! Se não atualizar, as fotos não aparecem.</p>
-                            <hr className="border-dark-800" />
-                            <p><strong className="text-white">Passo 1:</strong> Vá em <strong>Extensões</strong> {'>'} <strong>Apps Script</strong> na sua planilha.</p>
-                            <p><strong className="text-white">Passo 2:</strong> Substitua todo o código pelo código abaixo:</p>
+                        <div className="space-y-3 text-sm text-zinc-300">
+                            <p className="bg-blue-500/20 text-blue-200 p-2 rounded border border-blue-500/30 font-bold">
+                                SCRIPT V3 (Mais Robusto): Siga os passos para atualizar.
+                            </p>
+                            <ol className="list-decimal pl-4 space-y-2">
+                                <li>Vá na sua planilha: <strong>Extensões</strong> {'>'} <strong>Apps Script</strong>.</li>
+                                <li>Apague TUDO e cole o código novo abaixo.</li>
+                                <li>Clique no botão <strong>Implantar (Deploy)</strong> no topo direito.</li>
+                                <li>Selecione <strong>Gerenciar Implantações (Manage Deployments)</strong>.</li>
+                                <li>Clique no <strong>Lápis (Editar)</strong>.</li>
+                                <li>No campo "Versão", selecione <strong>NOVA VERSÃO (New Version)</strong>.</li>
+                                <li>Clique em <strong>Implantar</strong>.</li>
+                            </ol>
                         </div>
                         
                         <div className="relative group">
-                            <pre className="bg-dark-900 border border-dark-800 p-3 rounded-lg text-xs text-zinc-400 font-mono overflow-x-auto custom-scrollbar max-h-40">
+                            <pre className="bg-dark-900 border border-dark-800 p-3 rounded-lg text-xs text-zinc-400 font-mono overflow-x-auto custom-scrollbar max-h-60">
                                 {GOOGLE_SCRIPT_CODE}
                             </pre>
                             <button 
@@ -365,12 +373,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                             >
                                 {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
                             </button>
-                        </div>
-
-                        <div className="space-y-2 text-sm text-zinc-300">
-                            <p><strong className="text-white">Passo 3:</strong> Clique em <strong>Implantar (Deploy)</strong> {'>'} <strong>Gerenciar Implantações</strong>.</p>
-                            <p><strong className="text-white">Passo 4:</strong> Clique no ícone de lápis (Editar) {'>'} Versão: <strong>Nova Versão</strong> {'>'} Implantar.</p>
-                            <p className="text-amber-500 text-xs">Se não criar Nova Versão, o código antigo continua rodando!</p>
                         </div>
                     </div>
                 )}
