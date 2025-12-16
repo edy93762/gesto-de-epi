@@ -17,41 +17,54 @@ interface SettingsModalProps {
   onImportData: (data: any) => void;
 }
 
+// CORREÇÃO: As barras invertidas foram dobradas (\\n, \\r) para que apareçam corretamente como \n e \r
+// quando o usuário copiar o código. Sem isso, o JS interpreta como quebra de linha real, quebrando o regex.
 const GOOGLE_SCRIPT_CODE = `function doPost(e) {
   var lock = LockService.getScriptLock();
-  // Aumentado tempo de espera para evitar erros de concorrencia
   lock.tryLock(45000); 
 
   try {
     var doc = SpreadsheetApp.getActiveSpreadsheet();
     var sheet = doc.getActiveSheet();
     var rawData = e.postData.contents;
-    var data = JSON.parse(rawData);
+    
+    // Tratamento robusto para parsing (aceita text/plain e json)
+    var data;
+    try {
+        data = JSON.parse(rawData);
+    } catch(err) {
+        // Se falhar o parse direto, tenta limpar caracteres estranhos (newlines)
+        data = JSON.parse(rawData.replace(/\\n/g, "").replace(/\\r/g, ""));
+    }
 
-    // 1. CRIAR CABEÇALHO SE NECESSÁRIO
+    // 1. CRIAR CABEÇALHO (Se vazio)
     if (sheet.getLastRow() === 0) {
-      sheet.appendRow(["Data", "Hora", "Empresa", "Colaborador", "CPF", "Itens", "Status", "Link Foto", "Link PDF", "Visualização Foto"]);
+      sheet.appendRow(["Data", "Hora", "Empresa", "Colaborador", "CPF", "Itens", "Status", "Link Foto", "Link PDF", "FOTO (Visual)"]);
       sheet.getRange(1, 1, 1, 10).setFontWeight("bold").setBackground("#d9d9d9");
       sheet.setFrozenRows(1);
     }
 
-    // PASTA NO DRIVE
+    // 2. CONFIGURAR PASTA
     var FOLDER_NAME = "EPI_Comprovantes_Fotos";
     var folder;
     var folders = DriveApp.getFoldersByName(FOLDER_NAME);
+    
     if (folders.hasNext()) {
       folder = folders.next();
     } else {
       folder = DriveApp.createFolder(FOLDER_NAME);
     }
     
-    // Garante permissão pública na pasta para evitar erro de acesso
+    // TENTA LIBERAR PERMISSÃO DA PASTA
+    var permissaoPastaOk = true;
     try {
       folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-    } catch(e) {}
+    } catch(e) {
+      permissaoPastaOk = false; // Bloqueio corporativo ou erro
+    }
 
     // --- PROCESSAR FOTO ---
-    var linkFoto = "Sem Foto";
+    var linkFoto = "-";
     var visualizacaoFoto = "-";
     var statusAssinatura = "Pendente";
 
@@ -68,24 +81,34 @@ const GOOGLE_SCRIPT_CODE = `function doPost(e) {
         var blob = Utilities.newBlob(decodedImage, "image/jpeg", fileName);
         
         var file = folder.createFile(blob);
-        file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
         
-        // Link direto
+        // TENTA LIBERAR PERMISSÃO DO ARQUIVO
+        try {
+           file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+        } catch (e) {
+           permissaoPastaOk = false;
+        }
+        
         linkFoto = file.getUrl();
         
-        // Fórmula IMAGE (Tenta exibir, se falhar o link na coluna anterior garante o acesso)
-        // Usando ID direto para thumbnail que é mais rápido no Sheets
-        var imgUrl = "https://drive.google.com/thumbnail?id=" + file.getId() + "&sz=w1000";
-        visualizacaoFoto = '=IMAGE("' + imgUrl + '"; 1)';
+        if (permissaoPastaOk) {
+            // Se tem permissão, usa a fórmula IMAGE
+            // Usando link de thumbnail que é mais rápido e confiável
+            var imgUrl = "https://drive.google.com/thumbnail?id=" + file.getId() + "&sz=w1000";
+            visualizacaoFoto = '=IMAGE("' + imgUrl + '"; 1)';
+        } else {
+            // Se não tem permissão, avisa o usuário na planilha
+            visualizacaoFoto = "⚠️ ERRO: Drive Privado (Verifique Permissões)";
+        }
         
         statusAssinatura = "Assinado Digitalmente";
       } catch (err) {
-        linkFoto = "Erro Foto: " + err.toString();
+        linkFoto = "Erro ao salvar: " + err.toString();
       }
     }
 
     // --- PROCESSAR PDF ---
-    var linkPdf = "Sem PDF";
+    var linkPdf = "-";
     if (data.pdfFile && data.pdfFile.length > 50) {
       try {
          var base64Pdf = data.pdfFile;
@@ -99,9 +122,10 @@ const GOOGLE_SCRIPT_CODE = `function doPost(e) {
          var blobPdf = Utilities.newBlob(decodedPdf, "application/pdf", fileNamePdf);
          
          var filePdf = folder.createFile(blobPdf);
-         filePdf.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+         try {
+            filePdf.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+         } catch(e) {}
          
-         // Link clicável direto
          linkPdf = filePdf.getUrl();
       } catch (err) {
          linkPdf = "Erro PDF: " + err.toString();
@@ -115,7 +139,7 @@ const GOOGLE_SCRIPT_CODE = `function doPost(e) {
         itensTexto = data.items.map(function(i) { return i.name; }).join(", ");
     }
 
-    // --- INSERIR NA PLANILHA ---
+    // --- INSERIR LINHA ---
     sheet.appendRow([
       Utilities.formatDate(dataHora, Session.getScriptTimeZone(), "dd/MM/yyyy"),
       Utilities.formatDate(dataHora, Session.getScriptTimeZone(), "HH:mm:ss"),
@@ -124,17 +148,18 @@ const GOOGLE_SCRIPT_CODE = `function doPost(e) {
       "'" + (data.cpf || ""),
       itensTexto,
       statusAssinatura,
-      linkFoto, // Coluna H: Link Puro (funciona sempre)
-      linkPdf,  // Coluna I: Link Puro (funciona sempre)
-      visualizacaoFoto // Coluna J: Fórmula da Imagem
+      linkFoto, 
+      linkPdf,  
+      visualizacaoFoto // Se tiver erro de permissão, vai aparecer escrito aqui
     ]);
     
-    // Ajustar visual
+    // Ajustar Altura da Linha
     var lastRow = sheet.getLastRow();
     if (data.facePhoto) {
         sheet.setRowHeight(lastRow, 90);
     }
     sheet.getRange(lastRow, 1, 1, 10).setVerticalAlignment("middle");
+    sheet.getRange(lastRow, 10).setWrap(true); // Quebra texto se der erro
 
     return ContentService.createTextOutput(JSON.stringify({"result":"success"})).setMimeType(ContentService.MimeType.JSON);
   } catch (e) {
@@ -145,7 +170,7 @@ const GOOGLE_SCRIPT_CODE = `function doPost(e) {
 }`;
 
 // URL Fixa
-const FIXED_SHEETS_URL = "https://script.google.com/macros/s/AKfycbx3NKcMf8Y5CQOnevTCExz7ehQWLqaCv22MDzUHyxla2ara9-bN4eWPwYdWQ2nhmMkV_w/exec";
+const FIXED_SHEETS_URL = "https://script.google.com/macros/s/AKfycbxo2bLTj2MfZj_52cVZYU6YXqL0eJY5e6TyhXJs3KquPLVvSp57VyO5aZ4yv_c3kjmW/exec";
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ 
   isOpen, 
@@ -207,20 +232,27 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     setTestResult('idle');
 
     try {
+        // Base64 de uma imagem branca 10x10 pixels (jpg)
+        const dummyImage = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/4QAiRXhpZgAATU0AKgAAAAgAAQESAAMAAAABAAEAAAAAAAD/2wBDAAIBAQIBAQICAgICAgICAwUDAwMDAwYEBAMFBwYHBwcGBwcICQsJCAgKCAcHCg0KCgsMDAwMBwkODw0MDgsMDAz/2wBDAQICAgMDAwYDAwYMCAcIDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAz/wAARCAAKAAoDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD9/KKKKAP/2Q==";
+        
+        // Base64 de um PDF mínimo
+        const dummyPdf = "data:application/pdf;base64,JVBERi0xLjcKCjEgMCBvYmogICUgZW50cnkgcG9pbnQKPDwKICAvVHlwZSAvQ2F0YWxvZwogIC9QYWdlcyAyIDAgUgo+PgplbmRvYmoKCjIgMCBvYmogICUgcGFnZXMKPDwKICAvVHlwZSAvUGFnZXwKICAvTWVkaWFCb3ggWyAwIDAgMjAwIDIwMCBdCiAgL0NvdW50IDEKICAvS2lkcyBbIDMgMCBSIF0KPj4KZW5kb2JqCgozIDAgb2JqICAlIHBhZ2UKPDwKICAvVHlwZSAvUGFnZQogIC9QYXJlbnQgMiAwIFIKICAvUmVzb3VyY2VzIDw8CiAgICAvRm9udCA8PAogICAgICAvRjEgNCAwIFIKICAgID4+CiAgPj4KICAvQ29udGVudHMgNSAwIFIKPj4KZW5kb2JqCgo0IDAgb2JqICAlIGZvbnQKPDwKICAvVHlwZSAvRm9udAogIC9TdWJ0eXBlIC9UeXBlMQogIC9CYXNlRm9udCAvVGltZXMtUm9tYW4KPj4KZW5kb2JqCgo1IDAgb2JqICAlIGZvbnQKPDwKICAvTGVuZ3RoIDQ0Cj4+CnN0cmVhbQpCVAo3MCA1MCBUZAovRjEgMTIgVGYKKFRlc3RlIEVSSSkgVGoKRVQKZW5kc3RyZWFtCmVuZG9iagoKeHJlZgowIDYKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDEwIDAwMDAwIG4gCjAwMDAwMDAwNjAgMDAwMDAgbiAKMDAwMDAwMDTE1NyAwMDAwMCBuIAowMDAwMDAwMzA3IDAwMDAwIG4gCjAwMDAwMDAzODcgMDAwMDAgbiAKdHJhaWxlcgo8PAogIC9TaXplIDYKICAvUm9vdCAxIDAgUgo+PgpzdGFydHhyZWYKNDgyCiUlRU9GCg==";
+
         const testPayload = {
             date: new Date().toISOString(),
             company: 'SISTEMA',
-            employeeName: 'TESTE DE CONEXÃO',
+            employeeName: 'TESTE FINAL',
             cpf: '000000',
-            items: [{ name: 'Verificação de URL', ca: 'TESTE' }],
-            facePhoto: '', 
-            pdfFile: ''
+            items: [{ name: 'Teste de Envio Forçado', ca: 'TESTE' }],
+            facePhoto: dummyImage, 
+            pdfFile: dummyPdf
         };
 
+        // CORREÇÃO CRÍTICA NO TESTE: Usar text/plain
         await fetch(localConfig.googleSheetsUrl, {
             method: 'POST',
             mode: 'no-cors',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
             body: JSON.stringify(testPayload)
         });
 
@@ -348,8 +380,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 {showScriptHelp && (
                     <div className="bg-dark-950 border border-dark-700 rounded-xl p-4 space-y-4 animate-in slide-in-from-top-2">
                         <div className="space-y-3 text-sm text-zinc-300">
-                            <p className="bg-blue-500/20 text-blue-200 p-2 rounded border border-blue-500/30 font-bold">
-                                SCRIPT V3 (Mais Robusto): Siga os passos para atualizar.
+                            <p className="bg-red-500/20 text-red-200 p-2 rounded border border-red-500/30 font-bold">
+                                ⚠️ CORREÇÃO DE SINTAXE: Copie e substitua TODO o script.
                             </p>
                             <ol className="list-decimal pl-4 space-y-2">
                                 <li>Vá na sua planilha: <strong>Extensões</strong> {'>'} <strong>Apps Script</strong>.</li>
@@ -420,14 +452,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                             }`}
                         >
                             {isTesting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
-                            Testar Conexão
+                            Testar com Foto e PDF
                         </button>
 
                         {/* Status Message */}
                         {testResult === 'success' && (
                             <div className="flex items-center gap-2 text-emerald-400 text-xs bg-emerald-500/10 px-3 py-2 rounded-lg border border-emerald-500/20 w-full sm:w-auto animate-in fade-in slide-in-from-left">
                                 <CheckCircle className="w-3 h-3 shrink-0" />
-                                <span>Enviado! Verifique se apareceu na planilha.</span>
+                                <span>Enviado! Olhe a planilha agora.</span>
                             </div>
                         )}
                         {testResult === 'error' && (
@@ -439,7 +471,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                      </div>
                      
                      <p className="text-[10px] text-zinc-500 leading-tight pt-2 border-t border-dark-800/50">
-                         <strong>Nota:</strong> O teste envia um registro fictício. Para testar fotos, realize uma entrega real.
+                         <strong>Nota:</strong> O novo script vai escrever "ERRO: Pasta Privada" na planilha se não conseguir deixar a foto pública.
                      </p>
                 </div>
             </div>

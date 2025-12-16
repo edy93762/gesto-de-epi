@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { HardHat, Eraser, User, ListPlus, Trash, Save, Search, Plus, AlertCircle, ScanFace, Check, X, UserPlus, History, Building2, Loader2, Send } from 'lucide-react';
+import { HardHat, Eraser, User, ListPlus, Trash, Save, Search, Plus, AlertCircle, ScanFace, Check, X, UserPlus, History, Building2, Loader2, Send, FileText, Settings, UserX } from 'lucide-react';
 import { EpiRecord, EpiItem, EpiCatalogItem, AutoDeleteConfig, Collaborator } from '../types';
 import FaceRecognitionModal from './FaceRecognitionModal';
-import { generateEpiPdf } from '../utils/pdfGenerator';
+import { generateEpiPdf, generateCollaboratorHistoryPdf } from '../utils/pdfGenerator';
 
 interface AssignmentFormProps {
   onAdd: (record: EpiRecord) => void;
@@ -12,7 +12,8 @@ interface AssignmentFormProps {
   onOpenCatalog: () => void;
   onOpenCollaborators: () => void;
   onRegisterNew: (photo: string) => void;
-  onUpdateCollaboratorActivity: (id: string) => void; // Nova prop
+  onUpdateCollaboratorActivity: (id: string) => void; 
+  onEditCollaborator?: (id: string) => void; // Novo handler
   defaultConfig: AutoDeleteConfig;
 }
 
@@ -25,6 +26,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
   onOpenCollaborators, 
   onRegisterNew,
   onUpdateCollaboratorActivity,
+  onEditCollaborator,
   defaultConfig 
 }) => {
   // Company Selection
@@ -35,7 +37,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
   const [employeeCpf, setEmployeeCpf] = useState('');
   const [employeeAdmission, setEmployeeAdmission] = useState('');
   const [shift, setShift] = useState(''); 
-  const [selectedCollabId, setSelectedCollabId] = useState<string | null>(null); // ID para renovação
+  const [selectedCollabId, setSelectedCollabId] = useState<string | null>(null); 
   const [lastDeliveryDate, setLastDeliveryDate] = useState<string | null>(null);
   
   // Collaborator Search Data
@@ -82,7 +84,6 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
       return;
     }
     const lowerQuery = collabSearchQuery.toLowerCase();
-    // Permite buscar por nome ou CPF (numérico)
     const filtered = collaborators.filter(c => 
       c.name.toLowerCase().includes(lowerQuery) || 
       (c.cpf && c.cpf.includes(lowerQuery))
@@ -111,13 +112,11 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
       return;
     }
     
-    // Find all records for this employee
     const employeeRecords = records.filter(r => 
       r.employeeName.toLowerCase() === name.toLowerCase()
     );
 
     if (employeeRecords.length > 0) {
-      // Sort desc by date
       employeeRecords.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       setLastDeliveryDate(employeeRecords[0].date);
     } else {
@@ -151,16 +150,14 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
     setEmployeeCpf(collab.cpf || '');
     setShift(collab.shift || '');
     setEmployeeAdmission(collab.admissionDate || '');
-    setSelectedCollabId(collab.id); // Guardar ID para renovação
+    setSelectedCollabId(collab.id);
     
-    // Puxa a agência automaticamente do cadastro
     if (collab.company) {
         setSelectedCompany(collab.company);
     }
 
     setShowCollabSuggestions(false);
     
-    // Check history
     checkLastDelivery(collab.name);
   };
   
@@ -184,27 +181,44 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
     setIsSubmitting(false);
   };
 
+  // --- Quick Actions for Selected Collab ---
+  const handleQuickHistory = () => {
+      if (!selectedCollabId) return;
+      const collab = collaborators.find(c => c.id === selectedCollabId);
+      if (!collab) return;
+
+      const employeeRecords = records.filter(r => 
+        r.employeeName.toLowerCase() === collab.name.toLowerCase()
+      ).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+      generateCollaboratorHistoryPdf(collab, employeeRecords);
+  };
+
+  const handleQuickManage = () => {
+      if (!selectedCollabId || !onEditCollaborator) return;
+      onEditCollaborator(selectedCollabId);
+  };
+
   // --- SYNC TO GOOGLE SHEETS ---
   const syncToGoogleSheets = async (record: EpiRecord, pdfBase64: string) => {
     if (!defaultConfig.googleSheetsUrl) return;
 
     try {
-        // Envio usando no-cors (Opaque) pois Apps Script redireciona
+        // CORREÇÃO CRÍTICA: Usar 'text/plain' para evitar Preflight CORS que bloqueia o envio
         await fetch(defaultConfig.googleSheetsUrl, {
             method: 'POST',
             mode: 'no-cors', 
-            headers: {
-                'Content-Type': 'application/json',
+            headers: { 
+              'Content-Type': 'text/plain;charset=utf-8' 
             },
             body: JSON.stringify({
                 ...record,
-                pdfFile: pdfBase64 // Adicionando o PDF codificado no payload
+                pdfFile: pdfBase64 // Envia o PDF em Base64
             })
         });
-        console.log('Dados enviados para Planilha Google');
+        console.log('Dados (PDF+Foto) enviados para Planilha Google via text/plain');
     } catch (e) {
         console.error('Erro ao enviar para Google Sheets:', e);
-        // Não alertamos o usuário para não interromper o fluxo se a net cair
     }
   };
 
@@ -214,7 +228,6 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
 
     const finalName = employeeName || collabSearchQuery;
     
-    // Validation check updated to include facePhoto
     if (!finalName || items.length === 0 || !facePhoto) {
       alert("Para registrar a entrega é obrigatório:\n1. Informar o colaborador\n2. Adicionar EPIs\n3. Realizar o reconhecimento facial");
       return;
@@ -236,19 +249,16 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
     };
 
     try {
-        // 1. Save Local
         onAdd(newRecord);
         
-        // 2. Renew Activity
         if (selectedCollabId) {
             onUpdateCollaboratorActivity(selectedCollabId);
         }
 
-        // 3. Generate PDF and get Base64
-        // A função generateEpiPdf agora retorna o PDF em base64 e também faz o download local
+        // Gera o PDF
         const pdfBase64 = generateEpiPdf(newRecord);
 
-        // 4. Sync to Sheets (Async, don't block clearing form too long)
+        // Tenta enviar para planilha (se configurado)
         if (navigator.onLine && defaultConfig.googleSheetsUrl) {
            await syncToGoogleSheets(newRecord, pdfBase64);
         }
@@ -264,22 +274,14 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
   const handleFaceCapture = (photo: string) => {
     setFacePhoto(photo);
     
-    // Lógica de Reconhecimento Automático
-    // Se ainda não selecionou um colaborador, simula o reconhecimento
     if (!employeeName && !collabSearchQuery) {
         setIsRecognizing(true);
-        
-        // Simulação de delay de processamento (1.5s)
         setTimeout(() => {
-            // Tenta encontrar um colaborador na base
             let found = null;
-            
-            // Simulação simples
             if (collaborators.length > 0) {
                  const randomIndex = Math.floor(Math.random() * collaborators.length);
                  found = collaborators[randomIndex];
             }
-
             if (found) {
                 handleSelectCollaborator(found);
             }
@@ -288,7 +290,6 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
     }
   };
 
-  // Helper para cor do botão baseado na empresa
   const getSubmitButtonClass = () => {
     const isDisabled = items.length === 0 || (!employeeName && !collabSearchQuery) || !facePhoto || isSubmitting;
     
@@ -320,7 +321,6 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
           </div>
           
           <div className="flex items-center gap-2 sm:gap-3 ml-auto">
-            {/* Seletor de Empresa */}
             <div className="relative group max-w-[120px] sm:max-w-none">
                 <select
                     value={selectedCompany}
@@ -446,7 +446,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                             type="button"
                             onClick={handleClearCollaborator}
                             className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white bg-dark-800 hover:bg-red-500/80 p-1.5 rounded-lg transition-all z-10 border border-transparent hover:border-red-500/50 shadow-sm"
-                            title="Apagar nome"
+                            title="Apagar nome / Limpar Campo"
                         >
                             <X className="w-4 h-4" />
                         </button>
@@ -499,20 +499,47 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                   )}
                 </div>
 
-                {/* Last Delivery Indicator */}
-                {lastDeliveryDate && (
-                  <div className="flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 p-2.5 rounded-lg text-blue-400 animate-in fade-in slide-in-from-top-1">
-                    <History className="w-4 h-4 shrink-0" />
-                    <div className="text-xs">
-                        <span className="font-bold">Última Entrega:</span> {new Date(lastDeliveryDate).toLocaleDateString('pt-BR')} às {new Date(lastDeliveryDate).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}
+                {/* PAINEL DE AÇÃO RÁPIDA (QUANDO SELECIONADO) */}
+                {selectedCollabId && (
+                    <div className="bg-dark-950/50 border border-dark-700 rounded-xl p-3 animate-in fade-in slide-in-from-top-2">
+                         <div className="flex items-center justify-between mb-2">
+                             <div className="flex items-center gap-2 text-zinc-300">
+                                 <User className="w-4 h-4 text-brand-500" />
+                                 <span className="text-sm font-bold truncate max-w-[150px]">{employeeName}</span>
+                             </div>
+                             <button 
+                                onClick={handleClearCollaborator}
+                                className="text-xs text-zinc-500 hover:text-red-400 flex items-center gap-1 px-2 py-1 rounded hover:bg-dark-800 transition-colors"
+                             >
+                                 <UserX className="w-3 h-3" />
+                                 Trocar
+                             </button>
+                         </div>
+                         
+                         <div className="grid grid-cols-2 gap-2">
+                             <button
+                                onClick={handleQuickHistory}
+                                className="bg-brand-500/10 hover:bg-brand-500/20 text-brand-400 border border-brand-500/20 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-colors"
+                             >
+                                 <FileText className="w-3 h-3" />
+                                 Histórico (PDF)
+                             </button>
+                             <button
+                                onClick={handleQuickManage}
+                                className="bg-dark-800 hover:bg-dark-700 text-zinc-300 border border-dark-700 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-colors"
+                             >
+                                 <Settings className="w-3 h-3" />
+                                 Gerenciar / Apagar
+                             </button>
+                         </div>
+
+                         {lastDeliveryDate && (
+                            <div className="mt-2 pt-2 border-t border-dark-800 text-[10px] text-zinc-500 flex items-center gap-1.5">
+                                <History className="w-3 h-3 text-zinc-600" />
+                                <span>Última entrega: <strong>{new Date(lastDeliveryDate).toLocaleDateString('pt-BR')}</strong></span>
+                            </div>
+                        )}
                     </div>
-                  </div>
-                )}
-                {!lastDeliveryDate && employeeName && (
-                  <div className="flex items-center gap-2 bg-dark-800/50 border border-dark-700 p-2.5 rounded-lg text-zinc-400 text-xs">
-                    <History className="w-4 h-4 shrink-0" />
-                    <span>Primeira entrega registrada no sistema.</span>
-                  </div>
                 )}
             </div>
 

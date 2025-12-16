@@ -1,5 +1,14 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { X, Camera, RefreshCw, CheckCircle, AlertTriangle, Play, ChevronDown } from 'lucide-react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
+import { X, Camera, RefreshCw, CheckCircle, AlertTriangle, ChevronDown, ScanFace, Loader2 } from 'lucide-react';
+
+// Declaração global para o MediaPipe carregado via CDN
+declare global {
+  interface Window {
+    FaceDetection: any;
+    Camera: any;
+    drawRectangle: any;
+  }
+}
 
 interface FaceRecognitionModalProps {
   isOpen: boolean;
@@ -11,167 +20,196 @@ interface FaceRecognitionModalProps {
 const FaceRecognitionModal: React.FC<FaceRecognitionModalProps> = ({ isOpen, onClose, onCapture, employeeName }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [stream, setStream] = useState<MediaStream | null>(null);
   const [image, setImage] = useState<string | null>(null);
   const [error, setError] = useState<string>('');
   
   // Controle de Dispositivos e Seleção
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
-  const [isFrontCamera, setIsFrontCamera] = useState(true); // Controla espelhamento
+  const [isFrontCamera, setIsFrontCamera] = useState(true);
 
-  const [isSecureContext, setIsSecureContext] = useState(true);
+  // Estados da IA
+  const [isModelLoading, setIsModelLoading] = useState(true);
+  const [isFaceDetected, setIsFaceDetected] = useState(false);
+  const [faceDetectionInstance, setFaceDetectionInstance] = useState<any>(null);
+  const requestRef = useRef<number | null>(null);
 
+  // Inicializar MediaPipe FaceDetection
   useEffect(() => {
-    if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
-      setIsSecureContext(false);
-      setError("A câmera requer conexão segura (HTTPS).");
+    if (isOpen && window.FaceDetection) {
+      const faceDetection = new window.FaceDetection({
+        locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`,
+      });
+
+      faceDetection.setOptions({
+        model: 'short', // 'short' é mais rápido e bom para selfies
+        minDetectionConfidence: 0.6,
+      });
+
+      faceDetection.onResults(onResults);
+      setFaceDetectionInstance(faceDetection);
+      setIsModelLoading(false);
     }
-  }, []);
+  }, [isOpen]);
+
+  // Função chamada a cada quadro processado pela IA
+  const onResults = useCallback((results: any) => {
+    if (!canvasRef.current || !videoRef.current || image) return;
+
+    const canvasCtx = canvasRef.current.getContext('2d');
+    if (!canvasCtx) return;
+
+    const { width, height } = canvasRef.current;
+    canvasCtx.clearRect(0, 0, width, height);
+
+    // Se detectou rosto
+    if (results.detections.length > 0) {
+      setIsFaceDetected(true);
+      
+      // Desenhar caixa em volta do rosto
+      results.detections.forEach((detection: any) => {
+        const bbox = detection.boundingBox;
+        
+        // Converter coordenadas normalizadas para pixels
+        // O MediaPipe retorna coordenadas normalizadas (0.0 a 1.0)
+        const x = bbox.xCenter * width - (bbox.width * width) / 2;
+        const y = bbox.yCenter * height - (bbox.height * height) / 2;
+        const w = bbox.width * width;
+        const h = bbox.height * height;
+
+        // Estilo do retângulo
+        canvasCtx.beginPath();
+        canvasCtx.lineWidth = 4;
+        canvasCtx.strokeStyle = '#10b981'; // Emerald 500 (Verde)
+        canvasCtx.roundRect(x, y, w, h, 10); // Bordas arredondadas
+        canvasCtx.stroke();
+
+        // Adicionar texto "Rosto Detectado"
+        canvasCtx.fillStyle = '#10b981';
+        canvasCtx.font = 'bold 16px Inter, sans-serif';
+        canvasCtx.fillText("Biometria OK", x, y - 10);
+      });
+
+    } else {
+      setIsFaceDetected(false);
+    }
+  }, [image]);
 
   const stopCamera = () => {
-    if (stream) {
-      stream.getTracks().forEach(track => {
-        track.stop();
-        track.enabled = false;
-      });
-      setStream(null);
-    }
-    if (videoRef.current) {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach(track => track.stop());
       videoRef.current.srcObject = null;
+    }
+    if (requestRef.current) {
+      cancelAnimationFrame(requestRef.current);
     }
   };
 
-  // Carregar lista de câmeras quando o stream iniciar (necessário para ter permissão de ler labels)
-  useEffect(() => {
-    const loadDevices = async () => {
-        try {
-            const allDevices = await navigator.mediaDevices.enumerateDevices();
-            const videoDevs = allDevices.filter(d => d.kind === 'videoinput');
-            setDevices(videoDevs);
-
-            // Tenta identificar a câmera atual na lista
-            if (stream && !selectedDeviceId) {
-                const track = stream.getVideoTracks()[0];
-                const settings = track.getSettings();
-                if (settings.deviceId) {
-                    setSelectedDeviceId(settings.deviceId);
-                }
-            }
-        } catch (e) {
-            console.error("Erro ao listar dispositivos:", e);
-        }
-    };
-
-    if (stream) {
-        loadDevices();
+  const processVideo = async () => {
+    if (videoRef.current && faceDetectionInstance && !image && isOpen) {
+      try {
+        await faceDetectionInstance.send({ image: videoRef.current });
+      } catch (e) {
+        // Ignora erros de frame vazio
+      }
+      requestRef.current = requestAnimationFrame(processVideo);
     }
-  }, [stream]);
+  };
 
   const startCamera = async (deviceIdToUse?: string) => {
-    if (!isSecureContext) return;
-    
     stopCamera();
     setError('');
+    setIsFaceDetected(false);
 
     try {
-      console.log(`Iniciando câmera... DeviceID: ${deviceIdToUse || 'Padrão (User)'}`);
-      
       const constraints: MediaStreamConstraints = {
         video: deviceIdToUse 
-            ? { deviceId: { exact: deviceIdToUse } } 
-            : { facingMode: 'user' }, // Tenta frontal por padrão na primeira vez
+            ? { deviceId: { exact: deviceIdToUse }, width: 640, height: 480 } 
+            : { facingMode: 'user', width: 640, height: 480 },
         audio: false
       };
 
-      const newStream = await navigator.mediaDevices.getUserMedia(constraints);
-      setStream(newStream);
-
-      // Lógica de Espelhamento:
-      // Se usou facingMode 'user' OU se o nome da câmera selecionada tiver "front/anterior"
-      const track = newStream.getVideoTracks()[0];
-      const label = track.label.toLowerCase();
-      // Se não tem ID (primeiro load) é 'user' (front). Se tem ID, checa o label.
-      const isFront = !deviceIdToUse || label.includes('front') || label.includes('anterior') || label.includes('frontal');
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      
+      // Detectar se é frontal
+      const track = stream.getVideoTracks()[0];
+      const settings = track.getSettings();
+      // Lógica heurística: se não escolheu ID específico, assume 'user' (frontal).
+      const isFront = !deviceIdToUse || (settings.facingMode === 'user');
       setIsFrontCamera(isFront);
 
       if (videoRef.current) {
-        videoRef.current.srcObject = newStream;
-        videoRef.current.setAttribute('playsinline', 'true');
-        videoRef.current.muted = true;
-        
-        try {
-          await videoRef.current.play();
-        } catch (e) {
-          console.warn("Autoplay bloqueado:", e);
-        }
+        videoRef.current.srcObject = stream;
+        videoRef.current.onloadedmetadata = () => {
+            if (videoRef.current) {
+                videoRef.current.play();
+                // Ajustar tamanho do canvas ao vídeo
+                if (canvasRef.current) {
+                    canvasRef.current.width = videoRef.current.videoWidth;
+                    canvasRef.current.height = videoRef.current.videoHeight;
+                }
+                // Iniciar loop de detecção
+                processVideo();
+            }
+        };
       }
+
+      // Listar dispositivos para o select
+      const allDevices = await navigator.mediaDevices.enumerateDevices();
+      setDevices(allDevices.filter(d => d.kind === 'videoinput'));
+      if (!selectedDeviceId && settings.deviceId) {
+          setSelectedDeviceId(settings.deviceId);
+      }
+
     } catch (err: any) {
       console.error("Erro Câmera:", err);
-      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        setError("Permissão da câmera negada.");
-      } else if (err.name === 'NotFoundError') {
-        setError("Nenhuma câmera encontrada.");
-      } else {
-        setError("Erro ao iniciar câmera.");
-      }
+      setError("Não foi possível acessar a câmera. Verifique as permissões.");
     }
   };
 
-  // Inicia câmera ao abrir o modal
   useEffect(() => {
-    if (isOpen && !image) {
-      // Usa o ID selecionado se houver, senão usa padrão
+    if (isOpen && !image && !isModelLoading) {
       startCamera(selectedDeviceId);
     } else {
       stopCamera();
     }
     return () => stopCamera();
-  }, [isOpen, image]); 
+  }, [isOpen, image, isModelLoading]);
 
   const handleDeviceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-      const newId = e.target.value;
-      setSelectedDeviceId(newId);
-      startCamera(newId);
+    const newId = e.target.value;
+    setSelectedDeviceId(newId);
+    startCamera(newId);
   };
 
   const handleCapture = () => {
-    if (videoRef.current && canvasRef.current) {
-      const video = videoRef.current;
-      
-      if (video.videoWidth === 0 || video.videoHeight === 0) {
-        setTimeout(handleCapture, 100);
-        return;
-      }
+    if (!isFaceDetected) return; // Segurança extra
 
-      const canvas = canvasRef.current;
+    if (videoRef.current) {
+      const video = videoRef.current;
+      const canvas = document.createElement('canvas');
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        // Espelha apenas se for câmera frontal
+        // Espelhar se for frontal, igual ao preview
         if (isFrontCamera) {
           ctx.translate(canvas.width, 0);
           ctx.scale(-1, 1);
         }
-        
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        
-        try {
-          const photoData = canvas.toDataURL('image/jpeg', 0.85);
-          setImage(photoData);
-          stopCamera();
-        } catch (e) {
-          setError("Erro ao processar imagem.");
-        }
+        const photoData = canvas.toDataURL('image/jpeg', 0.9);
+        setImage(photoData);
+        stopCamera();
       }
     }
   };
 
   const handleRetake = () => {
     setImage(null);
-    setError('');
+    setIsFaceDetected(false);
   };
 
   const handleConfirm = () => {
@@ -191,9 +229,9 @@ const FaceRecognitionModal: React.FC<FaceRecognitionModalProps> = ({ isOpen, onC
         <div className="flex items-center justify-between p-4 border-b border-dark-800 bg-dark-950 shrink-0">
           <h3 className="text-white font-bold flex items-center gap-2">
             <div className="bg-brand-600 p-1.5 rounded-lg">
-               <Camera className="w-4 h-4 text-white" />
+               <ScanFace className="w-4 h-4 text-white" />
             </div>
-            Reconhecimento Facial
+            Validação Biométrica
           </h3>
           <button onClick={onClose} className="text-zinc-500 hover:text-white p-2 bg-dark-800 hover:bg-dark-700 rounded-full transition-colors">
             <X className="w-5 h-5" />
@@ -203,6 +241,13 @@ const FaceRecognitionModal: React.FC<FaceRecognitionModalProps> = ({ isOpen, onC
         {/* Viewport */}
         <div className="flex-1 bg-black relative flex flex-col items-center justify-center min-h-[350px] overflow-hidden">
           
+          {isModelLoading && (
+             <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-dark-900/90 text-white">
+                 <Loader2 className="w-8 h-8 animate-spin text-brand-500 mb-2" />
+                 <span className="text-sm font-medium">Carregando IA Facial...</span>
+             </div>
+          )}
+
           {error ? (
             <div className="p-6 text-center max-w-[85%] bg-dark-900 rounded-xl border border-red-500/20">
               <AlertTriangle className="w-10 h-10 text-red-500 mx-auto mb-3" />
@@ -221,48 +266,48 @@ const FaceRecognitionModal: React.FC<FaceRecognitionModalProps> = ({ isOpen, onC
                 <div className="relative w-full h-full flex flex-col justify-center bg-black">
                    <video
                     ref={videoRef}
-                    autoPlay
                     playsInline
                     muted
                     style={{ transform: isFrontCamera ? 'scaleX(-1)' : 'none' }}
                     className="w-full h-full object-cover"
-                    onLoadedMetadata={() => {
-                        if(videoRef.current) videoRef.current.play().catch(e => console.error("Play error", e));
-                    }}
                   />
                   
-                  {/* Play Manual Fallback */}
-                  {!stream && !error && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-dark-900 z-10">
-                          <button 
-                            onClick={() => startCamera(selectedDeviceId)}
-                            className="flex flex-col items-center gap-3 text-zinc-400 hover:text-white transition-colors"
-                          >
-                              <div className="p-4 bg-dark-800 rounded-full border border-dark-700">
-                                <Play className="w-8 h-8 fill-current" />
-                              </div>
-                              <span className="text-sm font-medium">Ativar Câmera</span>
-                          </button>
-                      </div>
-                  )}
+                  {/* CANVAS OVERLAY PARA DESENHAR O ROSTO */}
+                  <canvas 
+                    ref={canvasRef}
+                    className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+                    style={{ transform: isFrontCamera ? 'scaleX(-1)' : 'none' }}
+                  />
 
-                  {/* Face Guide Overlay */}
-                  <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-10">
-                    <div className="w-[200px] h-[260px] border-2 border-brand-500/50 rounded-[4rem] shadow-[0_0_0_9999px_rgba(0,0,0,0.7)] relative">
-                        <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-brand-500/20 text-brand-400 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border border-brand-500/30 backdrop-blur-sm">
-                           Rosto Aqui
-                        </div>
-                    </div>
+                  {/* Feedback Visual de Status */}
+                  <div className="absolute top-4 left-0 right-0 flex justify-center z-20 pointer-events-none">
+                      <div className={`px-4 py-1.5 rounded-full backdrop-blur-md border shadow-lg flex items-center gap-2 transition-all duration-300 ${
+                          isFaceDetected 
+                          ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' 
+                          : 'bg-red-500/20 border-red-500/50 text-red-400'
+                      }`}>
+                          {isFaceDetected ? (
+                              <>
+                                <CheckCircle className="w-4 h-4" />
+                                <span className="text-xs font-bold uppercase tracking-wide">Rosto Identificado</span>
+                              </>
+                          ) : (
+                              <>
+                                <ScanFace className="w-4 h-4" />
+                                <span className="text-xs font-bold uppercase tracking-wide">Posicione o Rosto</span>
+                              </>
+                          )}
+                      </div>
                   </div>
 
                   {/* SELETOR DE CÂMERA */}
                   {devices.length > 0 && (
-                    <div className="absolute top-4 right-4 z-20 w-[60%] flex justify-end">
-                      <div className="relative group max-w-full">
+                    <div className="absolute bottom-4 right-4 z-20 w-[50%] flex justify-end">
+                      <div className="relative group max-w-full pointer-events-auto">
                         <select
                           value={selectedDeviceId}
                           onChange={handleDeviceChange}
-                          className="appearance-none bg-black/60 hover:bg-black/80 text-white pl-9 pr-8 py-2.5 rounded-full border border-white/10 text-xs font-medium focus:outline-none backdrop-blur-md cursor-pointer transition-all shadow-lg w-full truncate"
+                          className="appearance-none bg-black/60 hover:bg-black/80 text-white pl-8 pr-8 py-2 rounded-full border border-white/10 text-xs font-medium focus:outline-none backdrop-blur-md cursor-pointer transition-all shadow-lg w-full truncate"
                         >
                           {devices.map((device, idx) => (
                             <option key={device.deviceId} value={device.deviceId} className="bg-dark-900 text-white">
@@ -270,8 +315,8 @@ const FaceRecognitionModal: React.FC<FaceRecognitionModalProps> = ({ isOpen, onC
                             </option>
                           ))}
                         </select>
-                        <Camera className="w-4 h-4 text-zinc-300 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                        <ChevronDown className="w-4 h-4 text-zinc-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none group-hover:text-white transition-colors" />
+                        <Camera className="w-3.5 h-3.5 text-zinc-300 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <ChevronDown className="w-3.5 h-3.5 text-zinc-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none group-hover:text-white transition-colors" />
                       </div>
                     </div>
                   )}
@@ -290,8 +335,6 @@ const FaceRecognitionModal: React.FC<FaceRecognitionModalProps> = ({ isOpen, onC
               )}
             </>
           )}
-          
-          <canvas ref={canvasRef} className="hidden" />
         </div>
 
         {/* Footer Actions */}
@@ -299,15 +342,15 @@ const FaceRecognitionModal: React.FC<FaceRecognitionModalProps> = ({ isOpen, onC
           {!image ? (
             <button
               onClick={handleCapture}
-              disabled={!!error || !stream}
+              disabled={!!error || !isFaceDetected}
               className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 shadow-lg transition-all ${
-                !!error || !stream
-                ? 'bg-dark-800 text-zinc-500 cursor-not-allowed border border-dark-700' 
+                !!error || !isFaceDetected
+                ? 'bg-dark-800 text-zinc-600 cursor-not-allowed border border-dark-700 opacity-70' 
                 : 'bg-brand-600 hover:bg-brand-500 text-white active:scale-[0.98] shadow-brand-600/20'
               }`}
             >
-              <Camera className="w-6 h-6" />
-              CAPTURAR FOTO
+              <ScanFace className="w-6 h-6" />
+              {isFaceDetected ? "CAPTURAR BIOMETRIA" : "AGUARDANDO ROSTO..."}
             </button>
           ) : (
             <div className="grid grid-cols-2 gap-3">
@@ -316,20 +359,20 @@ const FaceRecognitionModal: React.FC<FaceRecognitionModalProps> = ({ isOpen, onC
                 className="py-3.5 rounded-xl font-medium bg-dark-800 text-zinc-300 hover:bg-dark-700 hover:text-white border border-dark-700 transition-colors flex items-center justify-center gap-2"
               >
                 <RefreshCw className="w-4 h-4" />
-                Tentar Novamente
+                Refazer
               </button>
               <button
                 onClick={handleConfirm}
                 className="py-3.5 rounded-xl font-bold bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg shadow-emerald-600/20 transition-colors flex items-center justify-center gap-2"
               >
                 <CheckCircle className="w-5 h-5" />
-                CONFIRMAR FOTO
+                CONFIRMAR
               </button>
             </div>
           )}
           
           <p className="text-center text-xs text-zinc-500 mt-3 truncate px-4">
-             {employeeName ? `Vinculando a: ${employeeName}` : 'Nenhum colaborador selecionado'}
+             {employeeName ? `Vinculando a: ${employeeName}` : 'Cadastro de novo perfil'}
           </p>
         </div>
       </div>
