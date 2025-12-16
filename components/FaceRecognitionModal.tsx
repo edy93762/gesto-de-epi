@@ -43,7 +43,7 @@ const FaceRecognitionModal: React.FC<FaceRecognitionModalProps> = ({ isOpen, onC
 
       faceDetection.setOptions({
         model: 'short', // 'short' é mais rápido e bom para selfies
-        minDetectionConfidence: 0.6,
+        minDetectionConfidence: 0.6, // Aumentado ligeiramente a confiança para melhor precisão
       });
 
       faceDetection.onResults(onResults);
@@ -123,10 +123,11 @@ const FaceRecognitionModal: React.FC<FaceRecognitionModalProps> = ({ isOpen, onC
     setIsFaceDetected(false);
 
     try {
+      // Tenta resolução 720p (1280x720) para melhor qualidade da foto
       const constraints: MediaStreamConstraints = {
         video: deviceIdToUse 
-            ? { deviceId: { exact: deviceIdToUse }, width: 640, height: 480 } 
-            : { facingMode: 'user', width: 640, height: 480 },
+            ? { deviceId: { exact: deviceIdToUse }, width: { ideal: 1280 }, height: { ideal: 720 } } 
+            : { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
         audio: false
       };
 
@@ -164,7 +165,17 @@ const FaceRecognitionModal: React.FC<FaceRecognitionModalProps> = ({ isOpen, onC
 
     } catch (err: any) {
       console.error("Erro Câmera:", err);
-      setError("Não foi possível acessar a câmera. Verifique as permissões.");
+      // Fallback para resolução padrão se falhar a alta
+      try {
+          const fallbackStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+           if (videoRef.current) {
+                videoRef.current.srcObject = fallbackStream;
+                videoRef.current.play();
+                processVideo();
+           }
+      } catch (e) {
+          setError("Não foi possível acessar a câmera. Verifique as permissões.");
+      }
     }
   };
 

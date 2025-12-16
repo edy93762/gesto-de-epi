@@ -98,7 +98,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ records, onDelete, compact 
 
                         <div className="flex gap-2">
                              <button 
-                                onClick={() => generateEpiPdf(record)}
+                                onClick={() => generateEpiPdf(record, true)}
                                 className="flex-1 bg-brand-500/10 text-brand-400 border border-brand-500/20 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 active:scale-95 transition-transform"
                              >
                                 <FileText className="w-4 h-4" /> Baixar Ficha
@@ -171,7 +171,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ records, onDelete, compact 
                       </td>
                       <td className="px-6 py-4 text-right space-x-2 whitespace-nowrap">
                         <button 
-                          onClick={() => generateEpiPdf(record)}
+                          onClick={() => generateEpiPdf(record, true)}
                           className="inline-flex items-center justify-center w-9 h-9 text-brand-400 bg-brand-500/10 hover:bg-brand-500/20 border border-brand-500/20 rounded-lg transition-colors"
                           title="Baixar PDF da Ficha"
                         >
