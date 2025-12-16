@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Users, UserPlus, Trash2, FileText, Calendar, Clock, ScanFace, Check, Camera, Building2, FileClock, ArrowLeft } from 'lucide-react';
+import { X, Users, UserPlus, Trash2, FileText, Calendar, Clock, ScanFace, Check, Camera, Building2, Briefcase, Users2, ShieldAlert, ArrowLeft, LayoutGrid } from 'lucide-react';
 import { Collaborator, EpiRecord } from '../types';
 import FaceRecognitionModal from './FaceRecognitionModal';
 import { generateCollaboratorHistoryPdf } from '../utils/pdfGenerator';
@@ -13,6 +13,38 @@ interface CollaboratorModalProps {
   initialCollaboratorId?: string | null; // Nova prop para abrir direto no perfil
   records: EpiRecord[]; 
 }
+
+const ROLE_OPTIONS = [
+  "Representante de Envios",
+  "Operador de Máquinas",
+  "Problem Solver",
+  "Team Leader",
+  "Supervisor",
+  "Gerente",
+  "Analista",
+  "Outro"
+];
+
+const SECTOR_OPTIONS = [
+  "Picking",
+  "Packing",
+  "Put Away",
+  "Inventário",
+  "Qualidade",
+  "Expedição",
+  "Recebimento",
+  "HSE",
+  "Security",
+  "Treinamento",
+  "Pátio",
+  "Ambulatório",
+  "Manutenção",
+  "Administrativo",
+  "Returns",
+  "T.I",
+  "Shipping",
+  "Outro"
+];
 
 const CollaboratorModal: React.FC<CollaboratorModalProps> = ({
   isOpen,
@@ -30,6 +62,18 @@ const CollaboratorModal: React.FC<CollaboratorModalProps> = ({
   const [newCollabFace, setNewCollabFace] = useState<string | null>(null);
   const [newCollabCompany, setNewCollabCompany] = useState<'Luandre' | 'Randstad' | 'Shopee'>('Luandre');
   
+  // Novos campos operacionais
+  const [newCollabRole, setNewCollabRole] = useState('');
+  const [newCollabSector, setNewCollabSector] = useState('');
+  const [newCollabLeader, setNewCollabLeader] = useState('');
+  const [newCollabCoordinator, setNewCollabCoordinator] = useState('');
+  const [newCollabHse, setNewCollabHse] = useState('');
+
+  // Estado para controlar se está no modo de digitação de setor (Outro)
+  const [isCustomSectorMode, setIsCustomSectorMode] = useState(false);
+  // Estado para controlar se está no modo de digitação de função (Outro)
+  const [isCustomRoleMode, setIsCustomRoleMode] = useState(false);
+
   const [editingCollabId, setEditingCollabId] = useState<string | null>(null);
   const [isFaceModalOpen, setIsFaceModalOpen] = useState(false);
 
@@ -75,17 +119,31 @@ const CollaboratorModal: React.FC<CollaboratorModalProps> = ({
         admissionDate: newCollabAdmission,
         faceReference: newCollabFace || undefined,
         lastActivityDate: new Date().toISOString(),
-        company: newCollabCompany
+        company: newCollabCompany,
+        // Novos Campos
+        role: newCollabRole,
+        sector: newCollabSector,
+        teamLeader: newCollabLeader,
+        coordinator: newCollabCoordinator,
+        hse: newCollabHse
     };
 
     onUpdateCollaborators([...collaborators, newCollab]);
     
+    // Reset Form
     setNewCollabName('');
     setNewCollabCpf('');
     setNewCollabShift('');
     setNewCollabAdmission('');
     setNewCollabFace(null);
     setNewCollabCompany('Luandre');
+    setNewCollabRole('');
+    setIsCustomRoleMode(false);
+    setNewCollabSector('');
+    setIsCustomSectorMode(false); 
+    setNewCollabLeader('');
+    setNewCollabCoordinator('');
+    setNewCollabHse('');
 
     if (initialPhoto) {
         onClose();
@@ -171,6 +229,12 @@ const CollaboratorModal: React.FC<CollaboratorModalProps> = ({
                                    <span className="text-xs bg-dark-800 px-2 py-0.5 rounded text-zinc-300 border border-dark-700">{selectedCollabForHistory.shift}</span>
                                    <span className="text-xs bg-brand-900/30 px-2 py-0.5 rounded text-brand-300 border border-brand-500/20">{selectedCollabForHistory.company === 'Shopee' ? 'Shopee Xpress' : selectedCollabForHistory.company}</span>
                                </div>
+                               {/* Exibir detalhes adicionais se existirem */}
+                               {(selectedCollabForHistory.role || selectedCollabForHistory.sector) && (
+                                   <p className="text-xs text-zinc-500 mt-2">
+                                       {selectedCollabForHistory.role} - {selectedCollabForHistory.sector}
+                                   </p>
+                               )}
                            </div>
                       </div>
 
@@ -231,6 +295,7 @@ const CollaboratorModal: React.FC<CollaboratorModalProps> = ({
                             {initialPhoto ? "Finalizar Cadastro (Foto Capturada)" : "Adicionar Novo"}
                         </h4>
                         <div className="space-y-3">
+                            {/* CPF e Face */}
                             <div className="flex gap-3">
                                 <div className="flex-1 relative">
                                 <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
@@ -315,6 +380,121 @@ const CollaboratorModal: React.FC<CollaboratorModalProps> = ({
                                 </div>
                             </div>
 
+                            {/* --- NOVOS CAMPOS OPERACIONAIS --- */}
+                            <div className="pt-2 border-t border-dark-800">
+                                <label className="text-[10px] uppercase font-bold text-zinc-500 mb-2 block">Dados Operacionais</label>
+                                <div className="grid grid-cols-2 gap-3 mb-3">
+                                    {/* SELETOR DE FUNÇÃO */}
+                                    <div className="relative flex flex-col gap-2">
+                                        <div className="relative w-full">
+                                            <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" />
+                                            <select
+                                                value={isCustomRoleMode ? 'Outro' : newCollabRole}
+                                                onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    if (val === 'Outro') {
+                                                        setIsCustomRoleMode(true);
+                                                        setNewCollabRole(''); // Limpa para digitar
+                                                    } else {
+                                                        setIsCustomRoleMode(false);
+                                                        setNewCollabRole(val);
+                                                    }
+                                                }}
+                                                className="w-full pl-9 pr-3 py-2 bg-dark-900 border border-dark-700 rounded-lg text-xs text-white focus:ring-1 focus:ring-brand-500 outline-none appearance-none"
+                                            >
+                                                <option value="" disabled>Selecione a Função</option>
+                                                {ROLE_OPTIONS.map(opt => (
+                                                    <option key={opt} value={opt}>{opt}</option>
+                                                ))}
+                                            </select>
+                                            <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500 text-[10px]">▼</div>
+                                        </div>
+                                        
+                                        {/* Campo de Texto para 'Outro' na Função */}
+                                        {isCustomRoleMode && (
+                                            <input
+                                                type="text"
+                                                placeholder="Digite o nome da função..."
+                                                value={newCollabRole}
+                                                onChange={(e) => setNewCollabRole(e.target.value)}
+                                                autoFocus
+                                                className="w-full px-3 py-2 bg-dark-900 border border-dark-700 rounded-lg text-xs text-white focus:ring-1 focus:ring-brand-500 outline-none animate-in fade-in slide-in-from-top-1"
+                                            />
+                                        )}
+                                    </div>
+                                    
+                                    {/* SELETOR DE SETOR */}
+                                    <div className="relative flex flex-col gap-2">
+                                        <div className="relative w-full">
+                                            <LayoutGrid className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" />
+                                            <select
+                                                value={isCustomSectorMode ? 'Outro' : newCollabSector}
+                                                onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    if (val === 'Outro') {
+                                                        setIsCustomSectorMode(true);
+                                                        setNewCollabSector(''); // Limpa para digitar
+                                                    } else {
+                                                        setIsCustomSectorMode(false);
+                                                        setNewCollabSector(val);
+                                                    }
+                                                }}
+                                                className="w-full pl-9 pr-3 py-2 bg-dark-900 border border-dark-700 rounded-lg text-xs text-white focus:ring-1 focus:ring-brand-500 outline-none appearance-none"
+                                            >
+                                                <option value="" disabled>Selecione o Setor</option>
+                                                {SECTOR_OPTIONS.map(opt => (
+                                                    <option key={opt} value={opt}>{opt}</option>
+                                                ))}
+                                            </select>
+                                            <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500 text-[10px]">▼</div>
+                                        </div>
+                                        
+                                        {/* Campo de Texto para 'Outro' no Setor */}
+                                        {isCustomSectorMode && (
+                                            <input
+                                                type="text"
+                                                placeholder="Digite o nome do setor..."
+                                                value={newCollabSector}
+                                                onChange={(e) => setNewCollabSector(e.target.value)}
+                                                autoFocus
+                                                className="w-full px-3 py-2 bg-dark-900 border border-dark-700 rounded-lg text-xs text-white focus:ring-1 focus:ring-brand-500 outline-none animate-in fade-in slide-in-from-top-1"
+                                            />
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="space-y-3">
+                                    <div className="relative">
+                                        <Users2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                                        <input
+                                            type="text"
+                                            placeholder="Team Leader / Supervisor"
+                                            value={newCollabLeader}
+                                            onChange={(e) => setNewCollabLeader(e.target.value)}
+                                            className="w-full pl-9 pr-3 py-2 bg-dark-900 border border-dark-700 rounded-lg text-xs text-white focus:ring-1 focus:ring-brand-500 outline-none"
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <input
+                                            type="text"
+                                            placeholder="Coordenador"
+                                            value={newCollabCoordinator}
+                                            onChange={(e) => setNewCollabCoordinator(e.target.value)}
+                                            className="w-full px-3 py-2 bg-dark-900 border border-dark-700 rounded-lg text-xs text-white focus:ring-1 focus:ring-brand-500 outline-none"
+                                        />
+                                        <div className="relative">
+                                            <ShieldAlert className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                                            <input
+                                                type="text"
+                                                placeholder="HSE"
+                                                value={newCollabHse}
+                                                onChange={(e) => setNewCollabHse(e.target.value)}
+                                                className="w-full pl-9 pr-3 py-2 bg-dark-900 border border-dark-700 rounded-lg text-xs text-white focus:ring-1 focus:ring-brand-500 outline-none"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                         </div>
                         <button
                             onClick={handleAddCollaborator}
@@ -345,7 +525,7 @@ const CollaboratorModal: React.FC<CollaboratorModalProps> = ({
                                     <div className="flex items-center gap-2">
                                         <p className="text-sm font-medium text-zinc-200">{collab.name}</p>
                                     </div>
-                                    <p className="text-xs text-zinc-500 mt-0.5">{collab.company}</p>
+                                    <p className="text-xs text-zinc-500 mt-0.5">{collab.company} • {collab.role || '-'}</p>
                                 </div>
                                 <button 
                                     onClick={() => setSelectedCollabForHistory(collab)}

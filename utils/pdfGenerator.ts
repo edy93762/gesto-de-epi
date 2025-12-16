@@ -1,5 +1,5 @@
 import jsPDF from 'jspdf';
-import { EpiRecord, Collaborator } from '../types';
+import { EpiRecord, Collaborator, EpiItem } from '../types';
 
 // Adicionado parâmetro 'download' (padrão false) para controlar se baixa no PC ou só gera string
 export const generateEpiPdf = (record: EpiRecord, download: boolean = false): string => {
@@ -185,52 +185,57 @@ CLT - Art. 462 § 1º - Em caso de dano causado pelo empregado o desconto será 
   }
 
   // --- INFO FIELDS (Shared Layout) ---
-  const rowHeight = 7;
+  const rowHeight = 6;
   
   // Row 1: Nome
   doc.rect(margin, cursorY, pageWidth - (margin * 2), rowHeight);
-  doc.setFontSize(8);
+  doc.setFontSize(7);
   doc.setFont("helvetica", "bold");
-  doc.text("Nome:", margin + 2, cursorY + 4.5);
+  doc.text("Nome:", margin + 2, cursorY + 4);
   doc.setFont("helvetica", "normal");
-  doc.text(record.employeeName || "", margin + 15, cursorY + 4.5);
+  doc.text(record.employeeName || "", margin + 15, cursorY + 4);
   cursorY += rowHeight;
 
-  // Row 2: CPF & Data Admissão
+  // Row 2: CPF & Função & Setor
   doc.rect(margin, cursorY, pageWidth - (margin * 2), rowHeight);
-  doc.line(pageWidth / 2, cursorY, pageWidth / 2, cursorY + rowHeight);
-  doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
-  doc.text("CPF:", margin + 2, cursorY + 4.5);
+  doc.text("CPF:", margin + 2, cursorY + 4);
   doc.setFont("helvetica", "normal");
-  doc.text(record.cpf || "", margin + 12, cursorY + 4.5);
-  doc.setFont("helvetica", "bold");
-  doc.text("Data de Admissão:", (pageWidth / 2) + 2, cursorY + 4.5);
-  if (record.admissionDate) {
-    const [year, month, day] = record.admissionDate.split('-');
-    doc.setFont("helvetica", "normal");
-    doc.text(`${day}/${month}/${year}`, (pageWidth / 2) + 28, cursorY + 4.5);
-  }
-  cursorY += rowHeight;
-
-  // Row 3: Unidade & Turno
-  doc.rect(margin, cursorY, pageWidth - (margin * 2), rowHeight);
-  doc.line(pageWidth / 2, cursorY, pageWidth / 2, cursorY + rowHeight);
-  doc.setFont("helvetica", "bold");
-  doc.text("Unidade:", margin + 2, cursorY + 4.5);
-  doc.setFont("helvetica", "normal");
+  doc.text(record.cpf || "", margin + 10, cursorY + 4);
   
-  // LOGIC PARA UNIDADE SHOPEE
+  doc.setFont("helvetica", "bold");
+  doc.text("Função:", margin + 50, cursorY + 4);
+  doc.setFont("helvetica", "normal");
+  doc.text(record.role || "", margin + 62, cursorY + 4);
+
+  doc.setFont("helvetica", "bold");
+  doc.text("Setor:", margin + 120, cursorY + 4);
+  doc.setFont("helvetica", "normal");
+  doc.text(record.sector || "", margin + 130, cursorY + 4);
+  
+  cursorY += rowHeight;
+
+  // Row 3: Turno & Motivo & Unidade
+  doc.rect(margin, cursorY, pageWidth - (margin * 2), rowHeight);
+  doc.setFont("helvetica", "bold");
+  doc.text("Turno:", margin + 2, cursorY + 4);
+  doc.setFont("helvetica", "normal");
+  doc.text(record.shift || "", margin + 12, cursorY + 4);
+
+  doc.setFont("helvetica", "bold");
+  doc.text("Motivo:", margin + 50, cursorY + 4);
+  doc.setFont("helvetica", "normal");
+  doc.text(record.exchangeReason || "Troca", margin + 62, cursorY + 4);
+
+  doc.setFont("helvetica", "bold");
+  doc.text("Unidade:", margin + 120, cursorY + 4);
+  doc.setFont("helvetica", "normal");
   if (record.company === 'Shopee') {
-    doc.text("FUL-SP1", margin + 17, cursorY + 4.5);
+    doc.text("FUL-SP1", margin + 135, cursorY + 4);
   } else {
-    doc.text("", margin + 17, cursorY + 4.5);
+    doc.text("", margin + 135, cursorY + 4);
   }
   
-  doc.setFont("helvetica", "bold");
-  doc.text("Turno:", (pageWidth / 2) + 2, cursorY + 4.5);
-  doc.setFont("helvetica", "normal");
-  doc.text(record.shift || "", (pageWidth / 2) + 15, cursorY + 4.5);
   cursorY += rowHeight;
 
   // Add a small spacing before table
@@ -327,9 +332,11 @@ CLT - Art. 462 § 1º - Em caso de dano causado pelo empregado o desconto será 
     doc.setFontSize(7);
     currentX += colWidths[5]; 
 
-    currentX += colWidths[6]; // Data Devolução
+    // Col 7 & 8: DEVOLUÇÃO (VAZIO POIS REMOVEMOS A LÓGICA)
+    currentX += colWidths[6]; 
+    currentX += colWidths[7];
+
     // Assinatura Final
-    
     doc.line(margin, cursorY + rowH, pageWidth - margin, cursorY + rowH);
     
     let vertX = margin;
@@ -394,7 +401,7 @@ export const generateCollaboratorHistoryPdf = (collab: Collaborator, records: Ep
 
     // Table Header
     const colWidths = [30, 80, 20, 30, 30]; // Data, Item, Quant, CA, Status
-    const headers = ["DATA", "ITEM / EPI", "QTD", "C.A.", "VALIDAÇÃO"];
+    const headers = ["DATA", "ITEM / EPI", "QTD", "C.A.", "STATUS"];
     
     doc.setFillColor(230, 230, 230);
     doc.rect(margin, cursorY, pageWidth - (margin * 2), 8, 'F');
@@ -440,8 +447,8 @@ export const generateCollaboratorHistoryPdf = (collab: Collaborator, records: Ep
             doc.text(item.ca || "-", currentX + 2, cursorY + 5);
             currentX += colWidths[3];
 
-            // Validation (Biometria)
-            doc.text(rec.facePhoto ? "Biometria OK" : "Manual", currentX + 2, cursorY + 5);
+            // Validation (Biometria/Devolução)
+            doc.text(rec.facePhoto ? "Em Uso (Bio OK)" : "Em Uso", currentX + 2, cursorY + 5);
 
             // Line
             doc.setDrawColor(200);

@@ -17,7 +17,7 @@ interface SettingsModalProps {
   onImportData: (data: any) => void;
 }
 
-// CORREÇÃO: Script simplificado e limpo para evitar erros de sintaxe ao copiar e colar
+// SCRIPT ATUALIZADO: Com função de Design (formatarPlanilha)
 const GOOGLE_SCRIPT_CODE = `function doPost(e) {
   var lock = LockService.getScriptLock();
   lock.tryLock(45000); 
@@ -32,36 +32,39 @@ const GOOGLE_SCRIPT_CODE = `function doPost(e) {
     try {
       data = JSON.parse(rawData);
     } catch(err) {
-      // Limpeza de quebras de linha caso o JSON venha mal formatado
       var clean = rawData.toString().replace(/\\r\\n/g, "").replace(/\\n/g, "").replace(/\\r/g, "");
       data = JSON.parse(clean);
     }
 
     // 1. CRIAR CABEÇALHO (Se vazio)
     if (sheet.getLastRow() === 0) {
-      sheet.appendRow(["Data", "Hora", "Empresa", "Colaborador", "CPF", "Itens", "Status", "Link Foto", "Link PDF", "FOTO (Visual)"]);
-      sheet.getRange(1, 1, 1, 10).setFontWeight("bold").setBackground("#d9d9d9");
+      var header = [
+        "Data", "Hora", "Empresa", "Colaborador", "CPF", 
+        "Função", "Turno", "Setor", "Team Leader / Supervisor", "Coordenador", "HSE", "Motivo da Troca",
+        "Descrição do EPI", "Quantidade", 
+        "Status", "Link Foto", "Link PDF", "FOTO (Visual)"
+      ];
+      sheet.appendRow(header);
       sheet.setFrozenRows(1);
     }
 
-    // 2. CONFIGURAR PASTA
-    var FOLDER_NAME = "EPI_Comprovantes_Fotos";
-    var folder;
-    var folders = DriveApp.getFoldersByName(FOLDER_NAME);
-    
-    if (folders.hasNext()) {
-      folder = folders.next();
-    } else {
-      folder = DriveApp.createFolder(FOLDER_NAME);
+    // --- CONFIGURAÇÃO DE PASTAS ---
+    function getOrCreateFolder(folderName) {
+      var folders = DriveApp.getFoldersByName(folderName);
+      var folder;
+      if (folders.hasNext()) {
+        folder = folders.next();
+      } else {
+        folder = DriveApp.createFolder(folderName);
+      }
+      try {
+        folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      } catch(e) {}
+      return folder;
     }
-    
-    // Permissão da Pasta
-    var folderOk = true;
-    try {
-      folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-    } catch(e) {
-      folderOk = false;
-    }
+
+    var folderFotos = getOrCreateFolder("EPI_FOTOS");
+    var folderPdfs = getOrCreateFolder("EPI_PDFS");
 
     // Variaveis padrao
     var linkFoto = "-";
@@ -75,28 +78,16 @@ const GOOGLE_SCRIPT_CODE = `function doPost(e) {
         if (base64Image.indexOf("base64,") > -1) {
             base64Image = base64Image.split("base64,")[1];
         }
-        
         var decodedImage = Utilities.base64Decode(base64Image);
         var safeName = (data.employeeName || "Func").replace(/[^a-zA-Z0-9]/g, "_");
         var fileName = "FOTO_" + safeName + "_" + Utilities.formatDate(new Date(), "GMT-3", "yyyyMMdd_HHmmss") + ".jpg";
         var blob = Utilities.newBlob(decodedImage, "image/jpeg", fileName);
-        var file = folder.createFile(blob);
-        
-        try {
-           file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-        } catch (e) {
-           folderOk = false;
-        }
+        var file = folderFotos.createFile(blob);
+        try { file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (e) {}
         
         linkFoto = file.getUrl();
-        
-        if (folderOk) {
-            var imgUrl = "https://drive.google.com/thumbnail?id=" + file.getId() + "&sz=w1000";
-            visualizacaoFoto = '=IMAGE("' + imgUrl + '"; 1)';
-        } else {
-            visualizacaoFoto = "ERRO: Pasta Privada";
-        }
-        
+        var imgUrl = "https://drive.google.com/thumbnail?id=" + file.getId() + "&sz=w1000";
+        visualizacaoFoto = '=IMAGE("' + imgUrl + '"; 1)';
         statusAssinatura = "Assinado Digitalmente";
       } catch (err) {
         linkFoto = "Erro: " + err.toString();
@@ -115,11 +106,8 @@ const GOOGLE_SCRIPT_CODE = `function doPost(e) {
          var safeNamePdf = (data.employeeName || "Func").replace(/[^a-zA-Z0-9]/g, "_");
          var fileNamePdf = "FICHA_" + safeNamePdf + "_" + Utilities.formatDate(new Date(), "GMT-3", "yyyyMMdd_HHmmss") + ".pdf";
          var blobPdf = Utilities.newBlob(decodedPdf, "application/pdf", fileNamePdf);
-         var filePdf = folder.createFile(blobPdf);
-         try {
-            filePdf.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-         } catch(e) {}
-         
+         var filePdf = folderPdfs.createFile(blobPdf);
+         try { filePdf.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch(e) {}
          linkPdf = filePdf.getUrl();
       } catch (err) {
          linkPdf = "Erro PDF: " + err.toString();
@@ -128,10 +116,21 @@ const GOOGLE_SCRIPT_CODE = `function doPost(e) {
 
     // --- FORMATAR DADOS ---
     var dataHora = new Date(data.date);
-    var itensTexto = "";
+    var itemsMap = {};
     if (data.items && Array.isArray(data.items)) {
-        itensTexto = data.items.map(function(i) { return i.name; }).join(", ");
+      data.items.forEach(function(item) {
+        var name = item.name;
+        itemsMap[name] = (itemsMap[name] || 0) + 1;
+      });
     }
+    var descList = [];
+    var qtdList = [];
+    for (var key in itemsMap) {
+      descList.push(key);
+      qtdList.push(itemsMap[key]);
+    }
+    var descTexto = descList.join("\\n"); 
+    var qtdTexto = qtdList.join("\\n");
 
     // --- INSERIR LINHA ---
     sheet.appendRow([
@@ -140,20 +139,23 @@ const GOOGLE_SCRIPT_CODE = `function doPost(e) {
       data.company || "-",
       data.employeeName,
       "'" + (data.cpf || ""),
-      itensTexto,
+      data.role || "-",
+      data.shift || "-",
+      data.sector || "-",
+      data.teamLeader || "-",
+      data.coordinator || "-",
+      data.hse || "-",
+      data.exchangeReason || "-",
+      descTexto,
+      qtdTexto,
       statusAssinatura,
       linkFoto, 
       linkPdf,  
       visualizacaoFoto
     ]);
     
-    // Ajustar Visual
-    var lastRow = sheet.getLastRow();
-    if (data.facePhoto) {
-        sheet.setRowHeight(lastRow, 90);
-    }
-    sheet.getRange(lastRow, 1, 1, 10).setVerticalAlignment("middle");
-    sheet.getRange(lastRow, 10).setWrap(true);
+    // --- APLICAR DESIGN (DEIXAR BONITO) ---
+    formatarPlanilha(sheet);
 
     return ContentService.createTextOutput(JSON.stringify({"result":"success"})).setMimeType(ContentService.MimeType.JSON);
 
@@ -162,10 +164,76 @@ const GOOGLE_SCRIPT_CODE = `function doPost(e) {
   } finally {
     lock.releaseLock();
   }
+}
+
+// --- FUNÇÃO PARA DEIXAR A PLANILHA BONITA ---
+function formatarPlanilha(sheet) {
+  var lastRow = sheet.getLastRow();
+  var lastCol = sheet.getLastColumn(); // Deve ser 18
+  
+  if (lastRow < 1) return;
+
+  // 1. Estilo do Cabeçalho (Linha 1)
+  var headerRange = sheet.getRange(1, 1, 1, lastCol);
+  headerRange
+    .setBackground("#202124") // Fundo Escuro (Google Dark Grey)
+    .setFontColor("#ffffff")  // Texto Branco
+    .setFontWeight("bold")
+    .setFontFamily("Roboto")
+    .setHorizontalAlignment("center")
+    .setVerticalAlignment("middle");
+
+  // 2. Estilo do Corpo (Linhas de Dados)
+  if (lastRow > 1) {
+    var dataRange = sheet.getRange(lastRow, 1, 1, lastCol);
+    
+    // Alinhamento Vertical
+    dataRange.setVerticalAlignment("middle").setFontFamily("Roboto").setFontSize(10);
+    
+    // Alinhamento Horizontal Específico
+    // Centro: Data(1), Hora(2), Empresa(3), CPF(5), Turno(7), Qtd(14), Status(15)
+    sheet.getRange(lastRow, 1, 1, 3).setHorizontalAlignment("center");
+    sheet.getRange(lastRow, 5, 1, 1).setHorizontalAlignment("center");
+    sheet.getRange(lastRow, 7, 1, 1).setHorizontalAlignment("center");
+    sheet.getRange(lastRow, 14, 1, 2).setHorizontalAlignment("center");
+    sheet.getRange(lastRow, 18, 1, 1).setHorizontalAlignment("center"); // Foto
+    
+    // Esquerda: Nome(4), Descrição(13)
+    sheet.getRange(lastRow, 4, 1, 1).setHorizontalAlignment("left");
+    sheet.getRange(lastRow, 13, 1, 1).setHorizontalAlignment("left").setWrap(true);
+
+    // Cor Alternada (Zebra Striping)
+    if (lastRow % 2 == 0) {
+      dataRange.setBackground("#f1f3f4"); // Cinza bem claro
+    } else {
+      dataRange.setBackground("#ffffff"); // Branco
+    }
+
+    // Bordas (Cinza sutil)
+    dataRange.setBorder(true, true, true, true, true, true, "#e0e0e0", SpreadsheetApp.BorderStyle.SOLID);
+    
+    // Altura da Linha (para caber a foto)
+    sheet.setRowHeight(lastRow, 90);
+  }
+
+  // 3. Largura das Colunas (Ajuste Fino)
+  // Apenas define se for a primeira execução ou esporadicamente para não travar
+  if (lastRow <= 2) {
+      sheet.setColumnWidth(1, 85);  // Data
+      sheet.setColumnWidth(2, 70);  // Hora
+      sheet.setColumnWidth(3, 80);  // Empresa
+      sheet.setColumnWidth(4, 200); // Nome
+      sheet.setColumnWidth(13, 300);// Descrição (Bem largo)
+      sheet.setColumnWidth(14, 60); // Qtd
+      sheet.setColumnWidth(15, 120);// Status
+      sheet.setColumnWidth(16, 50); // Link Foto (Estreito)
+      sheet.setColumnWidth(17, 50); // Link PDF (Estreito)
+      sheet.setColumnWidth(18, 100);// Foto Visual
+  }
 }`;
 
 // URL Fixa
-const FIXED_SHEETS_URL = "https://script.google.com/macros/s/AKfycbwVKdL1EIpazcFMZs341pHBi3P-EJdIdVcZugU3-QomexGnCXyD0Rn8fI4pqfgO-nQ-/exec";
+const FIXED_SHEETS_URL = "https://script.google.com/macros/s/AKfycbxK6LFZpxcq0AhopiWk8_BEMgyiEvduYSlkd9b3tlxDKCQkt0Taz4uV7goK4RNKTEBF/exec";
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ 
   isOpen, 
@@ -236,9 +304,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         const testPayload = {
             date: new Date().toISOString(),
             company: 'SISTEMA',
-            employeeName: 'TESTE FINAL',
+            employeeName: 'TESTE DE DESIGN',
             cpf: '000000',
-            items: [{ name: 'Teste de Envio Forçado', ca: 'TESTE' }],
+            shift: 'Turno Teste',
+            role: 'Função Teste',
+            sector: 'Setor Teste',
+            items: [{ name: 'Luva', ca: '123' }, { name: 'Luva', ca: '123' }, { name: 'Oculos', ca: '456' }],
             facePhoto: dummyImage, 
             pdfFile: dummyPdf
         };
@@ -375,8 +446,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 {showScriptHelp && (
                     <div className="bg-dark-950 border border-dark-700 rounded-xl p-4 space-y-4 animate-in slide-in-from-top-2">
                         <div className="space-y-3 text-sm text-zinc-300">
-                            <p className="bg-red-500/20 text-red-200 p-2 rounded border border-red-500/30 font-bold">
-                                ⚠️ CORREÇÃO DE SINTAXE: Copie e substitua TODO o script.
+                            <p className="bg-emerald-500/20 text-emerald-200 p-2 rounded border border-emerald-500/30 font-bold">
+                                ✨ SCRIPT ATUALIZADO (DESIGN): Copie e substitua para ter a planilha bonita!
                             </p>
                             <ol className="list-decimal pl-4 space-y-2">
                                 <li>Vá na sua planilha: <strong>Extensões</strong> {'>'} <strong>Apps Script</strong>.</li>
@@ -447,26 +518,26 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                             }`}
                         >
                             {isTesting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
-                            Testar com Foto e PDF
+                            Testar Design e Envio
                         </button>
 
                         {/* Status Message */}
                         {testResult === 'success' && (
                             <div className="flex items-center gap-2 text-emerald-400 text-xs bg-emerald-500/10 px-3 py-2 rounded-lg border border-emerald-500/20 w-full sm:w-auto animate-in fade-in slide-in-from-left">
                                 <CheckCircle className="w-3 h-3 shrink-0" />
-                                <span>Enviado! Olhe a planilha agora.</span>
+                                <span>Enviado! Confira a planilha.</span>
                             </div>
                         )}
                         {testResult === 'error' && (
                             <div className="flex items-center gap-2 text-red-400 text-xs bg-red-500/10 px-3 py-2 rounded-lg border border-red-500/20 w-full sm:w-auto animate-in fade-in slide-in-from-left">
                                 <AlertTriangle className="w-3 h-3 shrink-0" />
-                                <span>Falha. Verifique a URL ou a internet.</span>
+                                <span>Falha. Verifique a URL.</span>
                             </div>
                         )}
                      </div>
                      
                      <p className="text-[10px] text-zinc-500 leading-tight pt-2 border-t border-dark-800/50">
-                         <strong>Nota:</strong> O novo script vai escrever "ERRO: Pasta Privada" na planilha se não conseguir deixar a foto pública.
+                         <strong>Nota:</strong> O novo script vai aplicar cores alternadas, bordas e alinhar o texto automaticamente.
                      </p>
                 </div>
             </div>

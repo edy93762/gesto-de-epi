@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { HardHat, Eraser, User, ListPlus, Trash, Save, Search, Plus, AlertCircle, ScanFace, Check, X, UserPlus, History, Building2, Loader2, Send, FileText, Settings, UserX } from 'lucide-react';
+import { HardHat, Eraser, User, ListPlus, Trash, Save, Search, Plus, AlertCircle, ScanFace, Check, X, UserPlus, Building2, HelpCircle, Loader2, FileText, Settings, UserX } from 'lucide-react';
 import { EpiRecord, EpiItem, EpiCatalogItem, AutoDeleteConfig, Collaborator } from '../types';
 import FaceRecognitionModal from './FaceRecognitionModal';
 import { generateEpiPdf, generateCollaboratorHistoryPdf } from '../utils/pdfGenerator';
@@ -13,7 +13,7 @@ interface AssignmentFormProps {
   onOpenCollaborators: () => void;
   onRegisterNew: (photo: string) => void;
   onUpdateCollaboratorActivity: (id: string) => void; 
-  onEditCollaborator?: (id: string) => void; // Novo handler
+  onEditCollaborator?: (id: string) => void; 
   defaultConfig: AutoDeleteConfig;
 }
 
@@ -27,7 +27,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
   onRegisterNew,
   onUpdateCollaboratorActivity,
   onEditCollaborator,
-  defaultConfig 
+  defaultConfig,
 }) => {
   // Company Selection
   const [selectedCompany, setSelectedCompany] = useState<'Luandre' | 'Randstad' | 'Shopee'>('Luandre');
@@ -37,6 +37,17 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
   const [employeeCpf, setEmployeeCpf] = useState('');
   const [employeeAdmission, setEmployeeAdmission] = useState('');
   const [shift, setShift] = useState(''); 
+  
+  // Campos Operacionais (Puxados do Cadastro)
+  const [role, setRole] = useState('');
+  const [sector, setSector] = useState('');
+  const [teamLeader, setTeamLeader] = useState('');
+  const [coordinator, setCoordinator] = useState('');
+  const [hse, setHse] = useState('');
+  
+  // Campo que varia na entrega - PADRÃO ALTERADO PARA 'Troca'
+  const [exchangeReason, setExchangeReason] = useState('Troca');
+
   const [selectedCollabId, setSelectedCollabId] = useState<string | null>(null); 
   const [lastDeliveryDate, setLastDeliveryDate] = useState<string | null>(null);
   
@@ -152,6 +163,14 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
     setEmployeeCpf(collab.cpf || '');
     setShift(collab.shift || '');
     setEmployeeAdmission(collab.admissionDate || '');
+    
+    // Auto-fill Operational Data from Collaborator Profile
+    setRole(collab.role || '');
+    setSector(collab.sector || '');
+    setTeamLeader(collab.teamLeader || '');
+    setCoordinator(collab.coordinator || '');
+    setHse(collab.hse || '');
+
     setSelectedCollabId(collab.id);
     setFaceNotFound(false); // Reset not found state
     
@@ -170,6 +189,14 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
     setEmployeeCpf('');
     setShift('');
     setEmployeeAdmission('');
+    
+    // Clear operational data
+    setRole('');
+    setSector('');
+    setTeamLeader('');
+    setCoordinator('');
+    setHse('');
+    
     setSelectedCollabId(null);
     setLastDeliveryDate(null);
     setShowCollabSuggestions(false);
@@ -184,6 +211,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
     setIsRecognizing(false);
     setIsSubmitting(false);
     setFaceNotFound(false);
+    setExchangeReason('Troca');
   };
 
   // --- Quick Actions for Selected Collab ---
@@ -209,7 +237,6 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
     if (!defaultConfig.googleSheetsUrl) return;
 
     try {
-        // CORREÇÃO CRÍTICA: Usar 'text/plain' para evitar Preflight CORS que bloqueia o envio
         await fetch(defaultConfig.googleSheetsUrl, {
             method: 'POST',
             mode: 'no-cors', 
@@ -218,7 +245,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
             },
             body: JSON.stringify({
                 ...record,
-                pdfFile: pdfBase64 // Envia o PDF em Base64
+                pdfFile: pdfBase64 
             })
         });
         console.log('Dados (PDF+Foto) enviados para Planilha Google via text/plain');
@@ -247,6 +274,15 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
       cpf: employeeCpf,
       admissionDate: employeeAdmission,
       shift: shift,
+      
+      // Salva os dados operacionais na ficha (snapshot do momento da entrega)
+      role: role,
+      sector: sector,
+      teamLeader: teamLeader,
+      coordinator: coordinator,
+      hse: hse,
+      exchangeReason: exchangeReason,
+
       items: items, 
       date: new Date().toISOString(),
       signed: false,
@@ -260,10 +296,8 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
             onUpdateCollaboratorActivity(selectedCollabId);
         }
 
-        // Gera o PDF mas NÃO BAIXA AUTOMATICAMENTE (parametro false)
         const pdfBase64 = generateEpiPdf(newRecord, false);
 
-        // Envia para planilha (Excel/Sheets) automaticamente
         if (navigator.onLine && defaultConfig.googleSheetsUrl) {
            await syncToGoogleSheets(newRecord, pdfBase64);
         }
@@ -280,21 +314,12 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
   const handleFaceCapture = (photo: string) => {
     setFacePhoto(photo);
     
-    // LÓGICA DE COMPARAÇÃO / BUSCA
-    // Se o usuário não tiver selecionado ninguém, o sistema tenta achar.
-    // Como a comparação exata de string de imagem (Base64) quase nunca funciona com câmera ao vivo,
-    // não vamos fingir que estamos procurando e falhar. 
-    // Em vez disso, mantemos a foto e pedimos para o usuário selecionar o nome.
-    
     if (!selectedCollabId) {
-        // Tenta encontrar correspondência exata de imagem (raro, mas possível se for upload de arquivo)
         const found = collaborators.find(c => c.faceReference === photo);
         
         if (found) {
             handleSelectCollaborator(found);
         } else {
-            // Se não encontrar, apenas marca para mostrar o aviso de seleção,
-            // MAS NÃO RESETA A FOTO. O usuário pode selecionar o nome manualmente.
             setFaceNotFound(true);
         }
     }
@@ -360,7 +385,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
         <div className="p-4 sm:p-6 flex-1 overflow-y-auto custom-scrollbar">
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 h-full">
-            {/* --- COLUNA ESQUERDA: COLABORADOR --- */}
+            {/* --- COLUNA ESQUERDA: COLABORADOR E DETALHES --- */}
             <div className="space-y-4">
                 <div className="flex items-center space-x-2 mb-2">
                   <User className="w-4 h-4 text-brand-500" />
@@ -369,11 +394,6 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                 
                 {/* Face Recognition Trigger */}
                 <div className="mb-4">
-                  <label className="block text-xs font-medium text-zinc-500 mb-1.5 flex justify-between items-center">
-                    <span>{employeeName ? "Validação Biométrica" : "Identificação Facial"}</span>
-                    {!facePhoto && <span className="text-brand-400 text-[10px] font-bold uppercase tracking-wider bg-brand-500/10 px-1.5 py-0.5 rounded animate-pulse">Recomendado</span>}
-                  </label>
-                  
                   {!facePhoto ? (
                       <button
                         type="button"
@@ -390,6 +410,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                             <span className="block text-sm font-bold text-zinc-200 group-hover:text-white">
                                 Toque para Reconhecer
                             </span>
+                            <span className="text-xs text-zinc-500">Validação Biométrica Obrigatória</span>
                         </div>
                       </button>
                   ) : (
@@ -421,30 +442,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                   )}
                 </div>
 
-                {/* ALERTA: ROSTO NÃO ENCONTRADO - CADASTRO RÁPIDO */}
-                {faceNotFound && !selectedCollabId && (
-                    <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 mb-4 animate-in fade-in slide-in-from-top-2">
-                        <div className="flex items-start gap-3">
-                            <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-                            <div className="flex-1">
-                                <h4 className="text-sm font-bold text-amber-400">Vincular Colaborador</h4>
-                                <p className="text-xs text-zinc-400 mt-1">
-                                    Selecione o nome abaixo para vincular a esta foto ou cadastre um novo.
-                                </p>
-                                <div className="mt-3 flex gap-2">
-                                    <button 
-                                        onClick={() => facePhoto && onRegisterNew(facePhoto)}
-                                        className="bg-amber-500 hover:bg-amber-600 text-black text-xs font-bold px-3 py-2 rounded-lg flex items-center gap-2 transition-colors"
-                                    >
-                                        <UserPlus className="w-3 h-3" />
-                                        Cadastrar Novo
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
+                {/* Search Collab */}
                 <div className="relative" ref={collabSearchRef}>
                   <label className="block text-xs font-medium text-zinc-500 mb-1.5">Nome / CPF (Apenas Números)</label>
                   <div className="relative group">
@@ -527,43 +525,36 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                 {/* PAINEL DE AÇÃO RÁPIDA (QUANDO SELECIONADO) */}
                 {selectedCollabId && (
                     <div className="bg-dark-950/50 border border-dark-700 rounded-xl p-3 animate-in fade-in slide-in-from-top-2">
-                         <div className="flex items-center justify-between mb-2">
-                             <div className="flex items-center gap-2 text-zinc-300">
-                                 <User className="w-4 h-4 text-brand-500" />
-                                 <span className="text-sm font-bold truncate max-w-[150px]">{employeeName}</span>
-                             </div>
-                             <button 
-                                onClick={handleClearCollaborator}
-                                className="text-xs text-zinc-500 hover:text-red-400 flex items-center gap-1 px-2 py-1 rounded hover:bg-dark-800 transition-colors"
-                             >
-                                 <UserX className="w-3 h-3" />
-                                 Trocar
-                             </button>
-                         </div>
-                         
-                         <div className="grid grid-cols-2 gap-2">
-                             <button
-                                onClick={handleQuickHistory}
-                                className="bg-brand-500/10 hover:bg-brand-500/20 text-brand-400 border border-brand-500/20 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-colors"
-                             >
-                                 <FileText className="w-3 h-3" />
-                                 Histórico (PDF)
-                             </button>
-                             <button
-                                onClick={handleQuickManage}
-                                className="bg-dark-800 hover:bg-dark-700 text-zinc-300 border border-dark-700 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-colors"
-                             >
-                                 <Settings className="w-3 h-3" />
-                                 Gerenciar / Apagar
-                             </button>
-                         </div>
-
-                         {lastDeliveryDate && (
-                            <div className="mt-2 pt-2 border-t border-dark-800 text-[10px] text-zinc-500 flex items-center gap-1.5">
-                                <History className="w-3 h-3 text-zinc-600" />
-                                <span>Última entrega: <strong>{new Date(lastDeliveryDate).toLocaleDateString('pt-BR')}</strong></span>
+                        <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2 text-zinc-300">
+                                <User className="w-4 h-4 text-brand-500" />
+                                <span className="text-sm font-bold truncate max-w-[150px]">{employeeName}</span>
                             </div>
-                        )}
+                            <button 
+                            onClick={handleClearCollaborator}
+                            className="text-xs text-zinc-500 hover:text-red-400 flex items-center gap-1 px-2 py-1 rounded hover:bg-dark-800 transition-colors"
+                            >
+                                <UserX className="w-3 h-3" />
+                                Trocar
+                            </button>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-2">
+                            <button
+                            onClick={handleQuickHistory}
+                            className="bg-brand-500/10 hover:bg-brand-500/20 text-brand-400 border border-brand-500/20 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-colors"
+                            >
+                                <FileText className="w-3 h-3" />
+                                Histórico (PDF)
+                            </button>
+                            <button
+                            onClick={handleQuickManage}
+                            className="bg-dark-800 hover:bg-dark-700 text-zinc-300 border border-dark-700 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-colors"
+                            >
+                                <Settings className="w-3 h-3" />
+                                Gerenciar / Apagar
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>
@@ -572,10 +563,34 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
             <div className="space-y-4 flex flex-col h-full">
                 <div>
                     <div className="flex items-center space-x-2 mb-2">
-                    <ListPlus className="w-4 h-4 text-brand-500" />
-                    <h3 className="font-semibold text-sm uppercase tracking-wide text-zinc-400">Selecionar EPIs</h3>
+                        <ListPlus className="w-4 h-4 text-brand-500" />
+                        <h3 className="font-semibold text-sm uppercase tracking-wide text-zinc-400">Selecionar EPIs</h3>
                     </div>
                     
+                    {/* MOTIVO DA TROCA (ATUALIZADO: Apenas Troca e Perda) */}
+                    <div className="bg-dark-950 p-3 rounded-xl border border-dark-800 mb-3">
+                        <label className="text-[10px] font-bold text-zinc-500 uppercase mb-2 flex items-center gap-2">
+                            <HelpCircle className="w-3 h-3" />
+                            Motivo da Troca / Entrega
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                            {['Troca', 'Perda'].map(reason => (
+                                <button
+                                    key={reason}
+                                    type="button"
+                                    onClick={() => setExchangeReason(reason)}
+                                    className={`text-xs px-3 py-1.5 rounded-lg border transition-all ${
+                                        exchangeReason === reason 
+                                        ? 'bg-brand-600 text-white border-brand-500' 
+                                        : 'bg-dark-900 text-zinc-400 border-dark-700 hover:bg-dark-800'
+                                    }`}
+                                >
+                                    {reason}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
                     <div className="relative" ref={searchRef}>
                     <label className="block text-xs font-medium text-zinc-500 mb-1.5">Buscar no Catálogo</label>
                     <div className="relative">

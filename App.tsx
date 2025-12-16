@@ -11,7 +11,7 @@ import { EpiRecord, AutoDeleteConfig, EpiCatalogItem, Collaborator } from './typ
 import * as db from './utils/db';
 
 // URL Fixa solicitada pelo usuário
-const FIXED_SHEETS_URL = "https://script.google.com/macros/s/AKfycbwVKdL1EIpazcFMZs341pHBi3P-EJdIdVcZugU3-QomexGnCXyD0Rn8fI4pqfgO-nQ-/exec";
+const FIXED_SHEETS_URL = "https://script.google.com/macros/s/AKfycbxK6LFZpxcq0AhopiWk8_BEMgyiEvduYSlkd9b3tlxDKCQkt0Taz4uV7goK4RNKTEBF/exec";
 
 const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
@@ -267,8 +267,6 @@ const App: React.FC = () => {
             <div className="hidden min-[380px]:block">
               <h1 className="text-lg sm:text-xl font-bold text-white tracking-tight leading-tight">Gestão de EPI</h1>
             </div>
-            
-            {/* REMOVIDO: BOTÕES DE BANCO LOCAL E RESTAURAR (Conforme solicitado) */}
           </div>
           
           <div className="flex items-center gap-1 sm:gap-2 ml-2">
@@ -340,8 +338,8 @@ const App: React.FC = () => {
                       setSelectedCollabToEdit(null);
                       setIsCollabOpen(true);
                   }}
-                  onEditCollaborator={handleEditCollaborator} // Novo Handler
-                  onRegisterNew={handleRegisterWithPhoto} // Passa a função correta
+                  onEditCollaborator={handleEditCollaborator} 
+                  onRegisterNew={handleRegisterWithPhoto} 
                   onUpdateCollaboratorActivity={handleUpdateCollaboratorActivity}
                   defaultConfig={defaultConfig}
                 />
@@ -410,7 +408,7 @@ const App: React.FC = () => {
         collaborators={collaborators}
         onUpdateCollaborators={setCollaborators}
         initialPhoto={tempRegisterPhoto}
-        initialCollaboratorId={selectedCollabToEdit} // Nova Prop
+        initialCollaboratorId={selectedCollabToEdit}
         records={records} 
       />
 

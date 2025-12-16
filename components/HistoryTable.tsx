@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { Trash2, FileText, Search, Package, Clock, ScanFace, Calendar } from 'lucide-react';
+import { Trash2, FileText, Search, Package, Clock, ScanFace, Calendar, RotateCcw } from 'lucide-react';
 import { EpiRecord } from '../types';
 import { generateEpiPdf } from '../utils/pdfGenerator';
 
 interface HistoryTableProps {
   records: EpiRecord[];
   onDelete: (id: string) => void;
-  compact?: boolean; // Nova propriedade para forçar modo cartão
+  compact?: boolean; 
 }
 
 const HistoryTable: React.FC<HistoryTableProps> = ({ records, onDelete, compact = false }) => {
@@ -86,11 +86,13 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ records, onDelete, compact 
 
                         <div className="bg-dark-950/50 rounded-lg p-2.5 mb-3 border border-dark-800/50">
                             <span className="text-[10px] uppercase font-bold text-zinc-500 mb-1.5 block">Itens da Ficha</span>
-                            <div className="space-y-1">
+                            <div className="space-y-2">
                                 {record.items && record.items.map((item, idx) => (
-                                    <div key={idx} className="flex items-center gap-2 text-xs text-zinc-300">
-                                        <Package className="w-3 h-3 text-brand-500/70" />
-                                        <span className="truncate">{item.name}</span>
+                                    <div key={idx} className="flex items-center justify-between gap-2 text-xs">
+                                        <div className="flex items-center gap-2 text-zinc-300">
+                                            <Package className="w-3 h-3 text-brand-500/70" />
+                                            <span className="truncate">{item.name}</span>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
@@ -158,13 +160,15 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ records, onDelete, compact 
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex flex-col gap-1.5 max-w-[250px]">
+                        <div className="flex flex-col gap-2 max-w-[250px]">
                           {record.items && record.items.map((item, idx) => (
-                              <div key={idx} className="flex items-center gap-2 text-xs truncate">
-                                 <Package className="w-3 h-3 text-brand-500 shrink-0" />
-                                 <span className="font-medium text-zinc-300 truncate" title={item.name}>
-                                   {item.code ? `[${item.code}] ` : ''}{item.name}
-                                 </span>
+                              <div key={idx} className="flex items-center justify-between gap-2 text-xs">
+                                 <div className="flex items-center gap-2 truncate">
+                                    <Package className="w-3 h-3 text-brand-500 shrink-0" />
+                                    <span className="font-medium truncate text-zinc-300" title={item.name}>
+                                        {item.code ? `[${item.code}] ` : ''}{item.name}
+                                    </span>
+                                 </div>
                               </div>
                           ))}
                         </div>

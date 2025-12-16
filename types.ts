@@ -28,6 +28,13 @@ export interface Collaborator {
   faceReference?: string; // Foto de referência para reconhecimento facial
   lastActivityDate?: string; // Data da última entrega ou criação
   company?: 'Luandre' | 'Randstad' | 'Shopee'; // Agência do colaborador
+  
+  // Novos campos movidos para o cadastro
+  role?: string; // Função
+  sector?: string; // Setor
+  teamLeader?: string; // Team Leader / Supervisor
+  coordinator?: string; // Coordenador
+  hse?: string; // HSE
 }
 
 export interface EpiRecord {
@@ -37,6 +44,14 @@ export interface EpiRecord {
   cpf?: string; 
   admissionDate?: string; 
   shift: string;
+  // Novos campos solicitados
+  role?: string; // Função
+  teamLeader?: string; // Team Leader / Supervisor
+  coordinator?: string; // Coordenador
+  hse?: string; // HSE
+  sector?: string; // Setor
+  exchangeReason?: string; // Motivo da Troca
+  
   items: EpiItem[]; 
   date: string;
   safetyInstructions?: string;
