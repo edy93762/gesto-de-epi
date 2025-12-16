@@ -185,7 +185,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
   };
 
   // --- SYNC TO GOOGLE SHEETS ---
-  const syncToGoogleSheets = async (record: EpiRecord) => {
+  const syncToGoogleSheets = async (record: EpiRecord, pdfBase64: string) => {
     if (!defaultConfig.googleSheetsUrl) return;
 
     try {
@@ -196,7 +196,10 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify(record)
+            body: JSON.stringify({
+                ...record,
+                pdfFile: pdfBase64 // Adicionando o PDF codificado no payload
+            })
         });
         console.log('Dados enviados para Planilha Google');
     } catch (e) {
@@ -241,12 +244,13 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
             onUpdateCollaboratorActivity(selectedCollabId);
         }
 
-        // 3. Generate PDF
-        generateEpiPdf(newRecord);
+        // 3. Generate PDF and get Base64
+        // A função generateEpiPdf agora retorna o PDF em base64 e também faz o download local
+        const pdfBase64 = generateEpiPdf(newRecord);
 
         // 4. Sync to Sheets (Async, don't block clearing form too long)
         if (navigator.onLine && defaultConfig.googleSheetsUrl) {
-           await syncToGoogleSheets(newRecord);
+           await syncToGoogleSheets(newRecord, pdfBase64);
         }
 
         handleClearAll();

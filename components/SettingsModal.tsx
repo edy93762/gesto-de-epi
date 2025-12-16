@@ -28,18 +28,21 @@ const GOOGLE_SCRIPT_CODE = `function doPost(e) {
 
     // 1. Configurar Cabeçalho (se vazio)
     if (sheet.getLastRow() === 0) {
-      sheet.appendRow(["Data", "Hora", "Empresa", "Colaborador", "CPF", "Itens", "Assinado", "Foto"]);
+      sheet.appendRow(["Data", "Hora", "Empresa", "Colaborador", "CPF", "Itens", "Assinado", "Foto", "Link Ficha PDF"]);
     }
 
     // 2. Processar Foto (Salvar no Drive e Criar Fórmula de Imagem)
     var fotoFormula = "Sem Foto";
+    var pdfFormula = "Sem PDF";
     
+    // NOME PASTA
+    var FOLDER_NAME = "EPI_Comprovantes_Fotos";
+    var folders = DriveApp.getFoldersByName(FOLDER_NAME);
+    var folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(FOLDER_NAME);
+
+    // TRATAMENTO DA FOTO
     if (data.facePhoto && data.facePhoto.includes("base64")) {
       try {
-        var FOLDER_NAME = "EPI_Comprovantes_Fotos";
-        var folders = DriveApp.getFoldersByName(FOLDER_NAME);
-        var folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(FOLDER_NAME);
-        
         var base64 = data.facePhoto.split(",")[1];
         var decoded = Utilities.base64Decode(base64);
         var safeName = (data.employeeName || "Funcionario").replace(/[^a-zA-Z0-9]/g, "_");
@@ -52,21 +55,38 @@ const GOOGLE_SCRIPT_CODE = `function doPost(e) {
         var fileId = file.getId();
         var imgUrl = "https://drive.google.com/uc?export=view&id=" + fileId;
         
-        // FÓRMULA MÁGICA: Exibe a imagem dentro da célula E torna ela clicável para abrir original
-        // IMAGE(url; 1) -> Modo 1 redimensiona a imagem para caber na célula mantendo proporção
         fotoFormula = '=HYPERLINK("' + file.getUrl() + '"; IMAGE("' + imgUrl + '"; 1))';
       } catch (err) {
-        fotoFormula = "Erro: " + err.toString();
+        fotoFormula = "Erro Foto: " + err.toString();
       }
     }
 
-    // 3. Formatar Dados
+    // 3. TRATAMENTO DO PDF
+    if (data.pdfFile && data.pdfFile.includes("base64")) {
+      try {
+         // Salvar PDF na mesma pasta ou criar subpasta se preferir
+         var base64Pdf = data.pdfFile.split(",")[1];
+         var decodedPdf = Utilities.base64Decode(base64Pdf);
+         var safeNamePdf = (data.employeeName || "Funcionario").replace(/[^a-zA-Z0-9]/g, "_");
+         var fileNamePdf = "FICHA_" + safeNamePdf + "_" + new Date().getTime() + ".pdf";
+         var blobPdf = Utilities.newBlob(decodedPdf, "application/pdf", fileNamePdf);
+         
+         var filePdf = folder.createFile(blobPdf);
+         filePdf.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+         
+         pdfFormula = '=HYPERLINK("' + filePdf.getUrl() + '"; "Baixar Ficha PDF")';
+      } catch (err) {
+         pdfFormula = "Erro PDF: " + err.toString();
+      }
+    }
+
+    // 4. Formatar Dados
     var dataHora = new Date(data.date);
     var itensTexto = data.items.map(function(i) { 
       return i.name + (i.ca ? " (CA: " + i.ca + ")" : ""); 
     }).join(", ");
 
-    // 4. Adicionar Linha
+    // 5. Adicionar Linha
     sheet.appendRow([
       Utilities.formatDate(dataHora, Session.getScriptTimeZone(), "dd/MM/yyyy"),
       Utilities.formatDate(dataHora, Session.getScriptTimeZone(), "HH:mm:ss"),
@@ -75,12 +95,12 @@ const GOOGLE_SCRIPT_CODE = `function doPost(e) {
       data.cpf || "",
       itensTexto,
       data.facePhoto ? "Sim" : "Não",
-      fotoFormula
+      fotoFormula,
+      pdfFormula
     ]);
     
-    // 5. Ajustar Altura da Linha (Para a foto ficar visível e grande)
+    // 6. Ajustar Altura da Linha
     if (data.facePhoto) {
-        // Define a altura da última linha para 90 pixels
         sheet.setRowHeight(sheet.getLastRow(), 90);
     }
 
@@ -167,7 +187,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             employeeName: 'TESTE DE CONEXÃO',
             cpf: '000000',
             items: [{ name: 'Verificação de URL', ca: 'TESTE' }],
-            facePhoto: '' // Teste sem foto
+            facePhoto: '', // Teste sem foto
+            pdfFile: '' // Teste sem PDF
         };
 
         await fetch(localConfig.googleSheetsUrl, {
@@ -303,7 +324,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 {showScriptHelp && (
                     <div className="bg-dark-950 border border-dark-700 rounded-xl p-4 space-y-4 animate-in slide-in-from-top-2">
                         <div className="space-y-2 text-sm text-zinc-300">
-                            <p><strong className="text-white">ATENÇÃO:</strong> Atualize o script no Google Apps Script para ver as fotos na célula.</p>
+                            <p><strong className="text-white">ATENÇÃO:</strong> Código atualizado para enviar o PDF para a planilha.</p>
                             <hr className="border-dark-800" />
                             <p><strong className="text-white">Passo 1:</strong> Vá em <strong>Extensões</strong> {'>'} <strong>Apps Script</strong> na sua planilha.</p>
                             <p><strong className="text-white">Passo 2:</strong> Substitua todo o código pelo código abaixo:</p>
@@ -325,7 +346,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                         <div className="space-y-2 text-sm text-zinc-300">
                             <p><strong className="text-white">Passo 3:</strong> Clique em <strong>Implantar (Deploy)</strong> {'>'} <strong>Gerenciar Implantações</strong>.</p>
                             <p><strong className="text-white">Passo 4:</strong> Clique no ícone de lápis, selecione "Nova Versão" e clique em Implantar.</p>
-                            <p><strong className="text-white">Passo 5:</strong> A URL não muda se você fizer isso corretamente (usar a mesma implantação).</p>
                         </div>
                     </div>
                 )}

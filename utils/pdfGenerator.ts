@@ -1,7 +1,8 @@
 import jsPDF from 'jspdf';
 import { EpiRecord, Collaborator } from '../types';
 
-export const generateEpiPdf = (record: EpiRecord) => {
+// Agora retorna uma string (Base64) para ser enviada para a API/Google Sheets
+export const generateEpiPdf = (record: EpiRecord): string => {
   const doc = new jsPDF('p', 'mm', 'a4'); // Portrait, Millimeters, A4
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -359,7 +360,13 @@ CLT - Art. 462 § 1º - Em caso de dano causado pelo empregado o desconto será 
   
   // ADICIONADO HORA AO NOME DO ARQUIVO PARA EVITAR SOBRESCRITA
   const filenameTime = dateObj.toLocaleTimeString('pt-BR').replace(/:/g, '-');
-  doc.save(`${record.company}_EPI_${record.employeeName.replace(/\s+/g, '_')}_${dateStr.replace(/\//g, '-')}_${filenameTime}.pdf`);
+  const fileName = `${record.company}_EPI_${record.employeeName.replace(/\s+/g, '_')}_${dateStr.replace(/\//g, '-')}_${filenameTime}.pdf`;
+  
+  // Salva o arquivo localmente
+  doc.save(fileName);
+
+  // Retorna a string Base64 para ser enviada para a API
+  return doc.output('datauristring');
 };
 
 // --- NOVO: GERADOR DE HISTÓRICO CONSOLIDADO POR COLABORADOR ---
