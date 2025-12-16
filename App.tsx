@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ShieldCheck, Users, History, FileCheck, Settings, Package, BarChart3, Loader2, Database, UploadCloud, X } from 'lucide-react';
+import { ShieldCheck, Users, History, FileCheck, Settings, Package, BarChart3, Loader2, X } from 'lucide-react';
 import AssignmentForm from './components/AssignmentForm';
 import HistoryTable from './components/HistoryTable';
 import StatsCard from './components/StatsCard';
@@ -267,22 +267,7 @@ const App: React.FC = () => {
               <h1 className="text-lg sm:text-xl font-bold text-white tracking-tight leading-tight">Gestão de EPI</h1>
             </div>
             
-            <div className="flex items-center gap-2 ml-1">
-              <div className="hidden md:flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-emerald-400 text-xs font-medium">
-                <Database className="w-3 h-3" />
-                <span>Banco Local</span>
-              </div>
-              
-              <button 
-                onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 hover:border-amber-500/40 rounded-full text-amber-400 text-xs font-medium transition-colors"
-                title="Restaurar Backup"
-              >
-                <UploadCloud className="w-3 h-3" />
-                <span className="hidden sm:inline">Restaurar</span>
-                <span className="sm:hidden">Rest.</span>
-              </button>
-            </div>
+            {/* REMOVIDO: BOTÕES DE BANCO LOCAL E RESTAURAR (Conforme solicitado) */}
           </div>
           
           <div className="flex items-center gap-1 sm:gap-2 ml-2">

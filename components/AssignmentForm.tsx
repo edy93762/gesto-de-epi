@@ -281,29 +281,22 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
     setFacePhoto(photo);
     
     // LÓGICA DE COMPARAÇÃO / BUSCA
-    // Se não tiver colaborador selecionado na lista, tenta achar
+    // Se o usuário não tiver selecionado ninguém, o sistema tenta achar.
+    // Como a comparação exata de string de imagem (Base64) quase nunca funciona com câmera ao vivo,
+    // não vamos fingir que estamos procurando e falhar. 
+    // Em vez disso, mantemos a foto e pedimos para o usuário selecionar o nome.
+    
     if (!selectedCollabId) {
-        setIsRecognizing(true);
-        setFaceNotFound(false);
-
-        // Como não temos um backend pesado de comparação de vetores faciais (FaceID real),
-        // usamos a lógica de fluxo: Se o usuário não selecionou o nome antes, 
-        // assumimos que ele quer buscar. Se a busca visual falhar (o que é esperado com base64 diferente),
-        // ele sugere o cadastro.
+        // Tenta encontrar correspondência exata de imagem (raro, mas possível se for upload de arquivo)
+        const found = collaborators.find(c => c.faceReference === photo);
         
-        setTimeout(() => {
-            // Tenta encontrar correspondência exata de imagem (raro funcionar com fotos novas, mas seguro)
-            const found = collaborators.find(c => c.faceReference === photo);
-            
-            if (found) {
-                handleSelectCollaborator(found);
-            } else {
-                // Se não encontrar (o mais provável), marca como não encontrado para sugerir cadastro
-                // Isso atende ao pedido: "Se não encontrar... solicite cadastro"
-                setFaceNotFound(true);
-            }
-            setIsRecognizing(false);
-        }, 800);
+        if (found) {
+            handleSelectCollaborator(found);
+        } else {
+            // Se não encontrar, apenas marca para mostrar o aviso de seleção,
+            // MAS NÃO RESETA A FOTO. O usuário pode selecionar o nome manualmente.
+            setFaceNotFound(true);
+        }
     }
   };
 
@@ -401,15 +394,6 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                       </button>
                   ) : (
                       <div className="flex items-center gap-3 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl relative overflow-hidden h-auto min-h-[100px]">
-                          {isRecognizing && (
-                              <div className="absolute inset-0 bg-dark-900/80 z-10 flex items-center justify-center backdrop-blur-sm">
-                                  <div className="flex flex-col items-center gap-2">
-                                      <Loader2 className="w-6 h-6 text-brand-500 animate-spin" />
-                                      <span className="text-xs font-bold text-brand-400">Procurando no banco de dados...</span>
-                                  </div>
-                              </div>
-                          )}
-
                           <div className="relative shrink-0">
                               <img src={facePhoto} alt="Rosto" className="w-16 h-16 rounded-lg object-cover border-2 border-emerald-500/50" />
                               <div className="absolute -bottom-1 -right-1 bg-emerald-500 rounded-full p-0.5 border-2 border-dark-900">
@@ -419,7 +403,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                           <div className="flex-1 min-w-0">
                               <p className="text-sm font-bold text-emerald-400">Biometria Capturada</p>
                               <p className="text-xs text-emerald-500/70 truncate">
-                                  {employeeName ? `Vinculado a: ${employeeName}` : 'Rosto registrado.'}
+                                  {employeeName ? `Vinculado a: ${employeeName}` : 'Selecione o colaborador abaixo.'}
                               </p>
                           </div>
                           
@@ -438,14 +422,14 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                 </div>
 
                 {/* ALERTA: ROSTO NÃO ENCONTRADO - CADASTRO RÁPIDO */}
-                {faceNotFound && (
+                {faceNotFound && !selectedCollabId && (
                     <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 mb-4 animate-in fade-in slide-in-from-top-2">
                         <div className="flex items-start gap-3">
                             <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
                             <div className="flex-1">
-                                <h4 className="text-sm font-bold text-amber-400">Colaborador não identificado</h4>
+                                <h4 className="text-sm font-bold text-amber-400">Vincular Colaborador</h4>
                                 <p className="text-xs text-zinc-400 mt-1">
-                                    Este rosto não consta no banco de dados local.
+                                    Selecione o nome abaixo para vincular a esta foto ou cadastre um novo.
                                 </p>
                                 <div className="mt-3 flex gap-2">
                                     <button 
@@ -453,13 +437,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                                         className="bg-amber-500 hover:bg-amber-600 text-black text-xs font-bold px-3 py-2 rounded-lg flex items-center gap-2 transition-colors"
                                     >
                                         <UserPlus className="w-3 h-3" />
-                                        Cadastrar Agora
-                                    </button>
-                                    <button 
-                                        onClick={() => setFaceNotFound(false)}
-                                        className="bg-dark-800 hover:bg-dark-700 text-zinc-300 text-xs font-medium px-3 py-2 rounded-lg transition-colors"
-                                    >
-                                        Ignorar
+                                        Cadastrar Novo
                                     </button>
                                 </div>
                             </div>
