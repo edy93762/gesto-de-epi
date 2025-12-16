@@ -11,7 +11,7 @@ import { EpiRecord, AutoDeleteConfig, EpiCatalogItem, Collaborator } from './typ
 import * as db from './utils/db';
 
 // URL Fixa solicitada pelo usuário
-const FIXED_SHEETS_URL = "https://script.google.com/macros/s/AKfycbxo2bLTj2MfZj_52cVZYU6YXqL0eJY5e6TyhXJs3KquPLVvSp57VyO5aZ4yv_c3kjmW/exec";
+const FIXED_SHEETS_URL = "https://script.google.com/macros/s/AKfycbyckS0bXVgs6qI6LL_vnsxfa9lp8y75DrHNCM6ctUyH-JHeEAcM8XCGXuQvLKoFpYWt/exec";
 
 const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
