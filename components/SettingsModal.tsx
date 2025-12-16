@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Save, Settings, Download, Upload, Database, RefreshCw, HardDrive, Sheet, Link, HelpCircle, Copy, Check, ExternalLink } from 'lucide-react';
+import { X, Save, Settings, Download, Upload, Database, RefreshCw, HardDrive, Sheet, Link, HelpCircle, Copy, Check, ExternalLink, Send, Loader2, AlertTriangle, CheckCircle } from 'lucide-react';
 import { AutoDeleteConfig, EpiRecord, EpiCatalogItem, Collaborator } from '../types';
 
 interface SettingsModalProps {
@@ -70,8 +70,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const [showScriptHelp, setShowScriptHelp] = useState(false);
   const [copied, setCopied] = useState(false);
   
+  // Estado para o teste de conexão
+  const [isTesting, setIsTesting] = useState(false);
+  const [testResult, setTestResult] = useState<'idle' | 'success' | 'error'>('idle');
+
   useEffect(() => {
     setLocalConfig(config);
+    setTestResult('idle');
     
     // Calcular uso do armazenamento baseado no tamanho do JSON dos dados
     if (isOpen) {
@@ -99,6 +104,46 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     navigator.clipboard.writeText(GOOGLE_SCRIPT_CODE);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleTestConnection = async () => {
+    if (!localConfig.googleSheetsUrl) return;
+    
+    // Validação básica de URL
+    if (!localConfig.googleSheetsUrl.includes('script.google.com')) {
+        alert("A URL parece incorreta. Ela deve começar com 'https://script.google.com...'");
+        return;
+    }
+
+    setIsTesting(true);
+    setTestResult('idle');
+
+    try {
+        const testPayload = {
+            date: new Date().toISOString(),
+            company: 'SISTEMA',
+            employeeName: 'TESTE DE CONEXÃO',
+            cpf: '000000',
+            items: [{ name: 'Verificação de URL', ca: 'TESTE' }],
+            facePhoto: ''
+        };
+
+        await fetch(localConfig.googleSheetsUrl, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(testPayload)
+        });
+
+        // Como usamos no-cors, não sabemos se o script falhou internamente, 
+        // mas sabemos que a requisição saiu do navegador.
+        setTestResult('success');
+    } catch (error) {
+        console.error("Erro no teste:", error);
+        setTestResult('error');
+    } finally {
+        setIsTesting(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -256,12 +301,45 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                             type="text"
                             placeholder="https://script.google.com/macros/s/..."
                             value={localConfig.googleSheetsUrl || ''}
-                            onChange={(e) => setLocalConfig({...localConfig, googleSheetsUrl: e.target.value})}
+                            onChange={(e) => {
+                                setLocalConfig({...localConfig, googleSheetsUrl: e.target.value});
+                                setTestResult('idle');
+                            }}
                             className="w-full pl-10 pr-3 py-3 sm:py-2 bg-dark-900 border border-dark-700 rounded-lg text-base sm:text-sm text-white focus:ring-1 focus:ring-green-500 outline-none placeholder:text-zinc-700"
                          />
                      </div>
-                     <p className="text-[10px] text-zinc-500 leading-tight">
-                         Cole aqui o link gerado no Passo 7 do tutorial acima.
+                     
+                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2">
+                        <button
+                            onClick={handleTestConnection}
+                            disabled={!localConfig.googleSheetsUrl || isTesting}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all w-full sm:w-auto justify-center ${
+                                !localConfig.googleSheetsUrl 
+                                ? 'bg-dark-800 text-zinc-600 cursor-not-allowed' 
+                                : 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-900/20'
+                            }`}
+                        >
+                            {isTesting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                            Testar Conexão
+                        </button>
+
+                        {/* Status Message */}
+                        {testResult === 'success' && (
+                            <div className="flex items-center gap-2 text-emerald-400 text-xs bg-emerald-500/10 px-3 py-2 rounded-lg border border-emerald-500/20 w-full sm:w-auto animate-in fade-in slide-in-from-left">
+                                <CheckCircle className="w-3 h-3 shrink-0" />
+                                <span>Enviado! Verifique se apareceu na planilha.</span>
+                            </div>
+                        )}
+                        {testResult === 'error' && (
+                            <div className="flex items-center gap-2 text-red-400 text-xs bg-red-500/10 px-3 py-2 rounded-lg border border-red-500/20 w-full sm:w-auto animate-in fade-in slide-in-from-left">
+                                <AlertTriangle className="w-3 h-3 shrink-0" />
+                                <span>Falha. Verifique a URL ou a internet.</span>
+                            </div>
+                        )}
+                     </div>
+                     
+                     <p className="text-[10px] text-zinc-500 leading-tight pt-2 border-t border-dark-800/50">
+                         <strong>Nota:</strong> O teste envia um registro fictício ("TESTE DE CONEXÃO"). Se ele aparecer na sua planilha, a integração está funcionando.
                      </p>
                 </div>
             </div>
