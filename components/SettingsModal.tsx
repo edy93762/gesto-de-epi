@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Save, Settings, Download, Upload, Database, RefreshCw, HardDrive, Sheet, Link, HelpCircle, Copy, Check, ExternalLink, Send, Loader2, AlertTriangle, CheckCircle } from 'lucide-react';
+import { X, Save, Settings, Download, Upload, Database, RefreshCw, HardDrive, Sheet, Link, HelpCircle, Copy, Check, ExternalLink, Send, Loader2, AlertTriangle, CheckCircle, RotateCcw } from 'lucide-react';
 import { AutoDeleteConfig, EpiRecord, EpiCatalogItem, Collaborator } from '../types';
 
 interface SettingsModalProps {
@@ -22,19 +22,51 @@ const GOOGLE_SCRIPT_CODE = `function doPost(e) {
   lock.tryLock(10000);
 
   try {
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    var doc = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = doc.getActiveSheet();
     var data = JSON.parse(e.postData.contents);
 
-    // Cria o cabeçalho se a planilha estiver vazia
+    // 1. Configurar Cabeçalho (se vazio)
     if (sheet.getLastRow() === 0) {
-      sheet.appendRow(["Data", "Hora", "Empresa", "Colaborador", "CPF", "Itens", "Assinado"]);
+      sheet.appendRow(["Data", "Hora", "Empresa", "Colaborador", "CPF", "Itens", "Assinado", "Foto"]);
     }
 
+    // 2. Processar Foto (Salvar no Drive e Criar Fórmula de Imagem)
+    var fotoFormula = "Sem Foto";
+    
+    if (data.facePhoto && data.facePhoto.includes("base64")) {
+      try {
+        var FOLDER_NAME = "EPI_Comprovantes_Fotos";
+        var folders = DriveApp.getFoldersByName(FOLDER_NAME);
+        var folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(FOLDER_NAME);
+        
+        var base64 = data.facePhoto.split(",")[1];
+        var decoded = Utilities.base64Decode(base64);
+        var safeName = (data.employeeName || "Funcionario").replace(/[^a-zA-Z0-9]/g, "_");
+        var fileName = safeName + "_" + new Date().getTime() + ".jpg";
+        var blob = Utilities.newBlob(decoded, "image/jpeg", fileName);
+        
+        var file = folder.createFile(blob);
+        file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+        
+        var fileId = file.getId();
+        var imgUrl = "https://drive.google.com/uc?export=view&id=" + fileId;
+        
+        // FÓRMULA MÁGICA: Exibe a imagem dentro da célula E torna ela clicável para abrir original
+        // IMAGE(url; 1) -> Modo 1 redimensiona a imagem para caber na célula mantendo proporção
+        fotoFormula = '=HYPERLINK("' + file.getUrl() + '"; IMAGE("' + imgUrl + '"; 1))';
+      } catch (err) {
+        fotoFormula = "Erro: " + err.toString();
+      }
+    }
+
+    // 3. Formatar Dados
     var dataHora = new Date(data.date);
     var itensTexto = data.items.map(function(i) { 
       return i.name + (i.ca ? " (CA: " + i.ca + ")" : ""); 
     }).join(", ");
 
+    // 4. Adicionar Linha
     sheet.appendRow([
       Utilities.formatDate(dataHora, Session.getScriptTimeZone(), "dd/MM/yyyy"),
       Utilities.formatDate(dataHora, Session.getScriptTimeZone(), "HH:mm:ss"),
@@ -42,16 +74,26 @@ const GOOGLE_SCRIPT_CODE = `function doPost(e) {
       data.employeeName,
       data.cpf || "",
       itensTexto,
-      data.facePhoto ? "Sim (Biometria)" : "Não"
+      data.facePhoto ? "Sim" : "Não",
+      fotoFormula
     ]);
+    
+    // 5. Ajustar Altura da Linha (Para a foto ficar visível e grande)
+    if (data.facePhoto) {
+        // Define a altura da última linha para 90 pixels
+        sheet.setRowHeight(sheet.getLastRow(), 90);
+    }
 
     return ContentService.createTextOutput(JSON.stringify({"result":"success"})).setMimeType(ContentService.MimeType.JSON);
   } catch (e) {
-    return ContentService.createTextOutput(JSON.stringify({"result":"error", "error": e})).setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({"result":"error", "error": e.toString()})).setMimeType(ContentService.MimeType.JSON);
   } finally {
     lock.releaseLock();
   }
 }`;
+
+// URL Fixa também disponível aqui para o botão de reset
+const FIXED_SHEETS_URL = "https://script.google.com/macros/s/AKfycbx3NKcMf8Y5CQOnevTCExz7ehQWLqaCv22MDzUHyxla2ara9-bN4eWPwYdWQ2nhmMkV_w/exec";
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ 
   isOpen, 
@@ -125,7 +167,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             employeeName: 'TESTE DE CONEXÃO',
             cpf: '000000',
             items: [{ name: 'Verificação de URL', ca: 'TESTE' }],
-            facePhoto: ''
+            facePhoto: '' // Teste sem foto
         };
 
         await fetch(localConfig.googleSheetsUrl, {
@@ -261,9 +303,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 {showScriptHelp && (
                     <div className="bg-dark-950 border border-dark-700 rounded-xl p-4 space-y-4 animate-in slide-in-from-top-2">
                         <div className="space-y-2 text-sm text-zinc-300">
-                            <p><strong className="text-white">Passo 1:</strong> Crie uma nova planilha em <a href="https://sheets.new" target="_blank" rel="noreferrer" className="text-brand-400 hover:underline inline-flex items-center gap-0.5">sheets.new <ExternalLink className="w-3 h-3"/></a></p>
-                            <p><strong className="text-white">Passo 2:</strong> Vá em <strong>Extensões</strong> {'>'} <strong>Apps Script</strong>.</p>
-                            <p><strong className="text-white">Passo 3:</strong> Apague qualquer código que estiver lá e cole o código abaixo:</p>
+                            <p><strong className="text-white">ATENÇÃO:</strong> Atualize o script no Google Apps Script para ver as fotos na célula.</p>
+                            <hr className="border-dark-800" />
+                            <p><strong className="text-white">Passo 1:</strong> Vá em <strong>Extensões</strong> {'>'} <strong>Apps Script</strong> na sua planilha.</p>
+                            <p><strong className="text-white">Passo 2:</strong> Substitua todo o código pelo código abaixo:</p>
                         </div>
                         
                         <div className="relative group">
@@ -280,19 +323,29 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                         </div>
 
                         <div className="space-y-2 text-sm text-zinc-300">
-                            <p><strong className="text-white">Passo 4:</strong> Clique em <strong>Implantar (Deploy)</strong> {'>'} <strong>Nova implantação</strong>.</p>
-                            <p><strong className="text-white">Passo 5:</strong> Clique na engrenagem, selecione <strong>App da Web</strong>.</p>
-                            <p><strong className="text-white">Passo 6:</strong> Em "Quem pode acessar", escolha: <strong>"Qualquer pessoa"</strong> (Importante!).</p>
-                            <p><strong className="text-white">Passo 7:</strong> Clique em Implantar, autorize o acesso e copie a <strong>URL do App da Web</strong> gerada.</p>
-                            <p><strong className="text-white">Passo 8:</strong> Cole a URL no campo abaixo.</p>
+                            <p><strong className="text-white">Passo 3:</strong> Clique em <strong>Implantar (Deploy)</strong> {'>'} <strong>Gerenciar Implantações</strong>.</p>
+                            <p><strong className="text-white">Passo 4:</strong> Clique no ícone de lápis, selecione "Nova Versão" e clique em Implantar.</p>
+                            <p><strong className="text-white">Passo 5:</strong> A URL não muda se você fizer isso corretamente (usar a mesma implantação).</p>
                         </div>
                     </div>
                 )}
 
                 <div className="bg-dark-950 p-4 rounded-xl border border-dark-800 space-y-3">
-                     <label className="block text-sm font-medium text-zinc-400 mb-1">
-                         URL do App da Web (Google Apps Script)
-                     </label>
+                     <div className="flex justify-between items-center mb-1">
+                        <label className="text-sm font-medium text-zinc-400">
+                            URL do App da Web (Google Apps Script)
+                        </label>
+                        
+                        {localConfig.googleSheetsUrl !== FIXED_SHEETS_URL && (
+                            <button 
+                                onClick={() => setLocalConfig({...localConfig, googleSheetsUrl: FIXED_SHEETS_URL})}
+                                className="text-[10px] text-brand-400 hover:text-brand-300 flex items-center gap-1 bg-brand-500/10 px-2 py-1 rounded transition-colors"
+                            >
+                                <RotateCcw className="w-3 h-3" />
+                                Usar URL Padrão
+                            </button>
+                        )}
+                     </div>
                      <div className="relative">
                          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600">
                              <Link className="w-4 h-4" />
@@ -339,7 +392,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                      </div>
                      
                      <p className="text-[10px] text-zinc-500 leading-tight pt-2 border-t border-dark-800/50">
-                         <strong>Nota:</strong> O teste envia um registro fictício ("TESTE DE CONEXÃO"). Se ele aparecer na sua planilha, a integração está funcionando.
+                         <strong>Nota:</strong> O teste envia um registro fictício. Para testar fotos, realize uma entrega real.
                      </p>
                 </div>
             </div>

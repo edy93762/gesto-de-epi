@@ -10,6 +10,9 @@ import CollaboratorModal from './components/CollaboratorModal';
 import { EpiRecord, AutoDeleteConfig, EpiCatalogItem, Collaborator } from './types';
 import * as db from './utils/db';
 
+// URL Fixa solicitada pelo usuário
+const FIXED_SHEETS_URL = "https://script.google.com/macros/s/AKfycbx3NKcMf8Y5CQOnevTCExz7ehQWLqaCv22MDzUHyxla2ara9-bN4eWPwYdWQ2nhmMkV_w/exec";
+
 const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
@@ -18,9 +21,10 @@ const App: React.FC = () => {
   const [catalog, setCatalog] = useState<EpiCatalogItem[]>([]);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   
-  // Configuração Padrão agora apenas com autoBackup
+  // Configuração Padrão agora com URL fixa
   const [defaultConfig, setDefaultConfig] = useState<AutoDeleteConfig>({ 
-    autoBackup: true // Sempre ativo por padrão
+    autoBackup: true,
+    googleSheetsUrl: FIXED_SHEETS_URL
   });
 
   // Modals State
@@ -61,12 +65,17 @@ const App: React.FC = () => {
         setCollaborators(loadedCollabs);
         
         if (loadedConfig) {
-          // Se já existe config salva, usa ela
-          setDefaultConfig((prev) => ({ ...prev, ...loadedConfig }));
+          // Se já existe config salva, usa ela, mas garante a URL se estiver vazia
+          setDefaultConfig((prev) => ({ 
+            ...prev, 
+            ...loadedConfig,
+            googleSheetsUrl: loadedConfig.googleSheetsUrl || FIXED_SHEETS_URL
+          }));
         } else {
-          // Se não existe config (primeira vez), força o padrão com autoBackup: true e salva
+          // Se não existe config (primeira vez), força o padrão com URL e salva
           const initialConfig = { 
-            autoBackup: true 
+            autoBackup: true,
+            googleSheetsUrl: FIXED_SHEETS_URL
           };
           setDefaultConfig(initialConfig);
           await db.saveConfig(initialConfig);
@@ -193,8 +202,13 @@ const App: React.FC = () => {
             if (data.collaborators) setCollaborators(data.collaborators);
             
             // Ao importar, mantém o autoBackup ligado se o usuário quiser, ou usa o do arquivo se preferir.
+            // Também garante que a URL fixa seja mantida se o backup não tiver URL
             const newConfig = data.config || defaultConfig;
-            setDefaultConfig({ ...newConfig, autoBackup: true }); // Força autoBackup ativo após restore
+            setDefaultConfig({ 
+                ...newConfig, 
+                autoBackup: true,
+                googleSheetsUrl: newConfig.googleSheetsUrl || FIXED_SHEETS_URL
+            }); 
             
             alert('Backup restaurado com sucesso! Os dados antigos foram substituídos.');
         }
@@ -269,7 +283,7 @@ const App: React.FC = () => {
               <h1 className="text-lg sm:text-xl font-bold text-white tracking-tight leading-tight">Gestão de EPI</h1>
               <div className="flex items-center gap-1.5 sm:hidden">
                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                 <span className="text-[10px] text-zinc-400">Conectado</span>
+                 <span className="text-xs text-zinc-400">Conectado</span>
               </div>
             </div>
             
