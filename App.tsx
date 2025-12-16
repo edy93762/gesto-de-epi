@@ -220,10 +220,11 @@ const App: React.FC = () => {
     event.target.value = '';
   };
 
+  // Função chamada quando não encontra o rosto e precisa cadastrar novo
   const handleRegisterWithPhoto = (photo: string) => {
-    setTempRegisterPhoto(photo);
-    setSelectedCollabToEdit(null);
-    setIsCollabOpen(true);
+    setTempRegisterPhoto(photo); // Salva a foto
+    setSelectedCollabToEdit(null); // Limpa edição anterior
+    setIsCollabOpen(true); // Abre modal
   };
 
   const handleEditCollaborator = (id: string) => {
@@ -354,7 +355,7 @@ const App: React.FC = () => {
                       setIsCollabOpen(true);
                   }}
                   onEditCollaborator={handleEditCollaborator} // Novo Handler
-                  onRegisterNew={(photo) => handleRegisterWithPhoto(photo)}
+                  onRegisterNew={handleRegisterWithPhoto} // Passa a função correta
                   onUpdateCollaboratorActivity={handleUpdateCollaboratorActivity}
                   defaultConfig={defaultConfig}
                 />

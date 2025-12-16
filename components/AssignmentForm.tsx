@@ -59,6 +59,8 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
   const [isFaceModalOpen, setIsFaceModalOpen] = useState(false);
   const [facePhoto, setFacePhoto] = useState<string | null>(null);
   const [isRecognizing, setIsRecognizing] = useState(false);
+  // Estado para alertar não encontrado
+  const [faceNotFound, setFaceNotFound] = useState(false);
 
   // Loading state for submission (PDF + Sheets)
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -151,6 +153,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
     setShift(collab.shift || '');
     setEmployeeAdmission(collab.admissionDate || '');
     setSelectedCollabId(collab.id);
+    setFaceNotFound(false); // Reset not found state
     
     if (collab.company) {
         setSelectedCompany(collab.company);
@@ -170,6 +173,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
     setSelectedCollabId(null);
     setLastDeliveryDate(null);
     setShowCollabSuggestions(false);
+    setFaceNotFound(false);
   };
 
   const handleClearAll = () => {
@@ -179,6 +183,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
     setFacePhoto(null);
     setIsRecognizing(false);
     setIsSubmitting(false);
+    setFaceNotFound(false);
   };
 
   // --- Quick Actions for Selected Collab ---
@@ -274,19 +279,28 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
   const handleFaceCapture = (photo: string) => {
     setFacePhoto(photo);
     
+    // Se não tiver colaborador selecionado, tenta reconhecer
     if (!employeeName && !collabSearchQuery) {
         setIsRecognizing(true);
+        setFaceNotFound(false);
+
+        // LÓGICA DE COMPARAÇÃO SIMULADA / VISUAL
+        // Como não temos face-api.js carregado com modelos, fazemos o fluxo de segurança:
+        // 1. Tenta achar correspondência exata de string (apenas para testes)
+        // 2. Se não, assume que precisa validar manual ou cadastrar
+        
         setTimeout(() => {
-            let found = null;
-            if (collaborators.length > 0) {
-                 const randomIndex = Math.floor(Math.random() * collaborators.length);
-                 found = collaborators[randomIndex];
-            }
+            // Tenta encontrar correspondência exata de imagem (útil se for o mesmo arquivo carregado)
+            const found = collaborators.find(c => c.faceReference === photo);
+            
             if (found) {
                 handleSelectCollaborator(found);
+            } else {
+                // Se não encontrar, mostra opção de cadastro
+                setFaceNotFound(true);
             }
             setIsRecognizing(false);
-        }, 1500);
+        }, 1000);
     }
   };
 
@@ -419,6 +433,36 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                       </div>
                   )}
                 </div>
+
+                {/* ALERTA: ROSTO NÃO ENCONTRADO - CADASTRO RÁPIDO */}
+                {faceNotFound && (
+                    <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 mb-4 animate-in fade-in slide-in-from-top-2">
+                        <div className="flex items-start gap-3">
+                            <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                            <div className="flex-1">
+                                <h4 className="text-sm font-bold text-amber-400">Colaborador não identificado</h4>
+                                <p className="text-xs text-zinc-400 mt-1">
+                                    Este rosto não consta no banco de dados local.
+                                </p>
+                                <div className="mt-3 flex gap-2">
+                                    <button 
+                                        onClick={() => facePhoto && onRegisterNew(facePhoto)}
+                                        className="bg-amber-500 hover:bg-amber-600 text-black text-xs font-bold px-3 py-2 rounded-lg flex items-center gap-2 transition-colors"
+                                    >
+                                        <UserPlus className="w-3 h-3" />
+                                        Cadastrar Agora
+                                    </button>
+                                    <button 
+                                        onClick={() => setFaceNotFound(false)}
+                                        className="bg-dark-800 hover:bg-dark-700 text-zinc-300 text-xs font-medium px-3 py-2 rounded-lg transition-colors"
+                                    >
+                                        Ignorar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 <div className="relative" ref={collabSearchRef}>
                   <label className="block text-xs font-medium text-zinc-500 mb-1.5">Nome / CPF (Apenas Números)</label>
