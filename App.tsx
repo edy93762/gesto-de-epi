@@ -9,431 +9,136 @@ import CatalogModal from './components/CatalogModal';
 import CollaboratorModal from './components/CollaboratorModal';
 import { EpiRecord, AutoDeleteConfig, EpiCatalogItem, Collaborator } from './types';
 import * as db from './utils/db';
+import { generateEpiPdf } from './utils/pdfGenerator';
 
-// URL Fixa solicitada pelo usuário
 const FIXED_SHEETS_URL = "https://script.google.com/macros/s/AKfycbxK6LFZpxcq0AhopiWk8_BEMgyiEvduYSlkd9b3tlxDKCQkt0Taz4uV7goK4RNKTEBF/exec";
 
 const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
-
-  // States
   const [records, setRecords] = useState<EpiRecord[]>([]);
   const [catalog, setCatalog] = useState<EpiCatalogItem[]>([]);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
-  
-  // Configuração Padrão agora com URL fixa
   const [defaultConfig, setDefaultConfig] = useState<AutoDeleteConfig>({ 
     autoBackup: true,
     googleSheetsUrl: FIXED_SHEETS_URL
   });
 
-  // Modals State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
   const [isCollabOpen, setIsCollabOpen] = useState(false);
   const [isStockOpen, setIsStockOpen] = useState(false);
   const [isHistorySidebarOpen, setIsHistorySidebarOpen] = useState(false);
-
-  // Temporary state for transferring photo from Assignment to Registration
   const [tempRegisterPhoto, setTempRegisterPhoto] = useState<string | null>(null);
-  
-  // State to open modal focused on a specific collaborator
   const [selectedCollabToEdit, setSelectedCollabToEdit] = useState<string | null>(null);
 
-  // Reference for invisible file input
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // --- INITIAL DATA LOADING (IndexedDB) ---
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
       try {
         await db.initDB();
-        
         const [loadedRecords, loadedCatalog, loadedCollabs, loadedConfig] = await Promise.all([
           db.getAllData<EpiRecord>('records'),
           db.getAllData<EpiCatalogItem>('catalog'),
           db.getAllData<Collaborator>('collaborators'),
           db.getConfig()
         ]);
-
-        // Fix legacy data structure if needed
-        const processedRecords = loadedRecords.map((r: any) => ({
-             ...r,
-             items: r.items || (r.ppeName ? [{ id: 'legacy', name: r.ppeName, ca: r.caNumber }] : [])
-        }));
-
-        setRecords(processedRecords);
+        setRecords(loadedRecords);
         setCatalog(loadedCatalog);
         setCollaborators(loadedCollabs);
-        
-        // CORREÇÃO CRÍTICA: Força a URL fixa mesmo se já existir configuração salva antiga
         if (loadedConfig) {
-          setDefaultConfig((prev) => ({ 
-            ...prev, 
-            ...loadedConfig,
-            googleSheetsUrl: FIXED_SHEETS_URL // Sobrescreve URL antiga com a nova fixa
-          }));
-        } else {
-          const initialConfig = { 
-            autoBackup: true,
-            googleSheetsUrl: FIXED_SHEETS_URL
-          };
-          setDefaultConfig(initialConfig);
-          await db.saveConfig(initialConfig);
+          setDefaultConfig((prev) => ({ ...prev, ...loadedConfig, googleSheetsUrl: FIXED_SHEETS_URL }));
         }
-
       } catch (error) {
-        console.error("Erro ao carregar banco de dados:", error);
+        console.error(error);
       } finally {
         setIsLoading(false);
       }
     };
-
     loadData();
   }, []);
 
-  // --- PERSISTENCE EFFECT (Save on Change) ---
-  useEffect(() => {
-    if (!isLoading) {
-      db.saveAllData('records', records).catch(e => console.error("Erro ao salvar registros:", e));
+  useEffect(() => { if (!isLoading) db.saveAllData('records', records); }, [records, isLoading]);
+  useEffect(() => { if (!isLoading) db.saveAllData('catalog', catalog); }, [catalog, isLoading]);
+  useEffect(() => { if (!isLoading) db.saveAllData('collaborators', collaborators); }, [collaborators, isLoading]);
+  useEffect(() => { if (!isLoading) db.saveConfig(defaultConfig); }, [defaultConfig, isLoading]);
+
+  // --- SINCRONIZAÇÃO COM GOOGLE SHEETS ---
+  const syncToSheets = async (payload: any) => {
+    if (!defaultConfig.googleSheetsUrl) return false;
+    try {
+      await fetch(defaultConfig.googleSheetsUrl, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify(payload)
+      });
+      return true;
+    } catch (e) {
+      return false;
     }
-  }, [records, isLoading]);
-
-  useEffect(() => {
-    if (!isLoading) {
-      db.saveAllData('catalog', catalog).catch(e => console.error("Erro ao salvar catálogo:", e));
-    }
-  }, [catalog, isLoading]);
-
-  useEffect(() => {
-    if (!isLoading) {
-      db.saveAllData('collaborators', collaborators).catch(e => console.error("Erro ao salvar colaboradores:", e));
-    }
-  }, [collaborators, isLoading]);
-
-  useEffect(() => {
-    if (!isLoading) {
-      db.saveConfig(defaultConfig).catch(e => console.error("Erro ao salvar config:", e));
-    }
-  }, [defaultConfig, isLoading]);
-
-  const downloadBackupData = (currentRecords: EpiRecord[], currentCatalog: EpiCatalogItem[], currentCollabs: Collaborator[], currentConfig: AutoDeleteConfig) => {
-    const fullData = {
-        records: currentRecords,
-        catalog: currentCatalog,
-        collaborators: currentCollabs,
-        config: currentConfig
-    };
-    const dataStr = JSON.stringify(fullData, null, 2);
-    const blob = new Blob([dataStr], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    
-    const now = new Date();
-    const dateStr = now.toLocaleDateString('pt-BR').replace(/\//g, '-');
-    const timeStr = now.toLocaleTimeString('pt-BR').replace(/:/g, '-');
-
-    link.href = url;
-    link.download = `backup_gestao_epi_${dateStr}_${timeStr}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
   };
+
+  const syncRecord = (record: EpiRecord) => syncToSheets(record);
+  const syncCatalogItem = (item: EpiCatalogItem) => syncToSheets({ ...item, type: 'CATALOG_ITEM' });
+  const syncCollaboratorItem = (collab: Collaborator) => syncToSheets({ ...collab, type: 'COLLABORATOR_ITEM' });
 
   const handleAddRecord = (newRecord: EpiRecord) => {
-    const updatedRecords = [newRecord, ...records];
-    setRecords(updatedRecords);
-
-    const updatedCatalog = catalog.map(catItem => {
-      const countDelivered = newRecord.items.filter(deliveredItem => deliveredItem.code === catItem.code).length;
-      if (countDelivered > 0) {
-        const newStock = Math.max(0, (catItem.stock || 0) - countDelivered);
-        return { ...catItem, stock: newStock };
-      }
-      return catItem;
-    });
-
-    setCatalog(updatedCatalog);
-
-    if (defaultConfig.autoBackup) {
-        setTimeout(() => {
-            downloadBackupData(updatedRecords, updatedCatalog, collaborators, defaultConfig);
-        }, 500);
-    }
+    setRecords([newRecord, ...records]);
+    setCatalog(catalog.map(catItem => {
+      const delivered = newRecord.items.filter(i => i.code === catItem.code).length;
+      return delivered > 0 ? { ...catItem, stock: Math.max(0, catItem.stock - delivered) } : catItem;
+    }));
   };
 
-  const handleUpdateCollaboratorActivity = (collabId: string) => {
-    setCollaborators(prev => prev.map(c => 
-        c.id === collabId 
-        ? { ...c, lastActivityDate: new Date().toISOString() } 
-        : c
-    ));
-  };
+  const handleEditCollaborator = (id: string) => { setSelectedCollabToEdit(id); setIsCollabOpen(true); };
+  const handleRegisterWithPhoto = (photo: string) => { setTempRegisterPhoto(photo); setSelectedCollabToEdit(null); setIsCollabOpen(true); };
 
-  const handleDeleteRecord = (id: string) => {
-    if (confirm("Deseja realmente apagar este registro?")) {
-        setRecords(prev => prev.filter(r => r.id !== id));
-    }
-  };
-
-  const handleImportBackup = (data: any) => {
-    try {
-        if (confirm("ATENÇÃO: Restaurar o backup irá SUBSTITUIR TODOS os dados atuais pelos dados do arquivo. \n\nOs dados atuais serão apagados. Deseja continuar?")) {
-            setRecords([]);
-            setCatalog([]);
-            setCollaborators([]);
-
-            if (data.records) setRecords(data.records);
-            if (data.catalog) setCatalog(data.catalog);
-            if (data.collaborators) setCollaborators(data.collaborators);
-            
-            const newConfig = data.config || defaultConfig;
-            setDefaultConfig({ 
-                ...newConfig, 
-                autoBackup: true,
-                googleSheetsUrl: FIXED_SHEETS_URL // Mantém a URL fixa mesmo ao importar
-            }); 
-            
-            alert('Backup restaurado com sucesso! Os dados antigos foram substituídos.');
-        }
-    } catch (e) {
-        alert('Erro ao restaurar backup. Arquivo inválido.');
-        console.error(e);
-    }
-  };
-
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        try {
-            const content = e.target?.result as string;
-            const parsedData = JSON.parse(content);
-            handleImportBackup(parsedData);
-        } catch (error) {
-            alert("Erro ao ler arquivo. Certifique-se de que é um backup válido.");
-        }
-    };
-    reader.readAsText(file);
-    event.target.value = '';
-  };
-
-  // Função chamada quando não encontra o rosto e precisa cadastrar novo
-  const handleRegisterWithPhoto = (photo: string) => {
-    setTempRegisterPhoto(photo); // Salva a foto
-    setSelectedCollabToEdit(null); // Limpa edição anterior
-    setIsCollabOpen(true); // Abre modal
-  };
-
-  const handleEditCollaborator = (id: string) => {
-      setSelectedCollabToEdit(id);
-      setIsCollabOpen(true);
-  };
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-dark-950 flex flex-col items-center justify-center text-white">
-        <Loader2 className="w-10 h-10 animate-spin text-brand-500 mb-4" />
-        <h2 className="text-xl font-semibold">Carregando Banco de Dados...</h2>
-        <p className="text-zinc-500 mt-2 text-sm">Preparando ambiente offline.</p>
-      </div>
-    );
-  }
-
-  const totalAssignments = records.length;
-  const totalItems = records.reduce((acc, curr) => acc + (curr.items ? curr.items.length : 0), 0);
-  const uniqueEmployees = new Set(records.map(r => r.employeeName)).size;
+  if (isLoading) return <div className="min-h-screen bg-dark-950 flex items-center justify-center text-white"><Loader2 className="animate-spin" /></div>;
 
   return (
-    <div className="min-h-screen bg-dark-950 pb-12 text-zinc-100 flex flex-col relative overflow-hidden">
-      <input 
-          type="file" 
-          ref={fileInputRef} 
-          onChange={handleFileUpload} 
-          className="hidden" 
-          accept=".json"
-      />
-
-      <header className="bg-dark-900 border-b border-dark-800 sticky top-0 z-30 backdrop-blur-md bg-opacity-95 shadow-sm shrink-0">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="bg-brand-600 p-1.5 sm:p-2 rounded-lg shadow-lg shadow-brand-900/50">
-              <ShieldCheck className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-            </div>
-            
-            <div className="hidden min-[380px]:block">
-              <h1 className="text-lg sm:text-xl font-bold text-white tracking-tight leading-tight">Gestão de EPI</h1>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-1 sm:gap-2 ml-2">
-            <button
-                onClick={() => setIsHistorySidebarOpen(true)}
-                className="p-2 sm:px-3 text-zinc-400 hover:text-white hover:bg-dark-800 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium border border-transparent bg-dark-800/50"
-            >
-                <History className="w-5 h-5" />
-                <span className="hidden md:inline">Histórico</span>
-            </button>
-            
-            <div className="h-6 w-px bg-dark-700 mx-0.5 sm:mx-1"></div>
-
-            <button 
-              onClick={() => {
-                setTempRegisterPhoto(null);
-                setSelectedCollabToEdit(null);
-                setIsCollabOpen(true);
-              }}
-              className="p-2 sm:px-3 text-zinc-400 hover:text-white hover:bg-dark-800 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium border border-transparent"
-              title="Colaboradores"
-            >
-              <Users className="w-5 h-5" />
-              <span className="hidden md:inline">Colaboradores</span>
-            </button>
-
-            <button 
-              onClick={() => setIsCatalogOpen(true)}
-              className="p-2 sm:px-3 text-zinc-400 hover:text-amber-400 hover:bg-dark-800 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium border border-transparent"
-              title="Catálogo"
-            >
-              <Package className="w-5 h-5" />
-              <span className="hidden md:inline">Catálogo</span>
-            </button>
-
-            <button 
-              onClick={() => setIsStockOpen(true)}
-              className="p-2 sm:px-3 text-zinc-400 hover:text-purple-400 hover:bg-dark-800 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium border border-transparent"
-              title="Estoque"
-            >
-              <BarChart3 className="w-5 h-5" />
-              <span className="hidden md:inline">Estoque</span>
-            </button>
-
-            <div className="h-6 w-px bg-dark-700 mx-0.5 sm:mx-1"></div>
-
-            <button 
-              onClick={() => setIsSettingsOpen(true)}
-              className="p-2 rounded-lg transition-colors flex items-center gap-2 text-zinc-400 hover:text-white hover:bg-dark-800"
-              title="Configurações"
-            >
-              <Settings className="w-5 h-5" />
-            </button>
-          </div>
+    <div className="min-h-screen bg-dark-950 pb-12 text-zinc-100 flex flex-col">
+      <header className="bg-dark-900 border-b border-dark-800 sticky top-0 z-30 h-16 flex items-center justify-between px-6">
+        <div className="flex items-center gap-3">
+          <div className="bg-brand-600 p-2 rounded-lg"><ShieldCheck className="w-6 h-6 text-white" /></div>
+          <h1 className="text-xl font-bold">Gestão de EPI</h1>
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setIsHistorySidebarOpen(true)} className="p-2 flex items-center gap-2 text-sm font-medium text-zinc-400 hover:text-white"><History className="w-5 h-5" /> Histórico</button>
+          <button onClick={() => { setTempRegisterPhoto(null); setSelectedCollabToEdit(null); setIsCollabOpen(true); }} className="p-2 flex items-center gap-2 text-sm font-medium text-zinc-400 hover:text-white"><Users className="w-5 h-5" /> Colaboradores</button>
+          <button onClick={() => setIsCatalogOpen(true)} className="p-2 flex items-center gap-2 text-sm font-medium text-zinc-400 hover:text-amber-400"><Package className="w-5 h-5" /> Catálogo</button>
+          <button onClick={() => setIsStockOpen(true)} className="p-2 flex items-center gap-2 text-sm font-medium text-zinc-400 hover:text-purple-400"><BarChart3 className="w-5 h-5" /> Estoque</button>
+          <button onClick={() => setIsSettingsOpen(true)} className="p-2 text-zinc-400 hover:text-white"><Settings className="w-5 h-5" /></button>
         </div>
       </header>
 
-      <main className="flex-1 max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8 w-full relative z-10 flex flex-col gap-6">
-        <div className="flex justify-center">
-            <div className="w-full max-w-6xl">
-                 <AssignmentForm 
-                  onAdd={handleAddRecord} 
-                  catalog={catalog}
-                  collaborators={collaborators}
-                  records={records}
-                  onOpenCatalog={() => setIsCatalogOpen(true)}
-                  onOpenCollaborators={() => {
-                      setTempRegisterPhoto(null);
-                      setSelectedCollabToEdit(null);
-                      setIsCollabOpen(true);
-                  }}
-                  onEditCollaborator={handleEditCollaborator} 
-                  onRegisterNew={handleRegisterWithPhoto} 
-                  onUpdateCollaboratorActivity={handleUpdateCollaboratorActivity}
-                  defaultConfig={defaultConfig}
-                />
-            </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mt-4 max-w-6xl mx-auto w-full">
-          <StatsCard 
-            title="Total de Fichas" 
-            value={totalAssignments} 
-            icon={FileCheck} 
-            color="bg-emerald-500" 
-          />
-          <StatsCard 
-            title="Colaboradores Ativos" 
-            value={uniqueEmployees} 
-            icon={Users} 
-            color="bg-blue-500" 
-          />
-          <StatsCard 
-            title="Itens Entregues (Total)" 
-            value={totalItems} 
-            icon={History} 
-            color="bg-amber-500" 
-          />
+      <main className="max-w-7xl mx-auto px-6 py-8 w-full flex flex-col gap-6">
+        <AssignmentForm 
+          onAdd={handleAddRecord} catalog={catalog} collaborators={collaborators} records={records}
+          onOpenCatalog={() => setIsCatalogOpen(true)}
+          onOpenCollaborators={() => setIsCollabOpen(true)}
+          onRegisterNew={handleRegisterWithPhoto}
+          onUpdateCollaboratorActivity={(id) => setCollaborators(prev => prev.map(c => c.id === id ? { ...c, lastActivityDate: new Date().toISOString() } : c))}
+          onEditCollaborator={handleEditCollaborator}
+          defaultConfig={defaultConfig}
+          onSyncToSheets={syncRecord}
+        />
+        <div className="grid grid-cols-3 gap-6">
+          <StatsCard title="Total de Fichas" value={records.length} icon={FileCheck} color="bg-emerald-500" />
+          <StatsCard title="Colaboradores" value={new Set(records.map(r => r.employeeName)).size} icon={Users} color="bg-blue-500" />
+          <StatsCard title="Catálogo" value={catalog.length} icon={Package} color="bg-amber-500" />
         </div>
       </main>
 
-      {isHistorySidebarOpen && (
-          <div 
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity" 
-            onClick={() => setIsHistorySidebarOpen(false)}
-          />
-      )}
-      
-      <div 
-        className={`fixed inset-y-0 right-0 w-full sm:w-[450px] bg-dark-900 border-l border-dark-800 shadow-2xl transform transition-transform duration-300 ease-in-out z-50 flex flex-col ${
-            isHistorySidebarOpen ? 'translate-x-0' : 'translate-x-full'
-        }`}
-      >
-        <div className="p-4 border-b border-dark-800 flex items-center justify-between bg-dark-950">
-             <div className="flex items-center gap-2">
-                 <History className="w-5 h-5 text-brand-500" />
-                 <h2 className="text-lg font-bold text-white">Histórico de Entregas</h2>
-             </div>
-             <button 
-                onClick={() => setIsHistorySidebarOpen(false)}
-                className="p-2 hover:bg-dark-800 rounded-full text-zinc-400 hover:text-white transition-colors"
-             >
-                 <X className="w-5 h-5" />
-             </button>
-        </div>
-        
-        <div className="flex-1 overflow-hidden p-2 bg-dark-950/30">
-            <HistoryTable 
-                records={records} 
-                onDelete={handleDeleteRecord} 
-                compact={true} 
-            />
-        </div>
+      {isHistorySidebarOpen && <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" onClick={() => setIsHistorySidebarOpen(false)} />}
+      <div className={`fixed inset-y-0 right-0 w-[450px] bg-dark-900 border-l border-dark-800 transform transition-transform duration-300 z-50 flex flex-col ${isHistorySidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+        <div className="p-4 border-b border-dark-800 flex items-center justify-between"><h2 className="text-lg font-bold">Histórico</h2><button onClick={() => setIsHistorySidebarOpen(false)}><X className="w-5 h-5" /></button></div>
+        <div className="flex-1 overflow-hidden p-2"><HistoryTable records={records} onDelete={(id) => confirm("Apagar?") && setRecords(records.filter(r => r.id !== id))} onResend={syncRecord} compact /></div>
       </div>
 
-      <CollaboratorModal
-        isOpen={isCollabOpen}
-        onClose={() => setIsCollabOpen(false)}
-        collaborators={collaborators}
-        onUpdateCollaborators={setCollaborators}
-        initialPhoto={tempRegisterPhoto}
-        initialCollaboratorId={selectedCollabToEdit}
-        records={records} 
-      />
-
-      <CatalogModal 
-        isOpen={isCatalogOpen}
-        onClose={() => setIsCatalogOpen(false)}
-        catalog={catalog}
-        onUpdateCatalog={setCatalog}
-      />
-
-      <StockModal 
-        isOpen={isStockOpen}
-        onClose={() => setIsStockOpen(false)}
-        catalog={catalog}
-      />
-
-      <SettingsModal 
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        config={defaultConfig}
-        onSaveConfig={setDefaultConfig}
-        onRunCleanup={() => {}} 
-        fullData={{ records, catalog, collaborators, config: defaultConfig }}
-        onImportData={handleImportBackup}
-      />
+      <CollaboratorModal isOpen={isCollabOpen} onClose={() => setIsCollabOpen(false)} collaborators={collaborators} onUpdateCollaborators={setCollaborators} records={records} initialPhoto={tempRegisterPhoto} initialCollaboratorId={selectedCollabToEdit} onSync={syncCollaboratorItem} />
+      <CatalogModal isOpen={isCatalogOpen} onClose={() => setIsCatalogOpen(false)} catalog={catalog} onUpdateCatalog={setCatalog} onSync={syncCatalogItem} />
+      <StockModal isOpen={isStockOpen} onClose={() => setIsStockOpen(false)} catalog={catalog} />
+      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} config={defaultConfig} onSaveConfig={setDefaultConfig} onRunCleanup={() => {}} fullData={{ records, catalog, collaborators, config: defaultConfig }} onImportData={(d) => { setRecords(d.records || []); setCatalog(d.catalog || []); setCollaborators(d.collaborators || []); }} />
     </div>
   );
 };

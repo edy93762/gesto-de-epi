@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
-import { Trash2, FileText, Search, Package, Clock, ScanFace, Calendar, RotateCcw } from 'lucide-react';
+import { Trash2, FileText, Search, Package, Clock, ScanFace, Calendar, Send, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { EpiRecord } from '../types';
 import { generateEpiPdf } from '../utils/pdfGenerator';
 
 interface HistoryTableProps {
   records: EpiRecord[];
   onDelete: (id: string) => void;
+  onResend?: (record: EpiRecord) => Promise<boolean>;
   compact?: boolean; 
 }
 
-const HistoryTable: React.FC<HistoryTableProps> = ({ records, onDelete, compact = false }) => {
+const HistoryTable: React.FC<HistoryTableProps> = ({ records, onDelete, onResend, compact = false }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [resendingId, setResendingId] = useState<string | null>(null);
+  const [resendStatus, setResendStatus] = useState<Record<string, 'success' | 'error' | null>>({});
 
   // Filtragem por busca
   const filteredRecords = records.filter(r => 
@@ -21,6 +24,29 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ records, onDelete, compact 
   const sortedRecords = filteredRecords.sort((a, b) => {
     return new Date(b.date).getTime() - new Date(a.date).getTime();
   });
+
+  const handleResend = async (record: EpiRecord) => {
+    if (!onResend || resendingId) return;
+
+    setResendingId(record.id);
+    setResendStatus(prev => ({ ...prev, [record.id]: null }));
+
+    try {
+        const success = await onResend(record);
+        if (success) {
+            setResendStatus(prev => ({ ...prev, [record.id]: 'success' }));
+            setTimeout(() => {
+                setResendStatus(prev => ({ ...prev, [record.id]: null }));
+            }, 3000);
+        } else {
+            setResendStatus(prev => ({ ...prev, [record.id]: 'error' }));
+        }
+    } catch (e) {
+        setResendStatus(prev => ({ ...prev, [record.id]: 'error' }));
+    } finally {
+        setResendingId(null);
+    }
+  };
 
   return (
     <div className="bg-dark-900 rounded-xl shadow-lg border border-dark-800 overflow-hidden h-full flex flex-col">
@@ -101,10 +127,28 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ records, onDelete, compact 
                         <div className="flex gap-2">
                              <button 
                                 onClick={() => generateEpiPdf(record, true)}
-                                className="flex-1 bg-brand-500/10 text-brand-400 border border-brand-500/20 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 active:scale-95 transition-transform"
+                                className="flex-1 bg-dark-800 text-zinc-300 border border-dark-700 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 active:scale-95 transition-transform"
                              >
-                                <FileText className="w-4 h-4" /> Baixar Ficha
+                                <FileText className="w-4 h-4" /> PDF
                              </button>
+                             
+                             <button 
+                                onClick={() => handleResend(record)}
+                                disabled={resendingId === record.id}
+                                className={`flex-1 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 active:scale-95 transition-all border ${
+                                    resendStatus[record.id] === 'success' ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' :
+                                    resendStatus[record.id] === 'error' ? 'bg-red-500/20 border-red-500/50 text-red-400' :
+                                    'bg-brand-500/10 text-brand-400 border-brand-500/20 hover:bg-brand-500/20'
+                                }`}
+                                title="Sincronizar com Planilha"
+                             >
+                                {resendingId === record.id ? <Loader2 className="w-4 h-4 animate-spin" /> : 
+                                 resendStatus[record.id] === 'success' ? <CheckCircle className="w-4 h-4" /> :
+                                 resendStatus[record.id] === 'error' ? <AlertCircle className="w-4 h-4" /> :
+                                 <Send className="w-4 h-4" />} 
+                                {resendStatus[record.id] === 'success' ? 'OK!' : 'Sincronizar'}
+                             </button>
+
                              <button 
                                 onClick={() => onDelete(record.id)}
                                 className="flex-none w-10 bg-red-500/10 text-red-400 border border-red-500/20 rounded-lg flex items-center justify-center active:scale-95 transition-transform"
@@ -175,12 +219,29 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ records, onDelete, compact 
                       </td>
                       <td className="px-6 py-4 text-right space-x-2 whitespace-nowrap">
                         <button 
+                          onClick={() => handleResend(record)}
+                          disabled={resendingId === record.id}
+                          className={`inline-flex items-center justify-center w-9 h-9 rounded-lg border transition-all ${
+                            resendStatus[record.id] === 'success' ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' :
+                            resendStatus[record.id] === 'error' ? 'bg-red-500/20 border-red-500/50 text-red-400' :
+                            'bg-brand-500/10 text-brand-400 border-brand-500/20 hover:bg-brand-500/20'
+                          }`}
+                          title="Sincronizar com Planilha Google"
+                        >
+                          {resendingId === record.id ? <Loader2 className="w-4 h-4 animate-spin" /> : 
+                           resendStatus[record.id] === 'success' ? <CheckCircle className="w-4 h-4" /> :
+                           resendStatus[record.id] === 'error' ? <AlertCircle className="w-4 h-4" /> :
+                           <Send className="w-4 h-4" />}
+                        </button>
+                        
+                        <button 
                           onClick={() => generateEpiPdf(record, true)}
-                          className="inline-flex items-center justify-center w-9 h-9 text-brand-400 bg-brand-500/10 hover:bg-brand-500/20 border border-brand-500/20 rounded-lg transition-colors"
+                          className="inline-flex items-center justify-center w-9 h-9 text-zinc-400 bg-dark-800 hover:bg-dark-700 hover:text-white border border-dark-700 rounded-lg transition-colors"
                           title="Baixar PDF da Ficha"
                         >
                           <FileText className="w-4 h-4" />
                         </button>
+                        
                         <button 
                           onClick={() => onDelete(record.id)}
                           className="inline-flex items-center justify-center w-9 h-9 text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-lg transition-colors"

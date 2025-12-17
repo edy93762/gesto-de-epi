@@ -15,6 +15,7 @@ interface AssignmentFormProps {
   onUpdateCollaboratorActivity: (id: string) => void; 
   onEditCollaborator?: (id: string) => void; 
   defaultConfig: AutoDeleteConfig;
+  onSyncToSheets: (record: EpiRecord) => Promise<boolean>;
 }
 
 const AssignmentForm: React.FC<AssignmentFormProps> = ({ 
@@ -28,6 +29,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
   onUpdateCollaboratorActivity,
   onEditCollaborator,
   defaultConfig,
+  onSyncToSheets
 }) => {
   // Company Selection
   const [selectedCompany, setSelectedCompany] = useState<'Luandre' | 'Randstad' | 'Shopee'>('Luandre');
@@ -232,28 +234,6 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
       onEditCollaborator(selectedCollabId);
   };
 
-  // --- SYNC TO GOOGLE SHEETS ---
-  const syncToGoogleSheets = async (record: EpiRecord, pdfBase64: string) => {
-    if (!defaultConfig.googleSheetsUrl) return;
-
-    try {
-        await fetch(defaultConfig.googleSheetsUrl, {
-            method: 'POST',
-            mode: 'no-cors', 
-            headers: { 
-              'Content-Type': 'text/plain;charset=utf-8' 
-            },
-            body: JSON.stringify({
-                ...record,
-                pdfFile: pdfBase64 
-            })
-        });
-        console.log('Dados (PDF+Foto) enviados para Planilha Google via text/plain');
-    } catch (e) {
-        console.error('Erro ao enviar para Google Sheets:', e);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
@@ -296,10 +276,8 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
             onUpdateCollaboratorActivity(selectedCollabId);
         }
 
-        const pdfBase64 = generateEpiPdf(newRecord, false);
-
         if (navigator.onLine && defaultConfig.googleSheetsUrl) {
-           await syncToGoogleSheets(newRecord, pdfBase64);
+           await onSyncToSheets(newRecord);
         }
 
         handleClearAll();
