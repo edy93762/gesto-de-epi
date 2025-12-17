@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Save, Settings, Download, Upload, Database, RefreshCw, HardDrive, Sheet, Link, HelpCircle, Copy, Check, ExternalLink, Send, Loader2, AlertTriangle, CheckCircle, RotateCcw, CloudDownload } from 'lucide-react';
+import { X, Save, Settings, Download, Upload, Database, RefreshCw, HardDrive, Sheet, Link, HelpCircle, Copy, Check, ExternalLink, Send, Loader2, AlertTriangle, CheckCircle, RotateCcw, DownloadCloud } from 'lucide-react';
 import { AutoDeleteConfig, EpiRecord, EpiCatalogItem, Collaborator } from '../types';
 
 interface SettingsModalProps {
@@ -233,7 +233,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         <div className="overflow-y-auto p-6 space-y-8 flex-1 custom-scrollbar">
             <div className="space-y-4">
                 <div className="flex items-center gap-2 text-zinc-200 font-semibold border-b border-dark-800 pb-2">
-                    <CloudDownload className="w-5 h-5 text-brand-500" />
+                    <DownloadCloud className="w-5 h-5 text-brand-500" />
                     <h4>Sincronização de Dados (Excel para App)</h4>
                 </div>
                 
