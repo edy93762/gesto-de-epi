@@ -1,7 +1,7 @@
 {
-  "description": "App de controle de EPI com captura de foto.",
+  "name": "Controle EPI Biométrico",
+  "description": "Sistema de gestão de EPI com reconhecimento facial via Gemini API.",
   "requestFramePermissions": [
     "camera"
-  ],
-  "name": "Controle EPI"
+  ]
 }
