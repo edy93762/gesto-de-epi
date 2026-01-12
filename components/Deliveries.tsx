@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Delivery, EPI, Collaborator } from '../types';
 import { formatDateTime, calculateStatus } from '../utils/helpers';
-import { Search, Camera, X, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { Search, Camera, X, ShieldCheck, ShieldAlert, Medal } from 'lucide-react';
 
 interface DeliveriesProps {
   deliveries: Delivery[];
@@ -56,7 +56,7 @@ export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collab
               <th className="px-6 py-4">Colaborador</th>
               <th className="px-6 py-4">EPI</th>
               <th className="px-6 py-4">Qtd</th>
-              <th className="px-6 py-4">Verificação</th>
+              <th className="px-6 py-4">Identidade</th>
               <th className="px-6 py-4">Status</th>
             </tr>
           </thead>
@@ -67,9 +67,14 @@ export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collab
                   {delivery.photo ? (
                     <button 
                       onClick={() => setSelectedPhoto(delivery.photo!)}
-                      className="w-10 h-10 rounded-lg overflow-hidden border border-slate-200 hover:ring-2 hover:ring-blue-500 transition-all shadow-sm"
+                      className="w-10 h-10 rounded-lg overflow-hidden border border-slate-200 hover:ring-2 hover:ring-blue-500 transition-all shadow-sm relative group"
                     >
                       <img src={delivery.photo} alt="Entrega" className="w-full h-full object-cover" />
+                      {delivery.verificationResult?.match && (
+                        <div className="absolute top-0 right-0 bg-yellow-400 text-slate-900 rounded-bl p-0.5">
+                           <Medal size={10} fill="currentColor" />
+                        </div>
+                      )}
                     </button>
                   ) : (
                     <div className="w-10 h-10 rounded-lg bg-slate-50 flex items-center justify-center text-slate-300 border border-slate-200">
@@ -83,9 +88,9 @@ export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collab
                 <td className="px-6 py-4">{delivery.quantity}</td>
                 <td className="px-6 py-4">
                   {delivery.verificationResult ? (
-                    <div className={`flex items-center gap-1 font-bold text-[10px] ${delivery.verificationResult.match ? 'text-green-600' : 'text-red-600'}`}>
-                      {delivery.verificationResult.match ? <ShieldCheck size={14} /> : <ShieldAlert size={14} />}
-                      {delivery.verificationResult.match ? 'CONFIRMADA' : 'ALERTA'}
+                    <div className={`flex items-center gap-1.5 font-bold text-[10px] py-1 px-2 rounded-full inline-flex ${delivery.verificationResult.match ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                      {delivery.verificationResult.match ? <Medal size={14} className="text-yellow-500" fill="currentColor" /> : <ShieldAlert size={14} />}
+                      {delivery.verificationResult.match ? 'VERIFICADO' : 'ALERTA'}
                     </div>
                   ) : <span className="text-slate-300">-</span>}
                 </td>

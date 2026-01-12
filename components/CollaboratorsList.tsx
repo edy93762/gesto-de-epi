@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Collaborator } from '../types';
-import { User, CheckCircle, XCircle, UserPlus } from 'lucide-react';
+import { User, CheckCircle, XCircle, UserPlus, Medal } from 'lucide-react';
 
 interface CollaboratorsListProps {
   collaborators: Collaborator[];
@@ -14,7 +14,7 @@ export const CollaboratorsList: React.FC<CollaboratorsListProps> = ({ collaborat
       <div className="p-6 border-b border-slate-200 flex justify-between items-center">
         <div>
           <h2 className="text-xl font-bold text-slate-800">Colaboradores</h2>
-          <p className="text-sm text-slate-500">Gerencie quem pode receber equipamentos.</p>
+          <p className="text-sm text-slate-500">Gestão de pessoal e cadastro biométrico facial.</p>
         </div>
         <button 
           onClick={onAddClick}
@@ -28,7 +28,7 @@ export const CollaboratorsList: React.FC<CollaboratorsListProps> = ({ collaborat
         <table className="w-full text-left text-sm text-slate-600">
           <thead className="bg-slate-50 text-slate-900 font-semibold border-b border-slate-200">
             <tr>
-              <th className="px-6 py-4">Nome</th>
+              <th className="px-6 py-4">Nome / Biometria</th>
               <th className="px-6 py-4">Matrícula</th>
               <th className="px-6 py-4">Setor</th>
               <th className="px-6 py-4">Cargo</th>
@@ -46,25 +46,32 @@ export const CollaboratorsList: React.FC<CollaboratorsListProps> = ({ collaborat
               collaborators.map((c) => (
                 <tr key={c.id} className="hover:bg-slate-50">
                   <td className="px-6 py-4 font-medium flex items-center gap-3 text-slate-900">
-                      <div className="w-10 h-10 rounded-full bg-slate-100 overflow-hidden flex items-center justify-center text-slate-500 border border-slate-200">
-                          {c.photo ? <img src={c.photo} className="w-full h-full object-cover" /> : <User size={18} />}
+                      <div className="relative">
+                        <div className="w-10 h-10 rounded-full bg-slate-100 overflow-hidden flex items-center justify-center text-slate-500 border border-slate-200 shadow-sm">
+                            {c.photo ? <img src={c.photo} className="w-full h-full object-cover" /> : <User size={18} />}
+                        </div>
+                        {c.photo && (
+                          <div className="absolute -bottom-1 -right-1 bg-yellow-400 text-slate-900 rounded-full p-0.5 border border-white shadow-sm" title="Biometria Cadastrada">
+                            <Medal size={10} fill="currentColor" />
+                          </div>
+                        )}
                       </div>
                       <div className="flex flex-col">
-                        <span>{c.name}</span>
+                        <span className="font-bold">{c.name}</span>
                         <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">ID: {c.id}</span>
                       </div>
                   </td>
-                  <td className="px-6 py-4">{c.matricula || '-'}</td>
-                  <td className="px-6 py-4">{c.sector}</td>
+                  <td className="px-6 py-4 font-medium text-slate-700">{c.matricula || '-'}</td>
+                  <td className="px-6 py-4 uppercase text-[11px] font-bold text-slate-500">{c.sector}</td>
                   <td className="px-6 py-4">{c.role}</td>
                   <td className="px-6 py-4">
                     {c.active ? (
-                      <span className="flex items-center gap-1 text-green-600 font-medium">
-                        <CheckCircle size={14} /> Ativo
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-50 text-green-600 font-bold text-[10px] uppercase">
+                        <CheckCircle size={12} /> Ativo
                       </span>
                     ) : (
-                      <span className="flex items-center gap-1 text-red-500 font-medium">
-                        <XCircle size={14} /> Inativo
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-50 text-red-500 font-bold text-[10px] uppercase">
+                        <XCircle size={12} /> Inativo
                       </span>
                     )}
                   </td>

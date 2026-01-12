@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Collaborator, EPI, Delivery, DeliveryReason } from '../types';
 import { generateId } from '../utils/helpers';
-import { AlertCircle, Save, HardHat, User, UserPlus, Search, Camera, X, RefreshCw, ShieldCheck, ShieldAlert, Loader2 } from 'lucide-react';
+import { AlertCircle, Save, HardHat, User, UserPlus, Search, Camera, X, RefreshCw, ShieldCheck, ShieldAlert, Loader2, Medal } from 'lucide-react';
 import { CollaboratorForm } from './CollaboratorForm';
 import { GoogleGenAI, Type } from "@google/genai";
 
@@ -211,7 +211,7 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
     <div className="max-w-3xl mx-auto bg-white rounded-lg shadow-sm border border-slate-200 relative mb-20">
       <div className="p-6 border-b border-slate-200 bg-slate-50 rounded-t-lg">
         <h2 className="text-xl font-bold text-slate-800">Nova Entrega de EPI</h2>
-        <p className="text-sm text-slate-500 mt-1">Reconhecimento facial ativo para segurança.</p>
+        <p className="text-sm text-slate-500 mt-1">Identidade Segura: Verificação Facial Biométrica.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="p-6 space-y-6">
@@ -219,35 +219,35 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
           {/* Captura de Foto e Verificação Facial */}
           <div className="col-span-2">
             <div className="flex justify-between items-end mb-2">
-               <label className="block text-sm font-medium text-slate-700 flex items-center gap-2">
-                <Camera size={16} /> Verificação Facial em Tempo Real
+               <label className="block text-sm font-medium text-slate-700 flex items-center gap-2 uppercase tracking-wider text-[10px] font-bold">
+                <ShieldCheck size={14} className="text-blue-600" /> Scanner Biométrico Facial
               </label>
               {isVerifying && (
                 <div className="flex items-center gap-1 text-blue-600 animate-pulse text-xs font-bold">
-                  <Loader2 size={14} className="animate-spin" /> VERIFICANDO...
+                  <Loader2 size={14} className="animate-spin" /> VALIDANDO BIOMETRIA...
                 </div>
               )}
               {verificationResult && !isVerifying && (
-                <div className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-bold ${verificationResult.match ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                  {verificationResult.match ? <ShieldCheck size={14} /> : <ShieldAlert size={14} />}
-                  {verificationResult.match ? 'IDENTIDADE CONFIRMADA' : 'IDENTIDADE DIVERGENTE'}
+                <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black shadow-sm ${verificationResult.match ? 'bg-yellow-400 text-slate-900 animate-bounce' : 'bg-red-600 text-white'}`}>
+                  {verificationResult.match ? <Medal size={16} fill="currentColor" /> : <ShieldAlert size={16} />}
+                  {verificationResult.match ? 'IDENTIDADE CERTIFICADA' : 'IDENTIDADE NÃO RECONHECIDA'}
                 </div>
               )}
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                {/* Lado do Colaborador (Referência) */}
-               <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 flex flex-col items-center justify-center h-64">
+               <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 flex flex-col items-center justify-center h-64 shadow-inner">
                   {selectedCollaborator?.photo ? (
                     <div className="text-center">
-                      <p className="text-[10px] uppercase font-bold text-slate-400 mb-2 tracking-widest">Referência</p>
-                      <img src={selectedCollaborator.photo} className="w-40 h-40 rounded-full object-cover border-4 border-white shadow-md mx-auto" alt="Ref" />
-                      <p className="mt-2 font-bold text-slate-700">{selectedCollaborator.name}</p>
+                      <p className="text-[10px] uppercase font-bold text-slate-400 mb-2 tracking-widest">Banco de Dados</p>
+                      <img src={selectedCollaborator.photo} className="w-40 h-40 rounded-full object-cover border-4 border-white shadow-xl mx-auto" alt="Ref" />
+                      <p className="mt-2 font-black text-slate-800 uppercase text-xs">{selectedCollaborator.name}</p>
                     </div>
                   ) : (
                     <div className="text-center text-slate-400 flex flex-col items-center gap-2">
-                       <User size={48} className="opacity-20" />
-                       <p className="text-xs font-medium">Selecione um colaborador<br/>com foto de referência</p>
+                       <User size={48} className="opacity-10" />
+                       <p className="text-[10px] font-bold uppercase tracking-widest">Aguardando Seleção</p>
                     </div>
                   )}
                </div>
@@ -257,31 +257,41 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
                   {capturedPhoto ? (
                     <div className="relative w-full h-full group">
                       <img src={capturedPhoto} alt="Live" className="w-full h-full object-cover" />
-                      <div className={`absolute inset-0 border-4 transition-colors pointer-events-none ${verificationResult?.match ? 'border-green-500/50' : verificationResult ? 'border-red-500/50' : 'border-transparent'}`} />
-                      <button type="button" onClick={() => { setCapturedPhoto(null); startCamera(); }} className="absolute bottom-4 right-4 bg-white/90 p-2 rounded-full shadow-lg text-blue-600 hover:scale-110 transition-all">
+                      <div className={`absolute inset-0 border-8 transition-colors pointer-events-none ${verificationResult?.match ? 'border-yellow-400/70 scale-[0.98]' : verificationResult ? 'border-red-600/70' : 'border-transparent'}`} />
+                      {verificationResult?.match && (
+                        <div className="absolute top-4 left-4 bg-yellow-400 text-slate-900 p-2 rounded-full shadow-lg">
+                          <Medal size={24} fill="currentColor" />
+                        </div>
+                      )}
+                      <button type="button" onClick={() => { setCapturedPhoto(null); startCamera(); }} className="absolute bottom-4 right-4 bg-white/90 p-2 rounded-full shadow-lg text-blue-600 hover:scale-110 transition-all border border-slate-200">
                         <RefreshCw size={20} />
                       </button>
                     </div>
                   ) : isCameraOpen ? (
                     <div className="relative w-full h-full">
                       <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover scale-x-[-1]" />
-                      <div className="absolute inset-0 border-2 border-white/30 rounded-full w-48 h-48 m-auto pointer-events-none" />
-                      <button type="button" onClick={takePhoto} className="absolute bottom-4 left-0 right-0 m-auto bg-blue-600 text-white p-3 rounded-full shadow-xl hover:scale-110 transition-all w-14 h-14 flex items-center justify-center">
+                      <div className="absolute inset-0 border-2 border-white/20 rounded-full w-48 h-48 m-auto pointer-events-none border-dashed animate-[spin_10s_linear_infinite]" />
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                         <div className="w-56 h-56 border-2 border-blue-500/30 rounded-full" />
+                      </div>
+                      <button type="button" onClick={takePhoto} className="absolute bottom-4 left-0 right-0 m-auto bg-blue-600 text-white p-3 rounded-full shadow-2xl hover:scale-110 active:scale-95 transition-all w-14 h-14 flex items-center justify-center border-2 border-white">
                         <Camera size={24} />
                       </button>
                     </div>
                   ) : (
-                    <button type="button" onClick={startCamera} className="flex flex-col items-center gap-2 text-slate-500 hover:text-blue-600 transition-all">
-                      <Camera size={48} />
-                      <span className="font-medium">Abrir Scanner</span>
+                    <button type="button" onClick={startCamera} className="flex flex-col items-center gap-2 text-slate-500 hover:text-blue-600 transition-all group">
+                      <Camera size={48} className="group-hover:scale-110 transition-transform" />
+                      <span className="font-black text-[10px] uppercase tracking-widest">Iniciar Biometria</span>
                     </button>
                   )}
                </div>
             </div>
             {verificationResult && (
-               <p className={`text-[10px] mt-2 font-medium text-center ${verificationResult.match ? 'text-green-600' : 'text-red-600'}`}>
-                  {verificationResult.reason} (Confiança: {verificationResult.confidence}%)
-               </p>
+               <div className={`mt-3 p-2 rounded-lg text-center ${verificationResult.match ? 'bg-green-50' : 'bg-red-50'}`}>
+                  <p className={`text-[11px] font-bold ${verificationResult.match ? 'text-green-700' : 'text-red-700'}`}>
+                    {verificationResult.reason} <span className="opacity-50 font-normal">| Confiança: {verificationResult.confidence}%</span>
+                  </p>
+               </div>
             )}
             <canvas ref={canvasRef} className="hidden" />
           </div>
@@ -314,17 +324,21 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
                     <button
                       key={c.id}
                       type="button"
-                      className="w-full text-left px-4 py-2 hover:bg-slate-50 border-b border-slate-100 last:border-none flex items-center gap-3"
+                      className="w-full text-left px-4 py-3 hover:bg-slate-50 border-b border-slate-100 last:border-none flex items-center gap-3"
                       onClick={() => {
                         setFormData({ ...formData, collaboratorId: c.id });
                         setCollaboratorSearch(c.name);
+                        setVerificationResult(null);
                         if (capturedPhoto && c.photo) verifyIdentity(c.photo, capturedPhoto);
                       }}
                     >
-                      <img src={c.photo || 'https://via.placeholder.com/40'} className="w-8 h-8 rounded-full object-cover" />
+                      <div className="relative">
+                        <img src={c.photo || 'https://via.placeholder.com/40'} className="w-10 h-10 rounded-full object-cover border border-slate-200" />
+                        {c.photo && <div className="absolute -bottom-1 -right-1 bg-yellow-400 rounded-full p-0.5 border border-white"><Medal size={10} fill="currentColor" /></div>}
+                      </div>
                       <div className="flex flex-col">
-                        <span className="font-bold text-slate-800">{c.name}</span>
-                        <span className="text-[10px] text-slate-500">{c.sector} | {c.role}</span>
+                        <span className="font-bold text-slate-800 leading-none mb-1">{c.name}</span>
+                        <span className="text-[10px] text-slate-500 font-medium uppercase tracking-tighter">{c.sector} | {c.role}</span>
                       </div>
                     </button>
                   ))}
@@ -335,7 +349,7 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
 
           <div className="col-span-1">
             <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-2">
-              <HardHat size={16} /> ID do EPI
+              <HardHat size={16} /> EPI Solicitado
             </label>
             <select
               className={`w-full p-2.5 border rounded-lg bg-white focus:ring-2 focus:ring-blue-500 outline-none ${errors.epiId ? 'border-red-300' : 'border-slate-300'}`}
@@ -352,7 +366,7 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
             <input
               type="number"
               min="1"
-              className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-bold"
               value={formData.quantity}
               onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 0 })}
             />
@@ -375,14 +389,14 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
         </div>
 
         <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-          <button type="button" onClick={onCancel} className="px-5 py-2.5 text-slate-700 font-medium">Cancelar</button>
+          <button type="button" onClick={onCancel} className="px-5 py-2.5 text-slate-500 font-medium hover:text-slate-800 transition-colors">Cancelar</button>
           <button
             type="submit"
             disabled={isVerifying}
-            className={`px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center gap-2 shadow-sm transition-all ${isVerifying ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold flex items-center gap-2 shadow-lg transition-all active:scale-95 ${isVerifying ? 'opacity-50 cursor-not-allowed grayscale' : ''}`}
           >
-            <Save size={18} />
-            Finalizar Entrega
+            {verificationResult?.match && <Medal size={20} className="text-yellow-400" fill="currentColor" />}
+            CONFIRMAR ENTREGA
           </button>
         </div>
       </form>
