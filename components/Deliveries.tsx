@@ -32,7 +32,8 @@ export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collab
     if (!fichaRef.current) return;
     setIsExporting(true);
     try {
-      const canvas = await html2canvas(fichaRef.current, { 
+      const element = fichaRef.current;
+      const canvas = await html2canvas(element, { 
         scale: 2,
         useCORS: true,
         logging: false,
@@ -46,6 +47,7 @@ export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collab
       pdf.save(`FICHA_EPI_${fichaPreview?.id || 'RECEBIMENTO'}.pdf`);
     } catch (error) {
       console.error("Erro ao gerar PDF:", error);
+      alert("Erro ao processar o PDF. Verifique os logs.");
     } finally {
       setIsExporting(false);
     }
@@ -53,7 +55,7 @@ export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collab
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="bg-slate-900 rounded-[2rem] border border-slate-800 p-8 flex flex-col md:flex-row justify-between items-center gap-6">
+      <div className="bg-slate-900 rounded-[2rem] border border-slate-800 p-8 flex flex-col md:flex-row justify-between items-center gap-6 shadow-xl">
         <div>
           <h2 className="text-3xl font-black text-white uppercase tracking-tighter">Histórico de Entregas</h2>
           <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mt-1">Registros de Recebimento de Materiais</p>
@@ -84,88 +86,91 @@ export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collab
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/50 font-bold">
-              {filteredDeliveries.map((delivery) => (
-                <tr key={delivery.id} className="hover:bg-slate-800/30 transition-colors">
-                  <td className="px-8 py-5">
-                    {delivery.photo ? (
-                      <button onClick={() => setSelectedPhoto(delivery.photo!)} className="w-12 h-12 rounded-xl overflow-hidden border border-slate-800 hover:scale-110 transition-transform bg-slate-950 p-0.5">
-                        <img src={delivery.photo} className="w-full h-full object-cover rounded-[10px]" />
-                      </button>
-                    ) : (
-                      <div className="w-12 h-12 rounded-xl bg-slate-950 flex items-center justify-center text-slate-800 border border-slate-800"><Camera size={18} /></div>
-                    )}
-                  </td>
-                  <td className="px-8 py-5 font-mono text-[11px] text-slate-500">{formatDateTime(delivery.date)}</td>
-                  <td className="px-8 py-5 text-white uppercase tracking-tight text-xs">
-                     {getCollaborator(delivery.collaboratorId)?.name || 'N/A'}
-                  </td>
-                  <td className="px-8 py-5">
-                    <div className="flex flex-col">
-                      <span className="text-white text-xs uppercase tracking-tight">{getEPI(delivery.epiId)?.description || 'EPI Excluído'}</span>
-                      <span className="text-[9px] text-blue-500 font-black uppercase tracking-widest flex items-center gap-1"><Tag size={8} /> {delivery.epiId}</span>
-                    </div>
-                  </td>
-                  <td className="px-8 py-5">
-                    <span className="text-[9px] text-slate-400 uppercase font-black px-2 py-1 bg-slate-800 rounded-lg">{delivery.reason}</span>
-                  </td>
-                  <td className="px-8 py-5 text-right">
-                    <button onClick={() => setFichaPreview(delivery)} className="bg-white text-black px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all active:scale-95 shadow-lg">
-                      Gerar Ficha
-                    </button>
-                  </td>
+              {filteredDeliveries.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-8 py-20 text-center opacity-30 text-xs font-black uppercase">Nenhuma entrega registrada</td>
                 </tr>
-              ))}
+              ) : (
+                filteredDeliveries.map((delivery) => (
+                  <tr key={delivery.id} className="hover:bg-slate-800/30 transition-colors">
+                    <td className="px-8 py-5">
+                      {delivery.photo ? (
+                        <button onClick={() => setSelectedPhoto(delivery.photo!)} className="w-12 h-12 rounded-xl overflow-hidden border border-slate-800 hover:scale-110 transition-transform bg-slate-950 p-0.5">
+                          <img src={delivery.photo} className="w-full h-full object-cover rounded-[10px]" />
+                        </button>
+                      ) : (
+                        <div className="w-12 h-12 rounded-xl bg-slate-950 flex items-center justify-center text-slate-800 border border-slate-800"><Camera size={18} /></div>
+                      )}
+                    </td>
+                    <td className="px-8 py-5 font-mono text-[11px] text-slate-500">{formatDateTime(delivery.date)}</td>
+                    <td className="px-8 py-5 text-white uppercase tracking-tight text-xs">
+                       {getCollaborator(delivery.collaboratorId)?.name || 'N/A'}
+                    </td>
+                    <td className="px-8 py-5">
+                      <div className="flex flex-col">
+                        <span className="text-white text-xs uppercase tracking-tight">{getEPI(delivery.epiId)?.description || 'EPI Excluído'}</span>
+                        <span className="text-[9px] text-blue-500 font-black uppercase tracking-widest flex items-center gap-1"><Tag size={8} /> {delivery.epiId}</span>
+                      </div>
+                    </td>
+                    <td className="px-8 py-5">
+                      <span className="text-[9px] text-slate-400 uppercase font-black px-2 py-1 bg-slate-800 rounded-lg">{delivery.reason}</span>
+                    </td>
+                    <td className="px-8 py-5 text-right">
+                      <button onClick={() => setFichaPreview(delivery)} className="bg-white text-black px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all active:scale-95 shadow-lg">
+                        Gerar Ficha
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
       </div>
 
+      {/* MODAL FOTO AMPLIADA */}
       {selectedPhoto && (
-        <div className="fixed inset-0 z-[110] bg-black/95 backdrop-blur-md flex items-center justify-center p-4" onClick={() => setSelectedPhoto(null)}>
+        <div className="fixed inset-0 z-[110] bg-black/95 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in" onClick={() => setSelectedPhoto(null)}>
           <div className="relative max-w-lg w-full">
             <img src={selectedPhoto} className="w-full h-auto rounded-[2rem] shadow-2xl border-4 border-slate-800" />
-            <button className="absolute -top-12 right-0 text-white p-2"><X size={32} /></button>
+            <button className="absolute -top-12 right-0 text-white p-2 hover:scale-110 transition-transform"><X size={32} /></button>
           </div>
         </div>
       )}
 
+      {/* MODAL FICHA PDF */}
       {fichaPreview && (
-        <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden relative animate-in zoom-in-95 duration-300">
+        <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in zoom-in-95 duration-300">
+          <div className="bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden relative my-8">
             <div className="p-6 bg-slate-50 border-b border-slate-200 flex justify-between items-center no-print">
                <h3 className="font-black text-slate-900 uppercase text-xs tracking-[0.2em] flex items-center gap-2">
-                 <FileText size={20} className="text-blue-600" /> Prévia da Ficha de Entrega
+                 <FileText size={20} className="text-blue-600" /> Prévia do Documento
                </h3>
                <button onClick={() => setFichaPreview(null)} className="p-3 hover:bg-slate-200 rounded-full transition-colors"><X size={24} className="text-slate-400" /></button>
             </div>
 
             <div ref={fichaRef} className="p-16 bg-white text-slate-900 font-serif leading-relaxed">
-               {/* CABEÇALHO GRUPADO */}
+               {/* CONTEÚDO DA FICHA (MESMO DO PDF) */}
                <div className="flex justify-between items-start border-b-4 border-slate-900 pb-10 mb-10">
                   <div className="space-y-1">
                     <h1 className="text-3xl font-black tracking-tighter uppercase leading-none">Recibo de Entrega de EPI</h1>
-                    <p className="text-[10px] uppercase font-bold text-slate-400 tracking-[0.3em]">NR-06 | Controle de Segurança e Saúde</p>
+                    <p className="text-[10px] uppercase font-bold text-slate-400 tracking-[0.3em]">NR-06 | Segurança do Trabalho</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Cod. Registro</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Registro ID</p>
                     <p className="text-lg font-black text-blue-600">{fichaPreview.id}</p>
                   </div>
                </div>
                
-               {/* GRUPO: DADOS DO COLABORADOR */}
                <div className="bg-slate-50 p-8 rounded-3xl border border-slate-100 mb-10">
-                  <div className="flex items-center gap-2 mb-6 border-b border-slate-200 pb-2">
-                     <User size={14} className="text-blue-600" />
-                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Grupo: Dados do Beneficiário</span>
-                  </div>
                   <div className="grid grid-cols-2 gap-8">
                     <div className="space-y-4">
                       <div>
-                        <span className="block text-[8px] uppercase font-bold text-slate-400 tracking-widest mb-1">Nome Completo</span>
+                        <span className="block text-[8px] uppercase font-bold text-slate-400 tracking-widest mb-1">Colaborador</span>
                         <span className="font-black uppercase text-base text-slate-900 leading-tight">{getCollaborator(fichaPreview.collaboratorId)?.name}</span>
                       </div>
                       <div>
-                        <span className="block text-[8px] uppercase font-bold text-slate-400 tracking-widest mb-1 flex items-center gap-1"><Briefcase size={8}/> Cargo</span>
+                        <span className="block text-[8px] uppercase font-bold text-slate-400 tracking-widest mb-1">Cargo</span>
                         <span className="font-bold text-xs">{getCollaborator(fichaPreview.collaboratorId)?.role}</span>
                       </div>
                     </div>
@@ -175,57 +180,38 @@ export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collab
                         <span className="font-bold text-sm">{getCollaborator(fichaPreview.collaboratorId)?.matricula}</span>
                       </div>
                       <div>
-                        <span className="block text-[8px] uppercase font-bold text-slate-400 tracking-widest mb-1 flex items-center gap-1"><MapPin size={8}/> Unidade/Agência</span>
+                        <span className="block text-[8px] uppercase font-bold text-slate-400 tracking-widest mb-1">Agência</span>
                         <span className="font-bold text-xs">{getCollaborator(fichaPreview.collaboratorId)?.branch}</span>
                       </div>
                     </div>
                   </div>
                </div>
 
-               {/* GRUPO: DADOS DO EQUIPAMENTO */}
-               <div className="mb-12 border-2 border-slate-100 rounded-3xl overflow-hidden shadow-sm">
-                 <div className="bg-slate-900 text-white p-4 flex items-center gap-2">
-                    <Hat size={16} />
-                    <span className="text-[10px] font-black uppercase tracking-widest">Grupo: Equipamento Fornecido</span>
-                 </div>
+               <div className="mb-12 border-2 border-slate-100 rounded-3xl overflow-hidden">
                  <table className="w-full border-collapse">
-                    <thead className="bg-slate-50 text-slate-500 text-[9px] uppercase font-black tracking-widest border-b border-slate-200">
+                    <thead className="bg-slate-900 text-white text-[9px] uppercase font-black tracking-widest">
                       <tr>
-                        <th className="px-6 py-4 text-left">Especificação Técnica</th>
-                        <th className="px-6 py-4 text-left">ID Interno</th>
-                        <th className="px-6 py-4 text-right">Certificado CA</th>
+                        <th className="px-6 py-4 text-left">Item Entregue</th>
+                        <th className="px-6 py-4 text-right">C.A.</th>
                       </tr>
                     </thead>
                     <tbody className="text-xs">
                       <tr>
-                        <td className="px-6 py-6 font-bold uppercase text-slate-900">{getEPI(fichaPreview.epiId)?.description}</td>
-                        <td className="px-6 py-6 font-mono font-black text-blue-600">{fichaPreview.epiId}</td>
-                        <td className="px-6 py-6 text-right font-black text-slate-900">{getEPI(fichaPreview.epiId)?.ca || '---'}</td>
+                        <td className="px-6 py-6 font-bold uppercase">{getEPI(fichaPreview.epiId)?.description}</td>
+                        <td className="px-6 py-6 text-right font-black">{getEPI(fichaPreview.epiId)?.ca || '---'}</td>
                       </tr>
                     </tbody>
                  </table>
                </div>
 
-               {/* GRUPO: TERMO E AUTENTICAÇÃO */}
-               <div className="mb-12">
-                  <p className="text-[10px] text-slate-500 leading-relaxed text-justify mb-10">
-                    Declaro ter recebido da empresa o Equipamento de Proteção Individual (EPI) acima descrito, em perfeitas condições de uso, orientações sobre a forma correta de utilização e conservação. Comprometo-me a utilizá-lo apenas para as finalidades a que se destina e devolvê-lo quando solicitado ou na rescisão do contrato de trabalho.
-                  </p>
-                  
-                  <div className="flex justify-between items-end gap-12 pt-8">
-                     <div className="flex-1 flex flex-col items-center">
-                        <div className="w-full border-t-2 border-slate-900 mb-2"></div>
-                        <span className="text-[10px] uppercase font-black tracking-widest">Assinatura Eletrônica do Funcionário</span>
-                        <span className="text-[8px] text-slate-400 mt-1">Data: {formatDate(fichaPreview.date)}</span>
-                     </div>
-                     <div className="shrink-0 flex flex-col items-center gap-3">
-                        <div className="w-32 h-32 rounded-3xl border-4 border-slate-100 overflow-hidden shadow-2xl relative">
-                           {fichaPreview.photo && <img src={fichaPreview.photo} className="w-full h-full object-cover filter contrast-125" />}
-                           <div className="absolute inset-0 border-2 border-slate-900/10 pointer-events-none rounded-3xl"></div>
-                        </div>
-                        <span className="text-[8px] font-black text-emerald-600 uppercase flex items-center gap-1 tracking-widest bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100">
-                           <ShieldCheck size={10} /> Face Validada via Gemini AI
-                        </span>
+               <div className="mt-16 flex justify-between items-end gap-12">
+                  <div className="flex-1 border-t-2 border-slate-900 pt-2">
+                     <span className="text-[10px] uppercase font-black tracking-widest">Assinatura do Recebedor</span>
+                     <p className="text-[8px] text-slate-400 mt-1">Confirmado via Biometria em {formatDate(fichaPreview.date)}</p>
+                  </div>
+                  <div className="shrink-0">
+                     <div className="w-32 h-32 rounded-3xl border-4 border-slate-100 overflow-hidden shadow-lg grayscale">
+                        {fichaPreview.photo && <img src={fichaPreview.photo} className="w-full h-full object-cover" />}
                      </div>
                   </div>
                </div>
@@ -237,8 +223,8 @@ export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collab
                  disabled={isExporting} 
                  className="flex items-center justify-center gap-3 bg-slate-900 text-white px-12 py-5 rounded-2xl font-black uppercase text-xs hover:bg-blue-600 transition-all shadow-xl active:scale-95 disabled:opacity-50"
                >
-                 {isExporting ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
-                 {isExporting ? 'Processando Documento...' : 'Exportar Ficha Oficial'}
+                 {isExporting ? <span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full" /> : <Download size={18} />}
+                 {isExporting ? 'Exportando...' : 'Exportar PDF Oficial'}
                </button>
             </div>
           </div>
@@ -247,20 +233,3 @@ export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collab
     </div>
   );
 };
-
-// Componente Loader auxiliar para o botão
-const Loader2 = ({ size, className }: { size: number, className?: string }) => (
-  <svg 
-    width={size} 
-    height={size} 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="3" 
-    strokeLinecap="round" 
-    strokeLinejoin="round" 
-    className={className}
-  >
-    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-  </svg>
-);
