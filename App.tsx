@@ -17,7 +17,6 @@ const INITIAL_EPIS: EPI[] = [
     category: 'Cabeça',
     active: true,
     createdAt: new Date().toISOString(),
-    // Added initial data for CA and validity to match the updated EPI interface
     ca: '34.414',
     validityCA: '2026-10-15'
   }
@@ -85,7 +84,15 @@ const App: React.FC = () => {
 
     switch (currentView) {
       case 'dashboard':
-        return <Dashboard onNavigate={setCurrentView} stats={stats} />;
+        return (
+          <Dashboard 
+            onNavigate={setCurrentView} 
+            stats={stats} 
+            recentDeliveries={deliveries}
+            allCollaborators={collaborators}
+            allEpis={epis}
+          />
+        );
       case 'deliveries':
         return <Deliveries deliveries={deliveries} epis={epis} collaborators={collaborators} />;
       case 'new-delivery':
@@ -121,7 +128,7 @@ const App: React.FC = () => {
     <div className="flex min-h-screen bg-slate-950 font-sans text-slate-100 pb-20 md:pb-0">
       <Sidebar currentView={currentView} onChangeView={setCurrentView} />
       
-      <main className="flex-1 md:ml-64 p-4 md:p-8 transition-all overflow-x-hidden">
+      <main className="flex-1 md:ml-64 p-4 md:p-6 transition-all overflow-x-hidden">
         <div className="max-w-7xl mx-auto">
             {renderContent()}
         </div>
