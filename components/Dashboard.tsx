@@ -12,7 +12,7 @@ import {
   Box,
   LayoutGrid,
   Activity,
-  CloudCheck
+  Cloud
 } from 'lucide-react';
 import { formatDateTime } from '../utils/helpers';
 
@@ -48,7 +48,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             COMMAND <span className="text-blue-500">CENTER</span>
           </h1>
           <div className="flex items-center gap-2 mt-1">
-            <CloudCheck size={12} className="text-emerald-500" />
+            <Cloud size={12} className="text-emerald-500" />
             <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Database Sync: Ativo</span>
           </div>
         </div>
