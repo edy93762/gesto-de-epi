@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { EPI } from '../types';
-import { HardHat, Calendar, Tag, MapPin, Shield, Clock, Plus, Trash2 } from 'lucide-react';
+import { HardHat, Calendar, Tag, Shield, Plus, Trash2 } from 'lucide-react';
 import { formatDate } from '../utils/helpers';
 
 interface InventoryProps {
@@ -36,7 +36,6 @@ export const Inventory: React.FC<InventoryProps> = ({ epis, onAddClick, onDelete
                 <th className="px-6 py-4">ID / CA</th>
                 <th className="px-6 py-4">Descrição / Categoria</th>
                 <th className="px-6 py-4">Validade CA</th>
-                <th className="px-6 py-4">Vida Útil (Dias)</th>
                 <th className="px-6 py-4">Status</th>
                 <th className="px-6 py-4 text-right">Ações</th>
               </tr>
@@ -44,7 +43,7 @@ export const Inventory: React.FC<InventoryProps> = ({ epis, onAddClick, onDelete
             <tbody className="divide-y divide-slate-100">
               {epis.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-slate-400 font-medium">
+                  <td colSpan={5} className="px-6 py-12 text-center text-slate-400 font-medium">
                     Nenhum EPI cadastrado.
                   </td>
                 </tr>
@@ -72,12 +71,6 @@ export const Inventory: React.FC<InventoryProps> = ({ epis, onAddClick, onDelete
                         <Calendar size={14} />
                         {formatDate(epi.validityCA)}
                       </div>
-                    </td>
-                    <td className="px-6 py-4">
-                       <div className="flex items-center gap-1 text-slate-600 font-bold">
-                         <Clock size={14} className="text-blue-500" />
-                         {epi.shelfLifeDays} dias
-                       </div>
                     </td>
                     <td className="px-6 py-4">
                       {epi.active ? (
@@ -134,18 +127,10 @@ export const Inventory: React.FC<InventoryProps> = ({ epis, onAddClick, onDelete
                  </div>
               </div>
               
-              <div className="grid grid-cols-2 gap-2 text-[11px]">
+              <div className="grid grid-cols-1 gap-2 text-[11px]">
                  <div className="bg-slate-50 p-2 rounded-lg flex items-center gap-2">
                     <Shield size={14} className="text-slate-400" />
                     <span className="text-slate-500">CA: <strong className="text-slate-800">{epi.ca}</strong></span>
-                 </div>
-                 <div className="bg-slate-50 p-2 rounded-lg flex items-center gap-2">
-                    <Clock size={14} className="text-slate-400" />
-                    <span className="text-slate-500">Útil: <strong className="text-slate-800">{epi.shelfLifeDays}d</strong></span>
-                 </div>
-                 <div className="col-span-2 bg-slate-50 p-2 rounded-lg flex items-center gap-2">
-                    <MapPin size={14} className="text-slate-400" />
-                    <span className="text-slate-500">Local: <strong className="text-slate-800 truncate">{epi.location}</strong></span>
                  </div>
               </div>
 

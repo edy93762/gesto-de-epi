@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Collaborator } from '../types';
 import { generateId } from '../utils/helpers';
-import { Save, UserPlus, X, Camera, RefreshCw, MapPin } from 'lucide-react';
+import { Save, UserPlus, X, Camera, RefreshCw, User, Briefcase, Mail } from 'lucide-react';
 
 interface CollaboratorFormProps {
   onSave: (collaborator: Collaborator) => void;
@@ -20,7 +20,7 @@ export const CollaboratorForm: React.FC<CollaboratorFormProps> = ({ onSave, onCa
     managerEmail: '',
   });
   
-  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [isCameraOpen, setIsCameraOpen] = useState(true);
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -33,21 +33,21 @@ export const CollaboratorForm: React.FC<CollaboratorFormProps> = ({ onSave, onCa
           const stream = await navigator.mediaDevices.getUserMedia({ 
             video: { facingMode: 'user' } 
           });
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-            streamRef.current = stream;
+          if (videoRef.current) { 
+            videoRef.current.srcObject = stream; 
+            streamRef.current = stream; 
           }
         } catch (err) {
-          console.warn("Câmera frontal falhou, tentando fallback:", err);
+          console.error("Erro ao acessar câmera frontal:", err);
           try {
             const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-            if (videoRef.current) {
-              videoRef.current.srcObject = stream;
-              streamRef.current = stream;
+            if (videoRef.current) { 
+              videoRef.current.srcObject = stream; 
+              streamRef.current = stream; 
             }
-          } catch (e) {
-            alert("Erro ao abrir câmera. Verifique permissões.");
-            setIsCameraOpen(false);
+          } catch (e) { 
+            alert("Acesso à câmera negado."); 
+            setIsCameraOpen(false); 
           }
         }
       };
@@ -55,16 +55,12 @@ export const CollaboratorForm: React.FC<CollaboratorFormProps> = ({ onSave, onCa
     }
   }, [isCameraOpen]);
 
-  useEffect(() => {
-    return () => {
-      stopCamera();
-    };
-  }, []);
+  useEffect(() => { return () => stopCamera(); }, []);
 
   const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
+    if (streamRef.current) { 
+      streamRef.current.getTracks().forEach(track => track.stop()); 
+      streamRef.current = null; 
     }
     setIsCameraOpen(false);
   };
@@ -86,164 +82,98 @@ export const CollaboratorForm: React.FC<CollaboratorFormProps> = ({ onSave, onCa
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const id = generateId('COL');
-    const newCollaborator: Collaborator = {
-      ...formData,
-      id,
-      active: true,
-      photo: capturedPhoto || undefined
-    };
-    onSave(newCollaborator);
+    onSave({ ...formData, id: generateId('COL'), active: true, photo: capturedPhoto || undefined });
   };
 
-  const containerClasses = isModal 
-    ? "bg-white p-6 rounded-xl w-full" 
-    : "max-w-2xl mx-auto bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden";
-
   return (
-    <div className={containerClasses}>
-      {!isModal && (
-        <div className="p-8 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
-          <div>
-            <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter flex items-center gap-3">
-              <UserPlus className="text-blue-600" size={28} />
-              Novo Cadastro
-            </h2>
-            <p className="text-sm text-slate-500 font-medium mt-1 uppercase tracking-widest text-[10px]">Biometria Facial Obrigatória</p>
-          </div>
-          <button onClick={onCancel} className="text-slate-400 hover:text-slate-900 transition-colors p-2">
-            <X size={24} />
-          </button>
-        </div>
-      )}
-
-      {isModal && (
-        <div className="mb-6 flex justify-between items-center">
-          <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter flex items-center gap-2">
-            <UserPlus className="text-blue-600" size={24} />
-            Cadastro Rápido
+    <div className={`bg-slate-900 rounded-[3rem] border border-slate-800 shadow-2xl overflow-hidden ${isModal ? "w-full max-h-[90vh] overflow-y-auto" : "max-w-2xl mx-auto mb-12"}`}>
+      <div className="p-8 border-b border-slate-800 bg-slate-900/50 flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-black text-white uppercase tracking-tighter flex items-center gap-3">
+            <UserPlus className="text-blue-500" size={24} /> Novo Colaborador
           </h2>
-          <button onClick={onCancel} className="text-slate-400 hover:text-slate-900 p-2">
-            <X size={20} />
-          </button>
         </div>
-      )}
+        <button onClick={onCancel} className="text-slate-500 hover:text-white transition-colors p-2"><X size={24} /></button>
+      </div>
 
-      <form onSubmit={handleSubmit} className={isModal ? "space-y-6" : "p-8 space-y-8"}>
-        <div className="flex flex-col items-center">
-          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 w-full text-center">Referência Biométrica</label>
-          <div className="relative w-40 h-40 bg-slate-900 rounded-full border-4 border-slate-100 shadow-2xl overflow-hidden flex items-center justify-center group">
-             {capturedPhoto ? (
-                <div className="relative w-full h-full">
-                  <img src={capturedPhoto} alt="Foto referência" className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-emerald-500/10 border-4 border-emerald-500/30 rounded-full pointer-events-none" />
-                  <button type="button" onClick={() => { setCapturedPhoto(null); setIsCameraOpen(true); }} className="absolute bottom-2 right-2 bg-white p-2 rounded-full shadow-lg text-blue-600 hover:scale-110 transition-all active:scale-90">
-                    <RefreshCw size={16} />
+      <form onSubmit={handleSubmit} className="p-8 space-y-8">
+        
+        {/* GRUPO 1: BIOMETRIA */}
+        <section className="bg-slate-950/50 p-6 rounded-3xl border border-slate-800/50 space-y-4">
+          <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
+             <Camera size={14} className="text-blue-500" />
+             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Grupo: Biometria Facial</h3>
+          </div>
+          <div className="flex justify-center py-2">
+            <div className="relative w-32 h-32 bg-slate-950 rounded-full border-2 border-slate-800 overflow-hidden flex items-center justify-center">
+               {capturedPhoto ? (
+                  <div className="relative w-full h-full">
+                    <img src={capturedPhoto} className="w-full h-full object-cover" />
+                    <button type="button" onClick={() => { setCapturedPhoto(null); setIsCameraOpen(true); }} className="absolute bottom-1 right-1 bg-white p-2 rounded-full shadow-lg text-slate-900"><RefreshCw size={14} /></button>
+                  </div>
+               ) : isCameraOpen ? (
+                  <div className="relative w-full h-full">
+                    <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
+                    <button type="button" onClick={takePhoto} className="absolute inset-0 m-auto w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-lg active:scale-95"><Camera size={20} /></button>
+                  </div>
+               ) : (
+                  <button type="button" onClick={() => setIsCameraOpen(true)} className="text-slate-700 hover:text-white flex flex-col items-center gap-1 transition-colors">
+                    <Camera size={32} className="opacity-20" />
+                    <span className="text-[8px] font-black uppercase">Ativar</span>
                   </button>
-                </div>
-             ) : isCameraOpen ? (
-                <div className="relative w-full h-full">
-                  <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
-                  <button type="button" onClick={takePhoto} className="absolute inset-0 m-auto w-14 h-14 bg-white rounded-full flex items-center justify-center text-slate-900 shadow-2xl border-4 border-blue-600/20 active:scale-90 transition-all">
-                    <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
-                      <Camera size={20} className="text-white" />
-                    </div>
-                  </button>
-                </div>
-             ) : (
-                <button type="button" onClick={() => setIsCameraOpen(true)} className="text-white/40 hover:text-white flex flex-col items-center gap-2 transition-colors">
-                  <Camera size={32} />
-                  <span className="text-[9px] font-black tracking-widest uppercase">Capturar Rosto</span>
-                </button>
-             )}
+               )}
+            </div>
           </div>
-          <canvas ref={canvasRef} className="hidden" />
-        </div>
+        </section>
 
-        <div className={`grid grid-cols-1 ${isModal ? "" : "md:grid-cols-2"} gap-6`}>
-          <div className={isModal ? "" : "col-span-2"}>
-            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Nome Completo</label>
-            <input
-              required
-              type="text"
-              className="w-full p-3.5 border border-slate-200 bg-slate-50/50 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold transition-all"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="Ex: João da Silva"
-            />
+        {/* GRUPO 2: DADOS PESSOAIS */}
+        <section className="bg-slate-950/50 p-6 rounded-3xl border border-slate-800/50 space-y-4">
+          <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
+             <User size={14} className="text-emerald-500" />
+             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Grupo: Identificação</h3>
           </div>
-          <div>
-            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Matrícula</label>
-            <input
-              type="text"
-              className="w-full p-3.5 border border-slate-200 bg-slate-50/50 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold transition-all"
-              value={formData.matricula}
-              onChange={(e) => setFormData({ ...formData, matricula: e.target.value })}
-              placeholder="Ex: 10025"
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
+              <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Nome Completo</label>
+              <input required type="text" className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl focus:ring-1 focus:ring-blue-600 outline-none text-white text-sm" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
+            </div>
+            <div>
+              <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Matrícula</label>
+              <input required type="text" className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl focus:ring-1 focus:ring-blue-600 outline-none text-white text-sm" value={formData.matricula} onChange={(e) => setFormData({ ...formData, matricula: e.target.value })} />
+            </div>
+            <div>
+              <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Agência/Filial</label>
+              <input required type="text" className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl focus:ring-1 focus:ring-blue-600 outline-none text-white text-sm" value={formData.branch} onChange={(e) => setFormData({ ...formData, branch: e.target.value })} />
+            </div>
           </div>
-          <div>
-            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-2">
-              Agência
-            </label>
-            <input
-              required
-              type="text"
-              className="w-full p-3.5 border border-slate-200 bg-slate-50/50 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold transition-all"
-              value={formData.branch}
-              onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
-              placeholder="Unidade de Trabalho"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Setor Operacional</label>
-            <input
-              required
-              type="text"
-              className="w-full p-3.5 border border-slate-200 bg-slate-50/50 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold transition-all"
-              value={formData.sector}
-              onChange={(e) => setFormData({ ...formData, sector: e.target.value })}
-              placeholder="Ex: Almoxarifado"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Cargo / Função</label>
-            <input
-              required
-              type="text"
-              className="w-full p-3.5 border border-slate-200 bg-slate-50/50 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold transition-all"
-              value={formData.role}
-              onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-              placeholder="Ex: Técnico Segurança"
-            />
-          </div>
-          <div className={isModal ? "" : "col-span-2"}>
-            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">E-mail Corporativo Gestor</label>
-            <input
-              required
-              type="email"
-              className="w-full p-3.5 border border-slate-200 bg-slate-50/50 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold transition-all"
-              value={formData.managerEmail}
-              onChange={(e) => setFormData({ ...formData, managerEmail: e.target.value })}
-              placeholder="gestor@empresa.com"
-            />
-          </div>
-        </div>
+        </section>
 
-        <div className={`flex justify-end gap-4 pt-8 ${isModal ? "" : "border-t border-slate-100"}`}>
-          <button
-            type="button"
-            onClick={onCancel}
-            className="px-6 py-3 text-slate-400 font-black uppercase text-[10px] tracking-widest hover:text-slate-900 transition-colors"
-          >
-            Voltar
-          </button>
-          <button
-            type="submit"
-            className="px-10 py-4 bg-slate-900 text-white font-black rounded-2xl hover:bg-blue-600 flex items-center gap-3 shadow-xl transition-all active:scale-95 uppercase text-xs tracking-widest"
-          >
-            <Save size={18} />
-            Finalizar Cadastro
+        {/* GRUPO 3: DADOS PROFISSIONAIS */}
+        <section className="bg-slate-950/50 p-6 rounded-3xl border border-slate-800/50 space-y-4">
+          <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
+             <Briefcase size={14} className="text-orange-500" />
+             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Grupo: Alotação</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Setor</label>
+              <input required type="text" className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl focus:ring-1 focus:ring-blue-600 outline-none text-white text-sm" value={formData.sector} onChange={(e) => setFormData({ ...formData, sector: e.target.value })} />
+            </div>
+            <div>
+              <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Cargo</label>
+              <input required type="text" className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl focus:ring-1 focus:ring-blue-600 outline-none text-white text-sm" value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })} />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2"><Mail size={10} /> E-mail do Gestor Direto</label>
+              <input required type="email" className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl focus:ring-1 focus:ring-blue-600 outline-none text-white text-sm" value={formData.managerEmail} onChange={(e) => setFormData({ ...formData, managerEmail: e.target.value })} />
+            </div>
+          </div>
+        </section>
+
+        <div className="flex justify-end gap-3 pt-6 border-t border-slate-800">
+          <button type="button" onClick={onCancel} className="px-6 py-3 text-slate-500 font-black uppercase text-[10px] tracking-widest">Cancelar</button>
+          <button type="submit" className="px-10 py-4 bg-white text-black font-black rounded-xl hover:bg-blue-600 hover:text-white transition-all active:scale-95 uppercase text-[10px] tracking-widest">
+            Confirmar Registro
           </button>
         </div>
       </form>

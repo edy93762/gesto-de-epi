@@ -10,37 +10,38 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView }) => {
   const menuItems = [
-    { id: 'dashboard', label: 'Início', icon: LayoutDashboard },
-    { id: 'new-delivery', label: 'Entrega', icon: ClipboardList },
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'new-delivery', label: 'Registrar Saída', icon: ClipboardList },
     { id: 'deliveries', label: 'Histórico', icon: FileText },
-    { id: 'epis', label: 'EPIs', icon: HardHat },
+    { id: 'epis', label: 'Cadastro EPI', icon: HardHat },
     { id: 'collaborators', label: 'Equipe', icon: Users },
   ] as const;
 
   return (
     <>
-      {/* Desktop Sidebar */}
-      <div className="hidden md:flex w-64 bg-slate-900 text-white flex-col h-screen fixed left-0 top-0 overflow-y-auto z-20">
-        <div className="p-6 border-b border-slate-700">
-          <h1 className="text-xl font-bold flex items-center gap-2">
-            <HardHat className="text-yellow-500" />
-            Controle EPI
+      <div className="hidden md:flex w-64 bg-slate-950 text-white flex-col h-screen fixed left-0 top-0 overflow-y-auto z-20 border-r border-slate-900 shadow-2xl">
+        <div className="p-8 border-b border-slate-900">
+          <h1 className="text-2xl font-black flex items-center gap-3 tracking-tighter italic">
+            <div className="p-2 bg-blue-600 rounded-lg shadow-lg shadow-blue-900/20">
+              <HardHat size={24} />
+            </div>
+            NR-06
           </h1>
-          <p className="text-xs text-slate-400 mt-1">Gestão de Segurança</p>
+          <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em] mt-3">EPI Control System</p>
         </div>
-        <nav className="flex-1 py-4">
-          <ul>
+        <nav className="flex-1 py-6">
+          <ul className="space-y-1">
             {menuItems.map((item) => {
               const Icon = item.icon;
               const isActive = currentView === item.id;
               return (
-                <li key={item.id}>
+                <li key={item.id} className="px-4">
                   <button
                     onClick={() => onChangeView(item.id)}
-                    className={`w-full flex items-center gap-3 px-6 py-3 text-sm font-medium transition-colors ${
+                    className={`w-full flex items-center gap-4 px-4 py-3 text-[11px] font-black uppercase tracking-widest transition-all rounded-xl ${
                       isActive
-                        ? 'bg-blue-600 text-white border-r-4 border-yellow-400'
-                        : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20'
+                        : 'text-slate-500 hover:text-white hover:bg-slate-900'
                     }`}
                   >
                     <Icon size={18} />
@@ -51,14 +52,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView }) =
             })}
           </ul>
         </nav>
-        <div className="p-6 border-t border-slate-700 text-xs text-slate-500">
-          <p>Usuário Logado:</p>
-          <p className="text-slate-300 truncate">admin@empresa.com.br</p>
+        <div className="p-8 border-t border-slate-900">
+          <div className="bg-slate-900/50 p-4 rounded-2xl border border-slate-800">
+            <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-1">Operador Logado</p>
+            <p className="text-white text-[11px] truncate font-bold">LOGISTICA_ALPHA</p>
+          </div>
         </div>
       </div>
 
-      {/* Mobile Bottom Navigation */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-50 px-2 pb-safe">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-950 border-t border-slate-900 z-50 px-2 pb-safe shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
         <nav className="flex justify-around items-center h-16">
           {menuItems.map((item) => {
             const Icon = item.icon;
@@ -68,14 +70,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView }) =
                 key={item.id}
                 onClick={() => onChangeView(item.id)}
                 className={`flex flex-col items-center justify-center w-full h-full gap-1 transition-colors ${
-                  isActive ? 'text-blue-600' : 'text-slate-400'
+                  isActive ? 'text-blue-500' : 'text-slate-600'
                 }`}
               >
-                <Icon size={20} className={isActive ? 'animate-bounce-short' : ''} />
-                <span className="text-[10px] font-bold uppercase tracking-tighter">
-                  {item.label}
+                <Icon size={20} />
+                <span className="text-[8px] font-black uppercase tracking-widest">
+                  {item.label.split(' ')[0]}
                 </span>
-                {isActive && <div className="w-1 h-1 bg-blue-600 rounded-full" />}
               </button>
             );
           })}

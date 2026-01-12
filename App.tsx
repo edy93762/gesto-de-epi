@@ -7,31 +7,19 @@ import { NewDeliveryForm } from './components/NewDeliveryForm';
 import { CollaboratorsList } from './components/CollaboratorsList';
 import { CollaboratorForm } from './components/CollaboratorForm';
 import { EPIForm } from './components/EPIForm';
-import { Inventory } from './components/Inventory';
+import { EPIList } from './components/EPIList';
 import { Collaborator, EPI, Delivery, ViewState } from './types';
 
 const INITIAL_EPIS: EPI[] = [
   {
-    id: 'LUV-01',
-    description: 'Luva de Vaqueta Cano Curto',
-    category: 'Proteção das Mãos',
-    ca: '12345',
-    validityCA: '2026-12-31',
-    shelfLifeDays: 90,
-    location: 'Prateleira A-10',
+    id: 'EPI-45',
+    description: 'Capacete de Proteção com Jugular',
+    category: 'Cabeça',
     active: true,
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 'CAP-01',
-    description: 'Capacete de Segurança com Aba',
-    category: 'Proteção de Cabeça',
-    ca: '54321',
-    validityCA: '2025-06-15',
-    shelfLifeDays: 365,
-    location: 'Estante B-02',
-    active: true,
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    // Added initial data for CA and validity to match the updated EPI interface
+    ca: '34.414',
+    validityCA: '2026-10-15'
   }
 ];
 
@@ -59,7 +47,7 @@ const App: React.FC = () => {
   };
 
   const handleDeleteCollaborator = (id: string) => {
-    if (window.confirm('Deseja realmente excluir este colaborador? O histórico de entregas permanecerá intacto.')) {
+    if (window.confirm('Excluir este colaborador?')) {
       const updated = collaborators.filter(c => c.id !== id);
       setCollaborators(updated);
       localStorage.setItem('epi_cols', JSON.stringify(updated));
@@ -74,7 +62,7 @@ const App: React.FC = () => {
   };
 
   const handleDeleteEPI = (id: string) => {
-    if (window.confirm('Deseja realmente excluir este EPI?')) {
+    if (window.confirm('Excluir este EPI permanentemente?')) {
       const updated = epis.filter(e => e.id !== id);
       setEpis(updated);
       localStorage.setItem('epi_data', JSON.stringify(updated));
@@ -89,9 +77,15 @@ const App: React.FC = () => {
   };
 
   const renderContent = () => {
+    const stats = {
+      collaborators: collaborators.length,
+      epis: epis.length,
+      deliveries: deliveries.length
+    };
+
     switch (currentView) {
       case 'dashboard':
-        return <Dashboard deliveries={deliveries} epis={epis} collaborators={collaborators} onNavigate={setCurrentView} />;
+        return <Dashboard onNavigate={setCurrentView} stats={stats} />;
       case 'deliveries':
         return <Deliveries deliveries={deliveries} epis={epis} collaborators={collaborators} />;
       case 'new-delivery':
@@ -115,20 +109,20 @@ const App: React.FC = () => {
       case 'new-collaborator':
         return <CollaboratorForm onSave={(c) => { handleAddCollaborator(c); setCurrentView('collaborators'); }} onCancel={() => setCurrentView('collaborators')} />;
       case 'epis':
-        return <Inventory epis={epis} onAddClick={() => setCurrentView('new-epi')} onDelete={handleDeleteEPI} />;
+        return <EPIList epis={epis} onAddClick={() => setCurrentView('new-epi')} onDelete={handleDeleteEPI} />;
       case 'new-epi':
         return <EPIForm existingEpis={epis} onSave={handleAddEPI} onCancel={() => setCurrentView('epis')} />;
       default:
-        return <Dashboard deliveries={deliveries} epis={epis} collaborators={collaborators} onNavigate={setCurrentView} />;
+        return <Dashboard onNavigate={setCurrentView} stats={stats} />;
     }
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-50 font-sans text-slate-900 pb-20 md:pb-0">
+    <div className="flex min-h-screen bg-slate-950 font-sans text-slate-100 pb-20 md:pb-0">
       <Sidebar currentView={currentView} onChangeView={setCurrentView} />
       
       <main className="flex-1 md:ml-64 p-4 md:p-8 transition-all overflow-x-hidden">
-        <div className="max-w-7xl mx-auto animate-in fade-in duration-500">
+        <div className="max-w-7xl mx-auto">
             {renderContent()}
         </div>
       </main>
