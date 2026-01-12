@@ -1,14 +1,14 @@
 
 {
   "name": "gesto-de-epi",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": true,
   "dependencies": {
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "lucide-react": "^0.460.0",
     "recharts": "^2.13.0",
-    "@google/genai": "^0.21.0"
+    "@google/genai": "latest"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",
