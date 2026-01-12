@@ -12,8 +12,8 @@ import { Collaborator, EPI, Delivery, ViewState } from './types';
 
 const INITIAL_EPIS: EPI[] = [
   {
-    id: 'EPI-45',
-    description: 'Capacete de Proteção com Jugular',
+    id: 'CAP-01',
+    description: 'Capacete de Proteção Jugular',
     category: 'Cabeça',
     active: true,
     createdAt: new Date().toISOString(),
@@ -43,29 +43,6 @@ const App: React.FC = () => {
     const updated = [...collaborators, newCol];
     setCollaborators(updated);
     localStorage.setItem('epi_cols', JSON.stringify(updated));
-  };
-
-  const handleDeleteCollaborator = (id: string) => {
-    if (window.confirm('Excluir este colaborador?')) {
-      const updated = collaborators.filter(c => c.id !== id);
-      setCollaborators(updated);
-      localStorage.setItem('epi_cols', JSON.stringify(updated));
-    }
-  };
-
-  const handleAddEPI = (newEpi: EPI) => {
-    const updated = [...epis, newEpi];
-    setEpis(updated);
-    localStorage.setItem('epi_data', JSON.stringify(updated));
-    setCurrentView('epis');
-  };
-
-  const handleDeleteEPI = (id: string) => {
-    if (window.confirm('Excluir este EPI permanentemente?')) {
-      const updated = epis.filter(e => e.id !== id);
-      setEpis(updated);
-      localStorage.setItem('epi_data', JSON.stringify(updated));
-    }
   };
 
   const handleSaveDelivery = (delivery: Delivery) => {
@@ -110,25 +87,43 @@ const App: React.FC = () => {
           <CollaboratorsList 
             collaborators={collaborators} 
             onAddClick={() => setCurrentView('new-collaborator')} 
-            onDelete={handleDeleteCollaborator}
+            onDelete={(id) => {
+              const updated = collaborators.filter(c => c.id !== id);
+              setCollaborators(updated);
+              localStorage.setItem('epi_cols', JSON.stringify(updated));
+            }}
           />
         );
       case 'new-collaborator':
-        return <CollaboratorForm onSave={(c) => { handleAddCollaborator(c); setCurrentView('collaborators'); }} onCancel={() => setCurrentView('collaborators')} />;
+        return (
+          <CollaboratorForm 
+            onSave={(c) => { handleAddCollaborator(c); setCurrentView('collaborators'); }} 
+            onCancel={() => setCurrentView('collaborators')} 
+          />
+        );
       case 'epis':
-        return <EPIList epis={epis} onAddClick={() => setCurrentView('new-epi')} onDelete={handleDeleteEPI} />;
+        return <EPIList epis={epis} onAddClick={() => setCurrentView('new-epi')} onDelete={(id) => {
+          const updated = epis.filter(e => e.id !== id);
+          setEpis(updated);
+          localStorage.setItem('epi_data', JSON.stringify(updated));
+        }} />;
       case 'new-epi':
-        return <EPIForm existingEpis={epis} onSave={handleAddEPI} onCancel={() => setCurrentView('epis')} />;
+        return <EPIForm existingEpis={epis} onSave={(e) => {
+          const updated = [...epis, e];
+          setEpis(updated);
+          localStorage.setItem('epi_data', JSON.stringify(updated));
+          setCurrentView('epis');
+        }} onCancel={() => setCurrentView('epis')} />;
       default:
         return <Dashboard onNavigate={setCurrentView} stats={stats} />;
     }
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-950 font-sans text-slate-100 pb-20 md:pb-0">
+    <div className="flex min-h-screen bg-slate-950 font-sans text-slate-100 pb-20 md:pb-0 selection:bg-blue-600/30">
       <Sidebar currentView={currentView} onChangeView={setCurrentView} />
       
-      <main className="flex-1 md:ml-64 p-4 md:p-6 transition-all overflow-x-hidden">
+      <main className="flex-1 md:ml-64 p-4 md:p-10 transition-all overflow-x-hidden">
         <div className="max-w-7xl mx-auto">
             {renderContent()}
         </div>
