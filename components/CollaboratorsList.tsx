@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Collaborator } from '../types';
-import { User, CheckCircle, XCircle, UserPlus, Medal, ShieldCheck, MapPin, Trash2 } from 'lucide-react';
+import { CheckCircle, XCircle, UserPlus, ShieldCheck, MapPin, Trash2, Building2, User } from 'lucide-react';
 
 interface CollaboratorsListProps {
   collaborators: Collaborator[];
@@ -54,12 +54,12 @@ export const CollaboratorsList: React.FC<CollaboratorsListProps> = ({ collaborat
 
               <div className="space-y-3 mb-6">
                 <div className="flex items-center justify-between text-[10px] font-bold">
-                   <span className="text-slate-500 uppercase tracking-widest">Matrícula</span>
-                   <span className="text-white">{c.matricula}</span>
+                   <span className="text-slate-500 uppercase tracking-widest">Empresa</span>
+                   <span className="text-white flex items-center gap-1"><Building2 size={10} className="text-blue-500" /> {c.branch}</span>
                 </div>
                 <div className="flex items-center justify-between text-[10px] font-bold">
-                   <span className="text-slate-500 uppercase tracking-widest">Agência</span>
-                   <span className="text-white flex items-center gap-1"><MapPin size={10} className="text-blue-500" /> {c.branch}</span>
+                   <span className="text-slate-500 uppercase tracking-widest">Matrícula</span>
+                   <span className="text-white">{c.matricula || '-'}</span>
                 </div>
                 <div className="flex items-center justify-between text-[10px] font-bold">
                    <span className="text-slate-500 uppercase tracking-widest">Setor</span>

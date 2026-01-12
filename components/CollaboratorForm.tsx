@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Collaborator } from '../types';
 import { generateId } from '../utils/helpers';
-import { Save, UserPlus, X, Camera, RefreshCw, User, Briefcase, Mail, Scan, AlertCircle } from 'lucide-react';
+import { UserPlus, X, Camera, RefreshCw, User, Briefcase, Mail, Scan, AlertCircle, Building2 } from 'lucide-react';
 
 interface CollaboratorFormProps {
   onSave: (collaborator: Collaborator) => void;
@@ -155,12 +155,15 @@ export const CollaboratorForm: React.FC<CollaboratorFormProps> = ({ onSave, onCa
                 <input required type="text" className="w-full p-4 bg-slate-950 border border-slate-800 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-white text-sm font-bold transition-all" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
               </div>
               <div>
-                <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Matrícula / ID Funcional</label>
-                <input required type="text" className="w-full p-4 bg-slate-950 border border-slate-800 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-white text-sm font-bold" value={formData.matricula} onChange={(e) => setFormData({ ...formData, matricula: e.target.value })} />
+                <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Empresa / Agência</label>
+                <div className="relative">
+                  <Building2 size={14} className="absolute left-4 top-4.5 text-slate-500" />
+                  <input required type="text" className="w-full pl-10 pr-4 py-4 bg-slate-950 border border-slate-800 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-white text-sm font-bold" value={formData.branch} onChange={(e) => setFormData({ ...formData, branch: e.target.value })} />
+                </div>
               </div>
-              <div>
-                <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Agência / Unidade</label>
-                <input required type="text" className="w-full p-4 bg-slate-950 border border-slate-800 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-white text-sm font-bold" value={formData.branch} onChange={(e) => setFormData({ ...formData, branch: e.target.value })} />
+               <div>
+                <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Matrícula (Opcional)</label>
+                <input type="text" className="w-full p-4 bg-slate-950 border border-slate-800 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-white text-sm font-bold" value={formData.matricula} onChange={(e) => setFormData({ ...formData, matricula: e.target.value })} placeholder="Sem registro" />
               </div>
             </div>
           </div>
