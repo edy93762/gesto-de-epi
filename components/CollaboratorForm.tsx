@@ -1,13 +1,18 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Collaborator } from '../types';
 import { generateId } from '../utils/helpers';
-import { UserPlus, X, User, Briefcase, UserCheck, Building2, Save } from 'lucide-react';
+import { UserPlus, X, User, Briefcase, UserCheck, Building2, Save, Mail } from 'lucide-react';
 
 interface CollaboratorFormProps {
   onSave: (collaborator: Collaborator) => void;
   onCancel: () => void;
   isModal?: boolean;
+}
+
+interface SavedManager {
+  name: string;
+  email: string;
 }
 
 export const CollaboratorForm: React.FC<CollaboratorFormProps> = ({ onSave, onCancel, isModal = false }) => {
@@ -18,10 +23,48 @@ export const CollaboratorForm: React.FC<CollaboratorFormProps> = ({ onSave, onCa
     role: '',
     branch: '',
     managerName: '',
+    managerEmail: '',
   });
+
+  const [savedManagers, setSavedManagers] = useState<SavedManager[]>([]);
+
+  // Carrega gestores salvos ao abrir o formulário
+  useEffect(() => {
+    const stored = localStorage.getItem('saved_managers');
+    if (stored) {
+      setSavedManagers(JSON.parse(stored));
+    }
+  }, []);
+
+  const handleManagerNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    
+    // Tenta encontrar o gestor na lista salva para preencher o email automaticamente
+    const foundManager = savedManagers.find(m => m.name.toLowerCase() === val.toLowerCase());
+    
+    setFormData(prev => ({
+      ...prev,
+      managerName: val,
+      managerEmail: foundManager ? foundManager.email : prev.managerEmail
+    }));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // Validação extra caso o browser não pegue
+    if (!formData.managerEmail) {
+      alert("O E-mail do Gestor é obrigatório.");
+      return;
+    }
+
+    // Salva o gestor atual na lista de recentes (evita duplicatas pelo nome)
+    const newManager = { name: formData.managerName, email: formData.managerEmail };
+    const updatedManagers = [
+      newManager,
+      ...savedManagers.filter(m => m.name.toLowerCase() !== newManager.name.toLowerCase())
+    ];
+    localStorage.setItem('saved_managers', JSON.stringify(updatedManagers));
+
     onSave({ ...formData, id: generateId('COL'), active: true });
   };
 
@@ -55,7 +98,7 @@ export const CollaboratorForm: React.FC<CollaboratorFormProps> = ({ onSave, onCa
                 <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Empresa / Agência</label>
                 <div className="relative">
                   <Building2 size={14} className="absolute left-4 top-4.5 text-slate-500" />
-                  <input required type="text" className="w-full pl-10 pr-4 py-4 bg-slate-950 border border-slate-800 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-white text-sm font-bold" value={formData.branch} onChange={(e) => setFormData({ ...formData, branch: e.target.value })} />
+                  <input required type="text" className="w-full pl-10 pr-4 py-4 bg-slate-950 border border-slate-800 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-white text-sm font-bold" value={formData.branch} onChange={(e) => setFormData({ ...formData, branch: e.target.value })} placeholder="Ex: Shopee, Mercado Livre..." />
                 </div>
               </div>
                <div>
@@ -68,7 +111,7 @@ export const CollaboratorForm: React.FC<CollaboratorFormProps> = ({ onSave, onCa
           <div className="bg-slate-950/50 p-6 rounded-3xl border border-slate-800/50 space-y-4">
             <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
                <Briefcase size={14} className="text-orange-500" />
-               <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Dados Operacionais</h3>
+               <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Dados Operacionais & Gestão</h3>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -80,8 +123,30 @@ export const CollaboratorForm: React.FC<CollaboratorFormProps> = ({ onSave, onCa
                 <input required type="text" className="w-full p-4 bg-slate-950 border border-slate-800 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-white text-sm font-bold" value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })} />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2"><UserCheck size={10} /> Nome do Gestor</label>
-                <input required type="text" className="w-full p-4 bg-slate-950 border border-slate-800 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-white text-sm font-bold" value={formData.managerName} onChange={(e) => setFormData({ ...formData, managerName: e.target.value })} placeholder="Nome do Responsável" />
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2"><UserCheck size={10} /> Nome do Gestor</label>
+                        <input 
+                            required 
+                            type="text" 
+                            list="managers-list"
+                            className="w-full p-4 bg-slate-950 border border-slate-800 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-white text-sm font-bold" 
+                            value={formData.managerName} 
+                            onChange={handleManagerNameChange} 
+                            placeholder="Nome do Responsável" 
+                            autoComplete="off"
+                        />
+                        <datalist id="managers-list">
+                            {savedManagers.map((mgr, idx) => (
+                                <option key={idx} value={mgr.name} />
+                            ))}
+                        </datalist>
+                    </div>
+                    <div>
+                        <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2 text-blue-400"><Mail size={10} /> E-mail do Gestor (Obrigatório)</label>
+                        <input required type="email" className="w-full p-4 bg-slate-950 border border-blue-500/30 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-white text-sm font-bold" value={formData.managerEmail} onChange={(e) => setFormData({ ...formData, managerEmail: e.target.value })} placeholder="email@empresa.com" />
+                    </div>
+                 </div>
               </div>
             </div>
           </div>

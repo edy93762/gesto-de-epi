@@ -7,6 +7,7 @@ export interface Collaborator {
   role: string; 
   branch: string; 
   managerName: string; 
+  managerEmail: string; // Novo campo obrigatório
   active: boolean; 
   // photo removido conforme solicitado
 }

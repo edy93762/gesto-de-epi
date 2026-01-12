@@ -13,9 +13,6 @@ import {
   RefreshCw,
   ArrowLeft,
   Package,
-  Download,
-  FileText,
-  Shield,
   FileEdit
 } from 'lucide-react';
 import { jsPDF } from "jspdf";
@@ -29,7 +26,7 @@ interface NewDeliveryFormProps {
   onCancel: () => void;
 }
 
-// Texto legal fixo conforme a imagem enviada
+// Texto legal fixo
 const LEGAL_TEXT = `Declaro que recebi orientação sobre o uso correto do EPI fornecido pela empresa e que estou ciente da Legislação abaixo discriminada.
 Portaria 3214, 08/06/78 do M T E, NR- 01 e NR-06
 1.4.2 Cabe ao trabalhador:
@@ -49,7 +46,7 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
   const [selectedCol, setSelectedCol] = useState<Collaborator | null>(null);
   const [selectedEpiId, setSelectedEpiId] = useState('');
   const [reason, setReason] = useState<DeliveryReason>('Primeira');
-  const [notes, setNotes] = useState(''); // Observações adicionais
+  const [notes, setNotes] = useState(''); 
   
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
@@ -129,43 +126,13 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
     }
   };
 
-  const generateAndDownloadPDF = async (deliveryId: string) => {
-    if (!receiptRef.current || !selectedCol) return;
-    
-    try {
-        const element = receiptRef.current;
-        const canvas = await html2canvas(element, { 
-            scale: 2, 
-            useCORS: true,
-            backgroundColor: "#ffffff",
-            allowTaint: true
-        });
-        
-        const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF('l', 'mm', 'a4'); // Paisagem para caber melhor o layout ou Retrato conforme preferir. A imagem parece Retrato, mas larga. Vou usar Retrato (p) ajustado.
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-        
-        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-        
-        const dateStr = new Date().toISOString().split('T')[0];
-        const fileName = `${selectedCol.name}_${selectedEpi?.description}_${dateStr}_${selectedCol.branch}_${selectedCol.matricula}.pdf`
-          .replace(/\s+/g, '_')
-          .replace(/[^a-zA-Z0-9_.]/g, '');
-
-        pdf.save(fileName);
-    } catch (error) {
-        console.error("Erro ao gerar PDF", error);
-        alert("Erro ao gerar o PDF.");
-    }
-  };
-
   const handleSave = async () => {
     if (!selectedCol || !selectedEpiId || !capturedPhoto) return;
     setIsSaving(true);
     const newId = generateId('REC');
-    await new Promise(resolve => setTimeout(resolve, 500));
-    await generateAndDownloadPDF(newId);
+    
+    // Simula delay de salvamento e NÃO baixa o PDF automaticamente.
+    await new Promise(resolve => setTimeout(resolve, 800));
 
     onSave({
       id: newId,
@@ -174,13 +141,15 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
       epiId: selectedEpiId,
       reason,
       notes: notes,
-      responsibleEmail: 'admin@nr06.com',
+      responsibleEmail: selectedCol.managerEmail || 'admin@nr06.com',
       photo: capturedPhoto, 
       verificationResult: { match: true, confidence: 100, reason: 'Registro Fotográfico' }
     });
     
     setIsSaving(false);
   };
+
+  const isShopee = selectedCol?.branch?.toLowerCase().includes('shopee');
 
   // --- RENDER STEP 1 ---
   if (step === 'SELECT_USER') {
@@ -373,7 +342,7 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
                           disabled={isSaving}
                           className="flex-[2] py-4 bg-emerald-500 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl hover:bg-emerald-400 disabled:opacity-50 flex items-center justify-center gap-2"
                         >
-                           {isSaving ? "Gerando Ficha..." : "Confirmar & Salvar"}
+                           {isSaving ? "Salvando..." : "Confirmar & Salvar no Histórico"}
                         </button>
                      </div>
                   </div>
@@ -382,38 +351,31 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
          </div>
          <canvas ref={canvasRef} className="hidden" />
 
-         {/* --- FICHA NO PADRÃO LUANDRE (Modificada) --- */}
+         {/* --- HIDDEN RECEIPT TEMPLATE FOR PDF GENERATION --- */}
          <div 
             ref={receiptRef} 
             className="fixed -left-[9999px] top-0 bg-white text-black font-sans"
             style={{ width: '210mm', minHeight: '297mm', padding: '10mm' }}
          >
-            {/* Header com Borda Preta */}
+            {/* Header */}
             <div className="border-2 border-black mb-4 flex" style={{ height: '180px' }}>
-                {/* Lado Esquerdo: Logo Dinâmico */}
                 <div className="w-1/3 border-r-2 border-black flex items-center justify-center p-4">
-                    <h1 className="text-3xl font-black text-center uppercase leading-tight text-blue-900">
+                    <h1 className={`text-3xl font-black text-center uppercase leading-tight ${isShopee ? 'text-red-600' : 'text-blue-900'}`}>
                         {selectedCol?.branch || 'LOGO DA EMPRESA'}
                     </h1>
                 </div>
-                {/* Lado Direito: Termo */}
                 <div className="w-2/3 p-2 relative">
                     <h2 className="text-center font-bold text-xs uppercase mb-1">TERMO DE RESPONSABILIDADE</h2>
                     <p className="text-[8px] text-justify leading-tight" style={{ whiteSpace: 'pre-wrap' }}>
                         {LEGAL_TEXT}
                     </p>
-                    <div className="mt-2 border-t border-black pt-1 text-center text-[9px] font-bold">
-                        Nome Legível do Empregado
-                    </div>
                 </div>
             </div>
 
-            {/* Título da Ficha */}
             <div className="border-2 border-black border-b-0 py-2 bg-white text-center">
-                <h2 className="text-sm font-black uppercase">FICHA DE CONTROLE DE EPI - EQUIPAMENTO DE PROTEÇÃO INDIVIDUAL</h2>
+                <h2 className="text-sm font-black uppercase">FICHA DE CONTROLE DE EPI</h2>
             </div>
 
-            {/* Dados do Colaborador (Grid de Bordas) */}
             <div className="border-2 border-black text-xs font-bold uppercase mb-0">
                 <div className="border-b border-black p-1 pl-2">
                     Nome: <span className="font-normal ml-2">{selectedCol?.name}</span>
@@ -439,7 +401,6 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
                 </div>
             </div>
 
-            {/* Tabela de Itens */}
             <div className="mt-0">
                 <table className="w-full border-2 border-black border-t-0 text-[10px] text-center">
                     <thead>
@@ -455,7 +416,6 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
                         </tr>
                     </thead>
                     <tbody>
-                        {/* Linha Atual do EPI Entregue */}
                         <tr className="border-b border-black h-8">
                             <td className="border-r border-black">1</td>
                             <td className="border-r border-black">UN</td>
@@ -466,49 +426,38 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
                             <td className="border-r border-black"></td>
                             <td></td>
                         </tr>
-                        {/* Linhas Vazias para simular formulário */}
                         {[...Array(6)].map((_, i) => (
-                            <tr key={i} className="border-b border-black h-8">
-                                <td className="border-r border-black"></td>
-                                <td className="border-r border-black"></td>
-                                <td className="border-r border-black"></td>
-                                <td className="border-r border-black"></td>
-                                <td className="border-r border-black"></td>
-                                <td className="border-r border-black"></td>
-                                <td className="border-r border-black"></td>
-                                <td></td>
-                            </tr>
+                            <tr key={i} className="border-b border-black h-8"><td colSpan={8}></td></tr>
                         ))}
                     </tbody>
                 </table>
             </div>
-            
-            {/* Texto de Impressão */}
-            <div className="text-right text-[8px] text-red-600 font-bold uppercase mt-1 mb-6">
-                Impressão Frente e Verso da Ficha de EPI - Sistema NR-06
-            </div>
 
-            {/* Observações Adicionais */}
             {notes && (
-                <div className="border border-black p-2 text-xs mb-4">
+                <div className="border border-black p-2 text-xs mb-4 mt-4">
                     <strong>OBSERVAÇÕES:</strong> {notes}
                 </div>
             )}
 
-            {/* Foto da Evidência (Anexo) */}
-            {capturedPhoto && (
-                <div className="border-2 border-black p-1">
-                    <div className="bg-black text-white text-center font-bold uppercase text-xs py-1 mb-1">
-                        REGISTRO FOTOGRÁFICO DA ENTREGA
-                    </div>
-                    <div className="h-64 w-full flex items-center justify-center overflow-hidden bg-gray-100">
-                        <img src={capturedPhoto} className="h-full w-full object-contain" />
-                    </div>
-                     <div className="text-[8px] text-center mt-1 uppercase">
-                         Autenticado Digitalmente em {formatDateTime(new Date().toISOString())} | ID: {generateId('REG')}
-                     </div>
-                </div>
-            )}
+            {/* FOTO 3X4 NO RODAPÉ */}
+             <div className="mt-8 flex justify-between items-end gap-4 px-4">
+                 <div className="flex-1 text-center">
+                     <div className="border-b border-black mb-1"></div>
+                     <p className="text-[9px] uppercase font-bold">Assinatura do Responsável</p>
+                 </div>
+                 <div className="flex-1 text-center">
+                     <div className="border-b border-black mb-1"></div>
+                     <p className="text-[9px] uppercase font-bold">Assinatura do Colaborador</p>
+                 </div>
+                 <div className="shrink-0">
+                     {capturedPhoto && (
+                         <div className="w-[3cm] h-[4cm] border border-black p-1 bg-white">
+                             <img src={capturedPhoto} className="w-full h-full object-cover" />
+                         </div>
+                     )}
+                     <p className="text-[7px] text-center mt-1 uppercase font-bold">Biometria</p>
+                 </div>
+            </div>
          </div>
       </div>
     );

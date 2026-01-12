@@ -67,6 +67,7 @@ export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collab
 
   const col = fichaPreview ? getCollaborator(fichaPreview.collaboratorId) : null;
   const epi = fichaPreview ? getEPI(fichaPreview.epiId) : null;
+  const isShopee = col?.branch?.toLowerCase().includes('shopee');
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -168,7 +169,7 @@ export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collab
                 {/* Header */}
                 <div className="border-2 border-black mb-4 flex">
                     <div className="w-1/3 border-r-2 border-black flex items-center justify-center p-2">
-                        <h1 className="text-xl font-black text-center uppercase text-blue-900">
+                        <h1 className={`text-xl font-black text-center uppercase ${isShopee ? 'text-red-600' : 'text-blue-900'}`}>
                             {col.branch || 'LOGO'}
                         </h1>
                     </div>
@@ -243,12 +244,34 @@ export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collab
                     </div>
                 )}
 
-                {fichaPreview.photo && (
-                    <div className="border-2 border-black p-1 mt-4">
-                         <div className="bg-black text-white text-center font-bold uppercase text-[9px] py-0.5 mb-1">Evidência</div>
-                         <img src={fichaPreview.photo} className="h-40 w-full object-contain bg-gray-100" />
-                    </div>
-                )}
+                {/* AREA DE ASSINATURA E FOTO PEQUENA (3X4 / 5X5) */}
+                <div className="mt-8 flex justify-between items-end gap-4 px-4">
+                     {/* Assinatura Gestor */}
+                     <div className="flex-1 text-center">
+                         <div className="border-b border-black mb-1"></div>
+                         <p className="text-[9px] uppercase font-bold">Assinatura do Responsável</p>
+                     </div>
+
+                     {/* Assinatura Colaborador */}
+                     <div className="flex-1 text-center">
+                         <div className="border-b border-black mb-1"></div>
+                         <p className="text-[9px] uppercase font-bold">Assinatura do Colaborador</p>
+                     </div>
+
+                     {/* FOTO PEQUENA */}
+                     <div className="shrink-0">
+                         {fichaPreview.photo ? (
+                             <div className="w-[80px] h-[100px] border border-black p-1 bg-white">
+                                 <img src={fichaPreview.photo} className="w-full h-full object-cover" style={{ objectPosition: 'center' }} />
+                             </div>
+                         ) : (
+                             <div className="w-[80px] h-[100px] border border-black flex items-center justify-center text-[8px] uppercase text-center p-2">
+                                 Foto Biometria
+                             </div>
+                         )}
+                         <p className="text-[7px] text-center mt-1 uppercase font-bold">Biometria</p>
+                     </div>
+                </div>
             </div>
 
             <div className="p-4 bg-slate-100 border-t border-slate-300 flex justify-end gap-4 no-print">
