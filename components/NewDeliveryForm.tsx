@@ -15,7 +15,8 @@ import {
   Package,
   Download,
   FileText,
-  Shield
+  Shield,
+  FileEdit
 } from 'lucide-react';
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
@@ -28,31 +29,37 @@ interface NewDeliveryFormProps {
   onCancel: () => void;
 }
 
+// Texto legal fixo conforme a imagem enviada
+const LEGAL_TEXT = `Declaro que recebi orientação sobre o uso correto do EPI fornecido pela empresa e que estou ciente da Legislação abaixo discriminada.
+Portaria 3214, 08/06/78 do M T E, NR- 01 e NR-06
+1.4.2 Cabe ao trabalhador:
+a) cumprir as disposições legais e regulamentares sobre segurança e saúde no trabalho, inclusive as ordens de serviço expedidas pelo empregador; b) submeter-se aos exames médicos previstos nas NR; c) colaborar com a organização na aplicação das NR; e d) usar o equipamento de proteção individual fornecido pelo empregador.
+1.4.2.1 Constitui ato faltoso a recusa injustificada do empregado ao cumprimento do disposto nas alíneas do subitem anterior.
+6.7.1 Cabe ao empregado quanto ao EPI:
+a) usar, utilizando-o apenas para a finalidade a que se destina; b) responsabilizar-se pela guarda e conservação; c) comunicar ao empregador qualquer alteração que o torne impróprio para uso; e, d) cumprir as determinações do empregador sobre o uso adequado.
+CLT - Art. 462 § 1º - Em caso de dano causado pelo empregado o desconto será lícito desde que esta possibilidade tenha sido acordada ou na ocorrência de dolo do empregado.`;
+
 export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
   collaborators,
   epis,
   onSave,
   onCancel,
 }) => {
-  // Fluxo: SELECT_USER -> FORM_DATA -> CAMERA
   const [step, setStep] = useState<'SELECT_USER' | 'FORM_DATA' | 'CAMERA'>('SELECT_USER');
-  
   const [selectedCol, setSelectedCol] = useState<Collaborator | null>(null);
   const [selectedEpiId, setSelectedEpiId] = useState('');
   const [reason, setReason] = useState<DeliveryReason>('Primeira');
+  const [notes, setNotes] = useState(''); // Observações adicionais
   
-  // Câmera e Foto
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const [isSaving, setIsSaving] = useState(false);
-  
-  // Busca
   const [searchTerm, setSearchTerm] = useState('');
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const receiptRef = useRef<HTMLDivElement>(null); // Ref para o PDF
+  const receiptRef = useRef<HTMLDivElement>(null);
 
   const filteredCollaborators = collaborators.filter(c => 
     c.active && (
@@ -64,7 +71,6 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
 
   const selectedEpi = epis.find(e => e.id === selectedEpiId);
 
-  // Efeito para controlar a câmera apenas quando estiver no passo CAMERA
   useEffect(() => {
     if (step === 'CAMERA' && !capturedPhoto) {
       startCamera();
@@ -111,7 +117,6 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
       
-      // Espelhar se for frontal
       if (facingMode === 'user') {
           ctx.translate(canvas.width, 0);
           ctx.scale(-1, 1);
@@ -137,34 +142,29 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
         });
         
         const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pdf = new jsPDF('l', 'mm', 'a4'); // Paisagem para caber melhor o layout ou Retrato conforme preferir. A imagem parece Retrato, mas larga. Vou usar Retrato (p) ajustado.
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
         
         pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
         
-        // Nome do arquivo: NOME_EPI_DATA_EMPRESA_CPF
         const dateStr = new Date().toISOString().split('T')[0];
         const fileName = `${selectedCol.name}_${selectedEpi?.description}_${dateStr}_${selectedCol.branch}_${selectedCol.matricula}.pdf`
           .replace(/\s+/g, '_')
-          .replace(/[^a-zA-Z0-9_.]/g, ''); // Remove caracteres especiais
+          .replace(/[^a-zA-Z0-9_.]/g, '');
 
         pdf.save(fileName);
     } catch (error) {
         console.error("Erro ao gerar PDF", error);
-        alert("A entrega foi salva, mas houve um erro ao gerar o PDF.");
+        alert("Erro ao gerar o PDF.");
     }
   };
 
   const handleSave = async () => {
     if (!selectedCol || !selectedEpiId || !capturedPhoto) return;
-    
     setIsSaving(true);
     const newId = generateId('REC');
-    
-    // Aguarda um pequeno delay para garantir que o React renderizou o componente oculto com os dados atuais
     await new Promise(resolve => setTimeout(resolve, 500));
-
     await generateAndDownloadPDF(newId);
 
     onSave({
@@ -173,16 +173,16 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
       collaboratorId: selectedCol.id,
       epiId: selectedEpiId,
       reason,
-      notes: 'Entrega com Evidência Fotográfica e Assinatura Digital',
+      notes: notes,
       responsibleEmail: 'admin@nr06.com',
-      photo: capturedPhoto, // Mantemos a foto na entrega para histórico
+      photo: capturedPhoto, 
       verificationResult: { match: true, confidence: 100, reason: 'Registro Fotográfico' }
     });
     
     setIsSaving(false);
   };
 
-  // --- RENDER STEP 1: SELEÇÃO DE USUÁRIO ---
+  // --- RENDER STEP 1 ---
   if (step === 'SELECT_USER') {
     return (
       <div className="max-w-4xl mx-auto mb-20 animate-in fade-in zoom-in-95 duration-500">
@@ -237,7 +237,7 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
     );
   }
 
-  // --- RENDER STEP 2: DADOS DA ENTREGA ---
+  // --- RENDER STEP 2 ---
   if (step === 'FORM_DATA') {
     return (
       <div className="max-w-2xl mx-auto mb-20 animate-in slide-in-from-right-8 duration-500">
@@ -252,7 +252,6 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
         </div>
 
         <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-8 space-y-8">
-            {/* Resumo Colaborador */}
             <div className="bg-slate-950 p-6 rounded-3xl border border-slate-800 flex items-center gap-4">
                <div className="w-16 h-16 rounded-2xl overflow-hidden border border-slate-700 flex items-center justify-center bg-slate-900">
                   <User size={32} className="text-slate-600" />
@@ -296,6 +295,18 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
               </div>
             </div>
 
+            <div className="space-y-4">
+               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 flex items-center gap-2">
+                 <FileEdit size={14} className="text-blue-500" /> Observações (Opcional)
+              </label>
+              <textarea
+                className="w-full p-5 bg-slate-950 border border-slate-800 rounded-3xl text-white font-medium text-xs outline-none focus:ring-2 focus:ring-blue-600 transition-all resize-none h-24"
+                placeholder="Ex: Devolução do EPI anterior realizada..."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
+            </div>
+
             <button 
               onClick={() => setStep('CAMERA')}
               disabled={!selectedEpiId}
@@ -308,11 +319,10 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
     );
   }
 
-  // --- RENDER STEP 3: FULLSCREEN CAMERA ---
+  // --- RENDER STEP 3 ---
   if (step === 'CAMERA') {
     return (
       <div className="fixed inset-0 z-50 bg-black flex flex-col animate-in zoom-in-95 duration-300">
-         {/* Top Bar */}
          <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-start z-20 bg-gradient-to-b from-black/80 to-transparent">
             <div>
                <p className="text-white font-black text-lg uppercase tracking-tight shadow-black drop-shadow-md">Registro de Entrega</p>
@@ -323,7 +333,6 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
             </button>
          </div>
 
-         {/* Camera Viewport */}
          <div className="flex-1 relative bg-black flex items-center justify-center overflow-hidden">
             {!capturedPhoto ? (
                <>
@@ -344,7 +353,7 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
                      >
                         <div className="w-20 h-20 border-2 border-black rounded-full"></div>
                      </button>
-                     <div className="w-14"></div> {/* Spacer for symmetry */}
+                     <div className="w-14"></div>
                   </div>
                </>
             ) : (
@@ -364,14 +373,7 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
                           disabled={isSaving}
                           className="flex-[2] py-4 bg-emerald-500 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl hover:bg-emerald-400 disabled:opacity-50 flex items-center justify-center gap-2"
                         >
-                           {isSaving ? (
-                             <>
-                               <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                               Gerando PDF...
-                             </>
-                           ) : (
-                             "Confirmar & Baixar"
-                           )}
+                           {isSaving ? "Gerando Ficha..." : "Confirmar & Salvar"}
                         </button>
                      </div>
                   </div>
@@ -380,105 +382,133 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
          </div>
          <canvas ref={canvasRef} className="hidden" />
 
-         {/* --- HIDDEN RECEIPT TEMPLATE FOR PDF --- */}
-         {/* This div is positioned way off-screen but rendered so html2canvas can capture it */}
+         {/* --- FICHA NO PADRÃO LUANDRE (Modificada) --- */}
          <div 
             ref={receiptRef} 
-            className="fixed -left-[9999px] top-0 w-[800px] bg-white text-black p-12 font-sans"
-            style={{ width: '800px', minHeight: '1120px' }}
+            className="fixed -left-[9999px] top-0 bg-white text-black font-sans"
+            style={{ width: '210mm', minHeight: '297mm', padding: '10mm' }}
          >
-            {/* Header */}
-            <div className="border-b-4 border-black pb-6 mb-8 flex justify-between items-start">
-               <div>
-                  <h1 className="text-3xl font-black uppercase tracking-tighter mb-1">Ficha de Entrega de EPI</h1>
-                  <p className="text-sm font-bold uppercase tracking-widest text-gray-500">Norma Regulamentadora NR-06</p>
-               </div>
-               <div className="text-right">
-                  <p className="text-xs font-bold uppercase text-gray-400">Emissão</p>
-                  <p className="text-lg font-mono font-bold">{formatDateTime(new Date().toISOString())}</p>
-               </div>
+            {/* Header com Borda Preta */}
+            <div className="border-2 border-black mb-4 flex" style={{ height: '180px' }}>
+                {/* Lado Esquerdo: Logo Dinâmico */}
+                <div className="w-1/3 border-r-2 border-black flex items-center justify-center p-4">
+                    <h1 className="text-3xl font-black text-center uppercase leading-tight text-blue-900">
+                        {selectedCol?.branch || 'LOGO DA EMPRESA'}
+                    </h1>
+                </div>
+                {/* Lado Direito: Termo */}
+                <div className="w-2/3 p-2 relative">
+                    <h2 className="text-center font-bold text-xs uppercase mb-1">TERMO DE RESPONSABILIDADE</h2>
+                    <p className="text-[8px] text-justify leading-tight" style={{ whiteSpace: 'pre-wrap' }}>
+                        {LEGAL_TEXT}
+                    </p>
+                    <div className="mt-2 border-t border-black pt-1 text-center text-[9px] font-bold">
+                        Nome Legível do Empregado
+                    </div>
+                </div>
             </div>
 
-            {/* Employer / Employee Info */}
-            <div className="grid grid-cols-2 gap-8 mb-8">
-               <div className="bg-gray-100 p-6 rounded-lg">
-                  <h3 className="text-xs font-black uppercase tracking-widest text-gray-500 mb-4">Empregador / Unidade</h3>
-                  <p className="text-xl font-bold uppercase mb-1">{selectedCol?.branch || 'Sede Principal'}</p>
-                  <p className="text-sm text-gray-600">Gestor Resp: {selectedCol?.managerName || 'RH'}</p>
-               </div>
-               <div className="bg-gray-100 p-6 rounded-lg">
-                  <h3 className="text-xs font-black uppercase tracking-widest text-gray-500 mb-4">Colaborador</h3>
-                  <p className="text-xl font-bold uppercase mb-1">{selectedCol?.name}</p>
-                  <div className="flex gap-4 text-sm text-gray-600 font-bold">
-                     <span>CPF/MAT: {selectedCol?.matricula || '---'}</span>
-                     <span>|</span>
-                     <span>{selectedCol?.role}</span>
-                  </div>
-               </div>
+            {/* Título da Ficha */}
+            <div className="border-2 border-black border-b-0 py-2 bg-white text-center">
+                <h2 className="text-sm font-black uppercase">FICHA DE CONTROLE DE EPI - EQUIPAMENTO DE PROTEÇÃO INDIVIDUAL</h2>
             </div>
 
-            {/* EPI Info */}
-            <div className="mb-8 border border-gray-300 rounded-lg overflow-hidden">
-               <div className="bg-black text-white px-6 py-3 text-sm font-black uppercase tracking-widest">Equipamento Fornecido</div>
-               <div className="p-6">
-                  <div className="flex justify-between items-center">
-                     <div>
-                        <p className="text-2xl font-bold uppercase">{selectedEpi?.description}</p>
-                        <p className="text-sm font-bold text-gray-500 mt-1">ID: {selectedEpi?.id}</p>
+            {/* Dados do Colaborador (Grid de Bordas) */}
+            <div className="border-2 border-black text-xs font-bold uppercase mb-0">
+                <div className="border-b border-black p-1 pl-2">
+                    Nome: <span className="font-normal ml-2">{selectedCol?.name}</span>
+                </div>
+                <div className="flex border-b border-black">
+                    <div className="w-1/2 border-r border-black p-1 pl-2">
+                        Matrícula: <span className="font-normal ml-2">{selectedCol?.matricula}</span>
+                    </div>
+                    <div className="w-1/2 p-1 pl-2">
+                        Data de Admissão: <span className="font-normal ml-2">-</span>
+                    </div>
+                </div>
+                <div className="flex border-b border-black">
+                    <div className="w-1/2 border-r border-black p-1 pl-2">
+                        Unidade: <span className="font-normal ml-2">{selectedCol?.branch}</span>
+                    </div>
+                    <div className="w-1/2 p-1 pl-2">
+                        Turno: <span className="font-normal ml-2">-</span>
+                    </div>
+                </div>
+                <div className="p-1 pl-2">
+                    Função: <span className="font-normal ml-2">{selectedCol?.role}</span>
+                </div>
+            </div>
+
+            {/* Tabela de Itens */}
+            <div className="mt-0">
+                <table className="w-full border-2 border-black border-t-0 text-[10px] text-center">
+                    <thead>
+                        <tr className="border-b border-black font-bold uppercase">
+                            <th className="border-r border-black p-1 w-10">Quant.</th>
+                            <th className="border-r border-black p-1 w-10">Unid.</th>
+                            <th className="border-r border-black p-1">Discriminação</th>
+                            <th className="border-r border-black p-1 w-20">Nº C. A</th>
+                            <th className="border-r border-black p-1 w-20">Data da Entrega</th>
+                            <th className="border-r border-black p-1 w-32">Assinatura</th>
+                            <th className="border-r border-black p-1 w-20">Data da Devolução</th>
+                            <th className="p-1 w-32">Assinatura</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {/* Linha Atual do EPI Entregue */}
+                        <tr className="border-b border-black h-8">
+                            <td className="border-r border-black">1</td>
+                            <td className="border-r border-black">UN</td>
+                            <td className="border-r border-black text-left pl-2">{selectedEpi?.description}</td>
+                            <td className="border-r border-black">{selectedEpi?.ca}</td>
+                            <td className="border-r border-black">{formatDate(new Date().toISOString())}</td>
+                            <td className="border-r border-black text-[7px] italic">BIOMETRIA DIGITAL</td>
+                            <td className="border-r border-black"></td>
+                            <td></td>
+                        </tr>
+                        {/* Linhas Vazias para simular formulário */}
+                        {[...Array(6)].map((_, i) => (
+                            <tr key={i} className="border-b border-black h-8">
+                                <td className="border-r border-black"></td>
+                                <td className="border-r border-black"></td>
+                                <td className="border-r border-black"></td>
+                                <td className="border-r border-black"></td>
+                                <td className="border-r border-black"></td>
+                                <td className="border-r border-black"></td>
+                                <td className="border-r border-black"></td>
+                                <td></td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+            
+            {/* Texto de Impressão */}
+            <div className="text-right text-[8px] text-red-600 font-bold uppercase mt-1 mb-6">
+                Impressão Frente e Verso da Ficha de EPI - Sistema NR-06
+            </div>
+
+            {/* Observações Adicionais */}
+            {notes && (
+                <div className="border border-black p-2 text-xs mb-4">
+                    <strong>OBSERVAÇÕES:</strong> {notes}
+                </div>
+            )}
+
+            {/* Foto da Evidência (Anexo) */}
+            {capturedPhoto && (
+                <div className="border-2 border-black p-1">
+                    <div className="bg-black text-white text-center font-bold uppercase text-xs py-1 mb-1">
+                        REGISTRO FOTOGRÁFICO DA ENTREGA
+                    </div>
+                    <div className="h-64 w-full flex items-center justify-center overflow-hidden bg-gray-100">
+                        <img src={capturedPhoto} className="h-full w-full object-contain" />
+                    </div>
+                     <div className="text-[8px] text-center mt-1 uppercase">
+                         Autenticado Digitalmente em {formatDateTime(new Date().toISOString())} | ID: {generateId('REG')}
                      </div>
-                     <div className="text-right">
-                        <p className="text-xs font-black text-gray-400 uppercase">Certificado de Aprovação</p>
-                        <p className="text-xl font-bold">CA: {selectedEpi?.ca}</p>
-                     </div>
-                  </div>
-                  <div className="mt-4 pt-4 border-t border-gray-200 text-xs text-gray-500 uppercase font-bold">
-                     Motivo da Entrega: <span className="text-black">{reason}</span>
-                  </div>
-               </div>
-            </div>
-
-            {/* Legal Text */}
-            <div className="mb-8 text-xs text-justify leading-relaxed text-gray-600 uppercase border-l-4 border-gray-300 pl-4">
-               <p>
-                  Declaro para os devidos fins que recebi o Equipamento de Proteção Individual (EPI) descrito acima, em perfeito estado de conservação e funcionamento. 
-                  Comprometo-me a utilizá-lo apenas para as finalidades a que se destina, responsabilizando-me pela sua guarda e conservação, comunicando ao empregador qualquer alteração que o torne impróprio para uso, e cumprindo as determinações da NR-06.
-               </p>
-            </div>
-
-            {/* Photo Evidence & Digital Signature */}
-            <div className="grid grid-cols-2 gap-8 items-end">
-               <div>
-                  <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-2">Evidência Fotográfica</p>
-                  <div className="w-full h-64 bg-gray-100 border-2 border-gray-300 rounded-lg overflow-hidden">
-                     {capturedPhoto && <img src={capturedPhoto} className="w-full h-full object-cover grayscale contrast-125" />}
-                  </div>
-               </div>
-               
-               <div className="border-t-2 border-black pt-4">
-                   <p className="text-sm font-bold uppercase mb-2">Assinatura Digital</p>
-                   <div className="border-2 border-black p-4 rounded-lg bg-gray-50 relative overflow-hidden flex flex-col items-center">
-                      <div className="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none">
-                         <Shield size={120} />
-                      </div>
-                      
-                      <p className="text-[10px] uppercase font-bold text-gray-500 text-center mb-1">Autenticação Biométrica / Sistema</p>
-                      <p className="text-center font-mono font-bold text-xs break-all leading-tight mb-2">
-                         KEY: {Math.random().toString(36).substring(2, 15).toUpperCase()}-{Date.now().toString(36).toUpperCase()}
-                      </p>
-                      <p className="text-center text-[10px] uppercase font-black">
-                         {selectedCol?.name}
-                      </p>
-                      <p className="text-center text-[8px] text-gray-400 uppercase mt-1">
-                         Assinado Eletronicamente em {formatDate(new Date().toISOString())}
-                      </p>
-                   </div>
-               </div>
-            </div>
-
-            {/* Footer */}
-            <div className="mt-12 pt-6 border-t border-gray-200 text-center">
-               <p className="text-[8px] font-bold text-gray-400 uppercase tracking-[0.5em]">Sistema de Controle NR-06 PRO</p>
-            </div>
+                </div>
+            )}
          </div>
       </div>
     );

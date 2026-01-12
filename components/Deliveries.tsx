@@ -12,6 +12,9 @@ interface DeliveriesProps {
   collaborators: Collaborator[];
 }
 
+const LEGAL_TEXT = `Declaro que recebi orientação sobre o uso correto do EPI fornecido pela empresa e que estou ciente da Legislação abaixo discriminada.
+Portaria 3214, 08/06/78 do M T E, NR- 01 e NR-06... (Texto Completo na Versão Impressa)`;
+
 export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collaborators }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
@@ -49,7 +52,6 @@ export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collab
       const epi = getEPI(fichaPreview.epiId);
       const dateStr = new Date(fichaPreview.date).toISOString().split('T')[0];
       
-      // Nome do arquivo solicitado
       const fileName = `${col?.name}_${epi?.description}_${dateStr}_${col?.branch}_${col?.matricula}.pdf`
           .replace(/\s+/g, '_')
           .replace(/[^a-zA-Z0-9_.]/g, '');
@@ -57,11 +59,14 @@ export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collab
       pdf.save(fileName);
     } catch (error) {
       console.error("Erro ao gerar PDF:", error);
-      alert("Erro ao processar o PDF. Verifique os logs.");
+      alert("Erro ao processar o PDF.");
     } finally {
       setIsExporting(false);
     }
   };
+
+  const col = fichaPreview ? getCollaborator(fichaPreview.collaboratorId) : null;
+  const epi = fichaPreview ? getEPI(fichaPreview.epiId) : null;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -138,7 +143,6 @@ export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collab
         </div>
       </div>
 
-      {/* MODAL FOTO AMPLIADA */}
       {selectedPhoto && (
         <div className="fixed inset-0 z-[110] bg-black/95 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in" onClick={() => setSelectedPhoto(null)}>
           <div className="relative max-w-lg w-full">
@@ -148,93 +152,112 @@ export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collab
         </div>
       )}
 
-      {/* MODAL FICHA PDF */}
-      {fichaPreview && (
+      {fichaPreview && col && epi && (
         <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in zoom-in-95 duration-300">
-          <div className="bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden relative my-8">
-            <div className="p-6 bg-slate-50 border-b border-slate-200 flex justify-between items-center no-print">
-               <h3 className="font-black text-slate-900 uppercase text-xs tracking-[0.2em] flex items-center gap-2">
-                 <FileText size={20} className="text-blue-600" /> Prévia do Documento
+          <div className="bg-white w-full max-w-2xl rounded-[1rem] shadow-2xl overflow-hidden relative my-8">
+            <div className="p-4 bg-slate-100 border-b border-slate-300 flex justify-between items-center no-print">
+               <h3 className="font-bold text-slate-900 uppercase text-xs flex items-center gap-2">
+                 <FileText size={18} className="text-blue-600" /> Prévia da Ficha
                </h3>
-               <button onClick={() => setFichaPreview(null)} className="p-3 hover:bg-slate-200 rounded-full transition-colors"><X size={24} className="text-slate-400" /></button>
+               <button onClick={() => setFichaPreview(null)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X size={20} className="text-slate-500" /></button>
             </div>
 
-            <div ref={fichaRef} className="p-16 bg-white text-slate-900 font-serif leading-relaxed">
-               {/* CONTEÚDO DA FICHA (MESMO DO PDF) */}
-               <div className="flex justify-between items-start border-b-4 border-slate-900 pb-10 mb-10">
-                  <div className="space-y-1">
-                    <h1 className="text-3xl font-black tracking-tighter uppercase leading-none">Recibo de Entrega de EPI</h1>
-                    <p className="text-[10px] uppercase font-bold text-slate-400 tracking-[0.3em]">NR-06 | Segurança do Trabalho</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Registro ID</p>
-                    <p className="text-lg font-black text-blue-600">{fichaPreview.id}</p>
-                  </div>
-               </div>
-               
-               <div className="bg-slate-50 p-8 rounded-3xl border border-slate-100 mb-10">
-                  <div className="grid grid-cols-2 gap-8">
-                    <div className="space-y-4">
-                      <div>
-                        <span className="block text-[8px] uppercase font-bold text-slate-400 tracking-widest mb-1">Colaborador</span>
-                        <span className="font-black uppercase text-base text-slate-900 leading-tight">{getCollaborator(fichaPreview.collaboratorId)?.name}</span>
-                      </div>
-                      <div>
-                        <span className="block text-[8px] uppercase font-bold text-slate-400 tracking-widest mb-1">Cargo</span>
-                        <span className="font-bold text-xs">{getCollaborator(fichaPreview.collaboratorId)?.role}</span>
-                      </div>
+            {/* CONTEÚDO DA PRÉVIA - IGUAL AO PDF GERADO */}
+            <div ref={fichaRef} className="p-8 bg-white text-black font-sans text-xs">
+                
+                {/* Header */}
+                <div className="border-2 border-black mb-4 flex">
+                    <div className="w-1/3 border-r-2 border-black flex items-center justify-center p-2">
+                        <h1 className="text-xl font-black text-center uppercase text-blue-900">
+                            {col.branch || 'LOGO'}
+                        </h1>
                     </div>
-                    <div className="space-y-4">
-                      <div>
-                        <span className="block text-[8px] uppercase font-bold text-slate-400 tracking-widest mb-1">CPF / Matrícula</span>
-                        <span className="font-bold text-sm">{getCollaborator(fichaPreview.collaboratorId)?.matricula}</span>
-                      </div>
-                      <div>
-                        <span className="block text-[8px] uppercase font-bold text-slate-400 tracking-widest mb-1">Agência</span>
-                        <span className="font-bold text-xs">{getCollaborator(fichaPreview.collaboratorId)?.branch}</span>
-                      </div>
+                    <div className="w-2/3 p-2">
+                        <h2 className="text-center font-bold text-[10px] uppercase mb-1">TERMO DE RESPONSABILIDADE</h2>
+                        <p className="text-[7px] text-justify leading-tight">
+                            {LEGAL_TEXT}
+                        </p>
                     </div>
-                  </div>
-               </div>
+                </div>
 
-               <div className="mb-12 border-2 border-slate-100 rounded-3xl overflow-hidden">
-                 <table className="w-full border-collapse">
-                    <thead className="bg-slate-900 text-white text-[9px] uppercase font-black tracking-widest">
-                      <tr>
-                        <th className="px-6 py-4 text-left">Item Entregue</th>
-                        <th className="px-6 py-4 text-right">C.A.</th>
-                      </tr>
-                    </thead>
-                    <tbody className="text-xs">
-                      <tr>
-                        <td className="px-6 py-6 font-bold uppercase">{getEPI(fichaPreview.epiId)?.description}</td>
-                        <td className="px-6 py-6 text-right font-black">{getEPI(fichaPreview.epiId)?.ca || '---'}</td>
-                      </tr>
-                    </tbody>
-                 </table>
-               </div>
+                <div className="border-2 border-black border-b-0 py-1 bg-white text-center">
+                    <h2 className="text-[10px] font-black uppercase">FICHA DE CONTROLE DE EPI</h2>
+                </div>
 
-               <div className="mt-16 flex justify-between items-end gap-12">
-                  <div className="flex-1 border-t-2 border-slate-900 pt-2">
-                     <span className="text-[10px] uppercase font-black tracking-widest">Assinatura do Recebedor</span>
-                     <p className="text-[8px] text-slate-400 mt-1">Confirmado via Biometria em {formatDate(fichaPreview.date)}</p>
-                  </div>
-                  <div className="shrink-0">
-                     <div className="w-32 h-32 rounded-3xl border-4 border-slate-100 overflow-hidden shadow-lg grayscale">
-                        {fichaPreview.photo && <img src={fichaPreview.photo} className="w-full h-full object-cover" />}
-                     </div>
-                  </div>
-               </div>
+                <div className="border-2 border-black text-[10px] font-bold uppercase mb-0">
+                    <div className="border-b border-black p-1 pl-2">
+                        Nome: <span className="font-normal ml-2">{col.name}</span>
+                    </div>
+                    <div className="flex border-b border-black">
+                        <div className="w-1/2 border-r border-black p-1 pl-2">
+                            Matrícula: <span className="font-normal ml-2">{col.matricula}</span>
+                        </div>
+                        <div className="w-1/2 p-1 pl-2">
+                            Data de Admissão: <span className="font-normal ml-2">-</span>
+                        </div>
+                    </div>
+                    <div className="flex border-b border-black">
+                        <div className="w-1/2 border-r border-black p-1 pl-2">
+                            Unidade: <span className="font-normal ml-2">{col.branch}</span>
+                        </div>
+                        <div className="w-1/2 p-1 pl-2">
+                            Turno: <span className="font-normal ml-2">-</span>
+                        </div>
+                    </div>
+                    <div className="p-1 pl-2">
+                        Função: <span className="font-normal ml-2">{col.role}</span>
+                    </div>
+                </div>
+
+                <div className="mt-0">
+                    <table className="w-full border-2 border-black border-t-0 text-[9px] text-center">
+                        <thead>
+                            <tr className="border-b border-black font-bold uppercase">
+                                <th className="border-r border-black p-1 w-8">Qt</th>
+                                <th className="border-r border-black p-1 w-8">Un</th>
+                                <th className="border-r border-black p-1">Discriminação</th>
+                                <th className="border-r border-black p-1 w-16">CA</th>
+                                <th className="border-r border-black p-1 w-16">Entrega</th>
+                                <th className="border-r border-black p-1 w-24">Assinatura</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr className="border-b border-black h-8">
+                                <td className="border-r border-black">1</td>
+                                <td className="border-r border-black">UN</td>
+                                <td className="border-r border-black text-left pl-2">{epi.description}</td>
+                                <td className="border-r border-black">{epi.ca}</td>
+                                <td className="border-r border-black">{formatDate(fichaPreview.date)}</td>
+                                <td className="border-r border-black text-[7px]">DIGITAL</td>
+                            </tr>
+                            {[...Array(3)].map((_, i) => (
+                                <tr key={i} className="border-b border-black h-8"><td colSpan={6}></td></tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+
+                {fichaPreview.notes && (
+                    <div className="border border-black p-2 mt-4 text-[10px]">
+                        <strong>OBS:</strong> {fichaPreview.notes}
+                    </div>
+                )}
+
+                {fichaPreview.photo && (
+                    <div className="border-2 border-black p-1 mt-4">
+                         <div className="bg-black text-white text-center font-bold uppercase text-[9px] py-0.5 mb-1">Evidência</div>
+                         <img src={fichaPreview.photo} className="h-40 w-full object-contain bg-gray-100" />
+                    </div>
+                )}
             </div>
 
-            <div className="p-10 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row justify-end gap-4 no-print">
+            <div className="p-4 bg-slate-100 border-t border-slate-300 flex justify-end gap-4 no-print">
                <button 
                  onClick={generatePDF} 
                  disabled={isExporting} 
-                 className="flex items-center justify-center gap-3 bg-slate-900 text-white px-12 py-5 rounded-2xl font-black uppercase text-xs hover:bg-blue-600 transition-all shadow-xl active:scale-95 disabled:opacity-50"
+                 className="flex items-center justify-center gap-2 bg-slate-900 text-white px-6 py-3 rounded-xl font-bold uppercase text-xs hover:bg-blue-600 transition-all shadow-md active:scale-95 disabled:opacity-50"
                >
-                 {isExporting ? <span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full" /> : <Download size={18} />}
-                 {isExporting ? 'Exportando...' : 'Baixar PDF Novamente'}
+                 {isExporting ? 'Processando...' : 'Baixar PDF'} <Download size={16} />
                </button>
             </div>
           </div>
