@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { EPI } from '../types';
-import { HardHat, Plus, Trash2, Tag } from 'lucide-react';
+import { HardHat, Plus, Trash2, Tag, Layers } from 'lucide-react';
 
 interface EPIListProps {
   epis: EPI[];
@@ -15,7 +15,7 @@ export const EPIList: React.FC<EPIListProps> = ({ epis, onAddClick, onDelete }) 
       <div className="bg-slate-900 rounded-[2rem] border border-slate-800 p-8 flex flex-col md:flex-row justify-between items-center gap-6">
         <div>
           <h2 className="text-3xl font-black text-white uppercase tracking-tighter">Equipamentos (EPI)</h2>
-          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mt-1">Gestão de Itens Cadastrados</p>
+          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mt-1">Gestão de Itens e Estoque</p>
         </div>
         <button 
           onClick={onAddClick}
@@ -54,10 +54,16 @@ export const EPIList: React.FC<EPIListProps> = ({ epis, onAddClick, onDelete }) 
               </div>
 
               <div className="flex items-center justify-between pt-4 border-t border-slate-800 text-[10px] font-black uppercase">
-                 <span className={`px-2 py-0.5 rounded-full ${epi.active ? 'text-emerald-500 bg-emerald-500/10' : 'text-slate-500 bg-slate-800'}`}>
-                   {epi.active ? 'Ativo' : 'Inativo'}
-                 </span>
-                 <span className="text-slate-700">Cod: {epi.id}</span>
+                 <div className="flex items-center gap-2">
+                    <span className={`px-2 py-0.5 rounded-full ${epi.active ? 'text-emerald-500 bg-emerald-500/10' : 'text-slate-500 bg-slate-800'}`}>
+                    {epi.active ? 'Ativo' : 'Inativo'}
+                    </span>
+                 </div>
+                 
+                 <div className="flex items-center gap-2 bg-slate-950 px-3 py-1 rounded-lg border border-slate-800">
+                    <Layers size={12} className={epi.stock > 0 ? "text-emerald-500" : "text-red-500"} />
+                    <span className={epi.stock > 0 ? "text-white" : "text-red-500"}>Estoque: {epi.stock}</span>
+                 </div>
               </div>
             </div>
           ))

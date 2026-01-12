@@ -39,6 +39,9 @@ export const DatabaseService = {
         );
       `);
 
+      // Migração manual: Adicionar coluna stock se não existir (para tabelas antigas)
+      await sql(`ALTER TABLE epis ADD COLUMN IF NOT EXISTS stock INTEGER DEFAULT 0;`);
+
       // Tabela Entregas
       await sql(`
         CREATE TABLE IF NOT EXISTS deliveries (
@@ -54,9 +57,28 @@ export const DatabaseService = {
       `);
       
       console.log("Tabelas verificadas/criadas com sucesso.");
+
+      // Limpeza automática de registros antigos (> 1 ano)
+      await this.deleteOldDeliveries();
+
     } catch (error) {
       console.error("Erro Fatal ao iniciar DB:", error);
       throw error;
+    }
+  },
+
+  // --- MANUTENÇÃO ---
+  async deleteOldDeliveries() {
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    const dateStr = oneYearAgo.toISOString();
+
+    try {
+        // Deleta entregas onde a data é menor (anterior) a data de 1 ano atrás
+        await sql('DELETE FROM deliveries WHERE date < $1', [dateStr]);
+        console.log(`Manutenção: Entregas anteriores a ${dateStr} foram removidas.`);
+    } catch (error) {
+        console.error("Erro ao limpar entregas antigas:", error);
     }
   },
 
@@ -64,7 +86,6 @@ export const DatabaseService = {
   async getCollaborators(): Promise<Collaborator[]> {
     try {
       const rows = await sql('SELECT * FROM collaborators');
-      // O driver neon retorna as linhas diretamente (array), não um objeto com .rows
       return rows.map((row: any) => ({
         id: row.id,
         name: row.name,
@@ -103,7 +124,8 @@ export const DatabaseService = {
         id: row.id,
         description: row.description,
         active: row.active,
-        createdAt: row.created_at
+        createdAt: row.created_at,
+        stock: row.stock || 0 // Mapeia o estoque
       }));
     } catch (error) {
       console.error("Erro ao buscar EPIs:", error);
@@ -113,9 +135,9 @@ export const DatabaseService = {
 
   async addEpi(e: EPI) {
     await sql(
-      `INSERT INTO epis (id, description, active, created_at)
-       VALUES ($1, $2, $3, $4)`,
-      [e.id, e.description, e.active, e.createdAt]
+      `INSERT INTO epis (id, description, active, created_at, stock)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [e.id, e.description, e.active, e.createdAt, e.stock]
     );
   },
   
@@ -144,11 +166,19 @@ export const DatabaseService = {
   },
 
   async addDelivery(d: Delivery) {
+    // 1. Registra a entrega
     await sql(
       `INSERT INTO deliveries (id, date, collaborator_id, epi_id, reason, notes, responsible_email, photo)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
       [d.id, d.date, d.collaboratorId, d.epiId, d.reason, d.notes, d.responsibleEmail, d.photo]
     );
+
+    // 2. Decrementa o estoque do EPI
+    try {
+        await sql(`UPDATE epis SET stock = stock - 1 WHERE id = $1`, [d.epiId]);
+    } catch (err) {
+        console.error("Erro ao atualizar estoque:", err);
+    }
   },
 
   async deleteAllDeliveries() {

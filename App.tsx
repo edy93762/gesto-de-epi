@@ -17,7 +17,8 @@ const INITIAL_EPI: EPI = {
     id: 'CAP-01',
     description: 'Capacete de Proteção Jugular',
     active: true,
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    stock: 100 // Estoque Inicial Padrão
 };
 
 const App: React.FC = () => {
@@ -107,11 +108,23 @@ const App: React.FC = () => {
 
   const handleSaveDeliveries = async (newDeliveries: Delivery[]) => {
     try {
-      // Salva um por um no banco
+      // Salva um por um no banco (inclui decremento de estoque no backend)
       for (const d of newDeliveries) {
           await DatabaseService.addDelivery(d);
       }
+      
+      // Atualiza entregas
       setDeliveries(prev => [...newDeliveries, ...prev]);
+
+      // Atualiza estoque localmente (para a UI refletir imediatamente)
+      const usedEpiIds = newDeliveries.map(d => d.epiId);
+      setEpis(prev => prev.map(epi => {
+          if (usedEpiIds.includes(epi.id)) {
+              return { ...epi, stock: Math.max(0, epi.stock - 1) };
+          }
+          return epi;
+      }));
+
       setCurrentView('deliveries');
     } catch (e) {
         alert("Erro ao salvar entregas no banco.");

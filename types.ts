@@ -17,6 +17,7 @@ export interface EPI {
   description: string; 
   active: boolean; 
   createdAt: string;
+  stock: number; // Novo campo de quantidade
 }
 
 export type DeliveryReason = 'Primeira' | 'Troca validade' | 'Desgaste' | 'Perda' | 'Dano';
