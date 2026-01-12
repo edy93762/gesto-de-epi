@@ -4,11 +4,9 @@ import { Collaborator, Delivery, EPI } from '../types';
 
 const CONNECTION_STRING = 'postgresql://neondb_owner:npg_Lf4svrNIzdG1@ep-broad-cell-ah6d0uem-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require';
 
-// O driver 'neon' usa HTTP (fetch), ideal para serverless/navegador pois não mantém conexão aberta
 const sql = neon(CONNECTION_STRING);
 
 export const DatabaseService = {
-  // Inicializa tabelas se não existirem
   async init() {
     console.log("Inicializando banco de dados via HTTP...");
     
@@ -29,6 +27,12 @@ export const DatabaseService = {
         );
       `);
 
+      // Migração: Adicionar coluna HSE se não existir
+      await sql(`ALTER TABLE collaborators ADD COLUMN IF NOT EXISTS hse_name TEXT;`);
+      
+      // Migração: Adicionar coluna Coordenador se não existir
+      await sql(`ALTER TABLE collaborators ADD COLUMN IF NOT EXISTS coordinator_name TEXT;`);
+
       // Tabela EPIs
       await sql(`
         CREATE TABLE IF NOT EXISTS epis (
@@ -39,7 +43,7 @@ export const DatabaseService = {
         );
       `);
 
-      // Migração manual: Adicionar coluna stock se não existir (para tabelas antigas)
+      // Migração: Adicionar coluna stock se não existir
       await sql(`ALTER TABLE epis ADD COLUMN IF NOT EXISTS stock INTEGER DEFAULT 0;`);
 
       // Tabela Entregas
@@ -57,8 +61,6 @@ export const DatabaseService = {
       `);
       
       console.log("Tabelas verificadas/criadas com sucesso.");
-
-      // Limpeza automática de registros antigos (> 1 ano)
       await this.deleteOldDeliveries();
 
     } catch (error) {
@@ -67,14 +69,12 @@ export const DatabaseService = {
     }
   },
 
-  // --- MANUTENÇÃO ---
   async deleteOldDeliveries() {
     const oneYearAgo = new Date();
     oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
     const dateStr = oneYearAgo.toISOString();
 
     try {
-        // Deleta entregas onde a data é menor (anterior) a data de 1 ano atrás
         await sql('DELETE FROM deliveries WHERE date < $1', [dateStr]);
         console.log(`Manutenção: Entregas anteriores a ${dateStr} foram removidas.`);
     } catch (error) {
@@ -82,7 +82,6 @@ export const DatabaseService = {
     }
   },
 
-  // --- COLABORADORES ---
   async getCollaborators(): Promise<Collaborator[]> {
     try {
       const rows = await sql('SELECT * FROM collaborators');
@@ -96,6 +95,8 @@ export const DatabaseService = {
         shift: row.shift as any,
         managerName: row.manager_name,
         managerEmail: row.manager_email,
+        hseName: row.hse_name || '', 
+        coordinatorName: row.coordinator_name || '', // Mapeia o novo campo
         active: row.active
       }));
     } catch (error) {
@@ -106,9 +107,9 @@ export const DatabaseService = {
 
   async addCollaborator(c: Collaborator) {
     await sql(
-      `INSERT INTO collaborators (id, name, cpf, sector, role, branch, shift, manager_name, manager_email, active)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-      [c.id, c.name, c.cpf, c.sector, c.role, c.branch, c.shift, c.managerName, c.managerEmail, c.active]
+      `INSERT INTO collaborators (id, name, cpf, sector, role, branch, shift, manager_name, manager_email, hse_name, coordinator_name, active)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+      [c.id, c.name, c.cpf, c.sector, c.role, c.branch, c.shift, c.managerName, c.managerEmail, c.hseName, c.coordinatorName, c.active]
     );
   },
 
@@ -116,7 +117,6 @@ export const DatabaseService = {
       await sql('DELETE FROM collaborators WHERE id = $1', [id]);
   },
 
-  // --- EPIS ---
   async getEpis(): Promise<EPI[]> {
     try {
       const rows = await sql('SELECT * FROM epis');
@@ -125,7 +125,7 @@ export const DatabaseService = {
         description: row.description,
         active: row.active,
         createdAt: row.created_at,
-        stock: row.stock || 0 // Mapeia o estoque
+        stock: row.stock || 0
       }));
     } catch (error) {
       console.error("Erro ao buscar EPIs:", error);
@@ -145,7 +145,6 @@ export const DatabaseService = {
       await sql('DELETE FROM epis WHERE id = $1', [id]);
   },
 
-  // --- ENTREGAS ---
   async getDeliveries(): Promise<Delivery[]> {
     try {
       const rows = await sql('SELECT * FROM deliveries ORDER BY date DESC');
@@ -166,14 +165,12 @@ export const DatabaseService = {
   },
 
   async addDelivery(d: Delivery) {
-    // 1. Registra a entrega
     await sql(
       `INSERT INTO deliveries (id, date, collaborator_id, epi_id, reason, notes, responsible_email, photo)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
       [d.id, d.date, d.collaboratorId, d.epiId, d.reason, d.notes, d.responsibleEmail, d.photo]
     );
 
-    // 2. Decrementa o estoque do EPI
     try {
         await sql(`UPDATE epis SET stock = stock - 1 WHERE id = $1`, [d.epiId]);
     } catch (err) {

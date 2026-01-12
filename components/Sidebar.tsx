@@ -10,7 +10,7 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView }) => {
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'dashboard', label: 'Geral', icon: LayoutDashboard },
     { id: 'new-delivery', label: 'Registrar Saída', icon: ClipboardList },
     { id: 'deliveries', label: 'Histórico', icon: FileText },
     { id: 'epis', label: 'Cadastro EPI', icon: HardHat },

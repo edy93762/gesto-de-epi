@@ -7,8 +7,10 @@ export interface Collaborator {
   role: string; 
   branch: string; 
   shift: 'T1' | 'T2' | 'T3' | 'T4' | 'T5'; 
-  managerName: string; 
+  managerName: string; // Gestor Imediato
   managerEmail: string; 
+  coordinatorName: string; // Novo campo: Coordenador
+  hseName: string; // Responsável HSE
   active: boolean; 
 }
 
@@ -17,7 +19,7 @@ export interface EPI {
   description: string; 
   active: boolean; 
   createdAt: string;
-  stock: number; // Novo campo de quantidade
+  stock: number;
 }
 
 export type DeliveryReason = 'Primeira' | 'Troca validade' | 'Desgaste' | 'Perda' | 'Dano';

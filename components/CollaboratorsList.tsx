@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Collaborator } from '../types';
-import { CheckCircle, XCircle, UserPlus, Building2, User, Trash2, Clock } from 'lucide-react';
+import { CheckCircle, XCircle, UserPlus, Building2, User, Trash2, ShieldAlert, Crown } from 'lucide-react';
 
 interface CollaboratorsListProps {
   collaborators: Collaborator[];
@@ -63,6 +63,18 @@ export const CollaboratorsList: React.FC<CollaboratorsListProps> = ({ collaborat
                    <span className="text-slate-500 uppercase tracking-widest">Gestor</span>
                    <span className="text-white truncate max-w-[120px] text-right">{c.managerName || '-'}</span>
                 </div>
+                 {c.coordinatorName && (
+                    <div className="flex items-center justify-between text-[10px] font-bold">
+                       <span className="text-yellow-600 uppercase tracking-widest flex items-center gap-1"><Crown size={10}/> Coord.</span>
+                       <span className="text-white truncate max-w-[120px] text-right">{c.coordinatorName}</span>
+                    </div>
+                )}
+                {c.hseName && (
+                    <div className="flex items-center justify-between text-[10px] font-bold border-t border-slate-800/50 pt-2">
+                       <span className="text-orange-500 uppercase tracking-widest flex items-center gap-1"><ShieldAlert size={10}/> HSE</span>
+                       <span className="text-white truncate max-w-[120px] text-right">{c.hseName}</span>
+                    </div>
+                )}
               </div>
 
               <div className="flex items-center justify-between pt-6 border-t border-slate-800">

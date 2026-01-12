@@ -150,14 +150,7 @@ const App: React.FC = () => {
       }
   };
 
-  // Função utilitária para limpar entregas manualmente (se necessário)
-  const handleWipeDeliveries = async () => {
-      if(confirm("Tem certeza que deseja APAGAR TODAS as fichas de entrega do banco de dados?")) {
-          await DatabaseService.deleteAllDeliveries();
-          setDeliveries([]);
-          alert("Banco de entregas limpo.");
-      }
-  };
+  // REMOVIDO handleWipeDeliveries manual.
 
   if (isLoading) {
     return (
@@ -177,11 +170,11 @@ const App: React.FC = () => {
           <div className="w-full max-w-2xl animate-in zoom-in-95 duration-300">
              <div className="mb-6 text-center">
                 <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Auto-Cadastro</h2>
-                <p className="text-slate-500 text-xs uppercase tracking-widest mt-1">Seus dados serão salvos no Banco de Dados</p>
              </div>
              <CollaboratorForm 
                 onSave={handleAddCollaborator} 
-                onCancel={() => setIsPublicRegister(false)} 
+                onCancel={() => setIsPublicRegister(false)}
+                existingCollaborators={collaborators} // Passa lista para checar duplicidade
                 isModal={false}
              />
           </div>
@@ -214,12 +207,7 @@ const App: React.FC = () => {
       case 'deliveries':
         return (
              <div className="relative">
-                 <button 
-                    onClick={handleWipeDeliveries} 
-                    className="absolute top-0 right-0 z-10 text-[9px] bg-red-900/20 text-red-500 border border-red-900/50 px-3 py-2 rounded-lg hover:bg-red-900/50 uppercase font-black tracking-widest"
-                 >
-                    Apagar Tudo (Admin)
-                 </button>
+                 {/* Botão de Apagar Tudo removido */}
                  <Deliveries deliveries={deliveries} epis={epis} collaborators={collaborators} />
              </div>
         );
@@ -245,7 +233,8 @@ const App: React.FC = () => {
         return (
           <CollaboratorForm 
             onSave={(c) => { handleAddCollaborator(c); setCurrentView('collaborators'); }} 
-            onCancel={() => setCurrentView('collaborators')} 
+            onCancel={() => setCurrentView('collaborators')}
+            existingCollaborators={collaborators} // Passa lista para checar duplicidade
           />
         );
       case 'epis':
