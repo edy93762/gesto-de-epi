@@ -20,9 +20,9 @@ export const CollaboratorForm: React.FC<CollaboratorFormProps> = ({ onSave, onCa
     managerName: '',
   });
   
-  const [isCameraOpen, setIsCameraOpen] = useState(true);
+  // Estado para controlar se a câmera está em tela cheia
+  const [isCameraFullscreen, setIsCameraFullscreen] = useState(false);
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
-  const [cameraError, setCameraError] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -30,18 +30,19 @@ export const CollaboratorForm: React.FC<CollaboratorFormProps> = ({ onSave, onCa
   const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
-    if (isCameraOpen && !capturedPhoto) {
+    if (isCameraFullscreen && !capturedPhoto) {
       startCamera();
+    } else {
+      stopCamera();
     }
     return () => stopCamera();
-  }, [isCameraOpen, capturedPhoto, facingMode]);
+  }, [isCameraFullscreen, capturedPhoto, facingMode]);
 
   const startCamera = async () => {
     stopCamera();
-    setCameraError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: facingMode, width: { ideal: 640 }, height: { ideal: 640 } } 
+        video: { facingMode: facingMode, width: { ideal: 1920 }, height: { ideal: 1080 } } 
       });
       if (videoRef.current) { 
         videoRef.current.srcObject = stream; 
@@ -49,8 +50,8 @@ export const CollaboratorForm: React.FC<CollaboratorFormProps> = ({ onSave, onCa
       }
     } catch (err) {
       console.error("Erro câmera:", err);
-      setCameraError("Câmera indisponível.");
-      setIsCameraOpen(false);
+      alert("Não foi possível acessar a câmera.");
+      setIsCameraFullscreen(false);
     }
   };
 
@@ -69,21 +70,21 @@ export const CollaboratorForm: React.FC<CollaboratorFormProps> = ({ onSave, onCa
     if (videoRef.current && canvasRef.current) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
-      const size = Math.min(video.videoWidth, video.videoHeight);
-      canvas.width = size;
-      canvas.height = size;
+      
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      
       const context = canvas.getContext('2d');
       if (context) {
         if (facingMode === 'user') {
-            context.translate(size, 0);
+            context.translate(canvas.width, 0);
             context.scale(-1, 1);
         }
 
-        const startX = (video.videoWidth - size) / 2;
-        const startY = (video.videoHeight - size) / 2;
-        context.drawImage(video, startX, startY, size, size, 0, 0, size, size);
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
         setCapturedPhoto(canvas.toDataURL('image/jpeg', 0.8));
         stopCamera();
+        setIsCameraFullscreen(false); // Fecha o modo tela cheia após capturar
       }
     }
   };
@@ -97,6 +98,56 @@ export const CollaboratorForm: React.FC<CollaboratorFormProps> = ({ onSave, onCa
     onSave({ ...formData, id: generateId('COL'), active: true, photo: capturedPhoto || undefined });
   };
 
+  // --- RENDER CAMERA FULLSCREEN ---
+  if (isCameraFullscreen) {
+    return (
+      <div className="fixed inset-0 z-50 bg-black flex flex-col animate-in zoom-in-95 duration-300">
+         {/* Top Bar */}
+         <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-start z-20 bg-gradient-to-b from-black/80 to-transparent">
+            <div>
+               <p className="text-white font-black text-lg uppercase tracking-tight shadow-black drop-shadow-md">Foto de Perfil</p>
+               <p className="text-white/80 text-xs font-bold uppercase tracking-widest drop-shadow-md">Cadastro de Colaborador</p>
+            </div>
+            <button onClick={() => setIsCameraFullscreen(false)} className="bg-white/10 backdrop-blur-md p-3 rounded-full text-white hover:bg-white/20">
+               <X size={24} />
+            </button>
+         </div>
+
+         {/* Camera Viewport */}
+         <div className="flex-1 relative bg-black flex items-center justify-center overflow-hidden">
+             <video 
+               ref={videoRef} 
+               autoPlay 
+               playsInline 
+               muted 
+               className={`absolute inset-0 w-full h-full object-cover ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`} 
+             />
+             
+             {/* Overlay de Guia para Rosto */}
+             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="w-64 h-64 border-4 border-white/30 rounded-full border-dashed"></div>
+             </div>
+
+             <div className="absolute bottom-8 w-full flex justify-center items-center gap-8 z-20 pb-safe">
+                <button type="button" onClick={toggleCamera} className="p-4 bg-white/10 backdrop-blur-md rounded-full text-white border border-white/20 hover:bg-white/20">
+                   <RefreshCw size={24} />
+                </button>
+                <button 
+                   type="button"
+                   onClick={takePhoto} 
+                   className="w-24 h-24 bg-white rounded-full border-4 border-slate-300 shadow-[0_0_30px_rgba(255,255,255,0.3)] active:scale-90 transition-transform flex items-center justify-center"
+                >
+                   <div className="w-20 h-20 border-2 border-black rounded-full"></div>
+                </button>
+                <div className="w-14"></div>
+             </div>
+         </div>
+         <canvas ref={canvasRef} className="hidden" />
+      </div>
+    );
+  }
+
+  // --- RENDER FORMULÁRIO NORMAL ---
   return (
     <div className={`bg-slate-900 rounded-[3rem] border border-slate-800 shadow-2xl overflow-hidden ${isModal ? "w-full max-h-[90vh] overflow-y-auto" : "max-w-2xl mx-auto mb-12"}`}>
       <div className="p-8 border-b border-slate-800 bg-slate-900/50 flex justify-between items-center">
@@ -118,54 +169,28 @@ export const CollaboratorForm: React.FC<CollaboratorFormProps> = ({ onSave, onCa
              {!capturedPhoto && <span className="text-[10px] text-red-500 font-black uppercase tracking-widest ml-auto animate-pulse">* Obrigatório</span>}
           </div>
           
-          <div className="flex justify-center">
-            <div className="relative w-48 h-48 bg-slate-950 rounded-full border-4 border-slate-800 overflow-hidden flex items-center justify-center shadow-2xl">
-               {capturedPhoto ? (
-                  <div className="relative w-full h-full animate-in zoom-in-95">
-                    <img src={capturedPhoto} className="w-full h-full object-cover" />
-                    <button 
-                      type="button" 
-                      onClick={() => { setCapturedPhoto(null); setIsCameraOpen(true); }} 
-                      className="absolute bottom-2 right-2 bg-white p-3 rounded-full shadow-2xl text-slate-900 active:scale-90 transition-all"
-                    >
-                      <RefreshCw size={18} />
-                    </button>
-                  </div>
-               ) : isCameraOpen ? (
-                  <div className="relative w-full h-full">
-                    <video 
-                        ref={videoRef} 
-                        autoPlay 
-                        playsInline 
-                        muted 
-                        className={`w-full h-full object-cover ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`} 
-                    />
-                    <div className="scanner-line"></div>
-                    
-                    <button 
-                      type="button" 
-                      onClick={toggleCamera} 
-                      className="absolute top-2 right-2 p-1.5 bg-slate-950/90 rounded-lg text-white border border-slate-600 hover:bg-slate-800 z-10 flex items-center gap-1"
-                      title="Trocar Câmera"
-                    >
-                      <RefreshCw size={12} />
-                    </button>
-
-                    <button 
-                      type="button" 
-                      onClick={takePhoto} 
-                      className="absolute inset-0 m-auto w-16 h-16 bg-blue-600/90 text-white rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(37,99,235,0.4)] active:scale-95 border-2 border-white/30"
-                    >
-                      <Camera size={28} />
-                    </button>
-                  </div>
-               ) : (
-                  <div className="text-center p-4">
-                    {cameraError ? <AlertCircle className="text-red-500 mx-auto mb-2" /> : <Camera size={32} className="text-slate-800 mx-auto mb-2" />}
-                    <button type="button" onClick={() => setIsCameraOpen(true)} className="text-[10px] font-black uppercase text-blue-500 hover:text-white">Ativar Câmera</button>
-                  </div>
-               )}
-            </div>
+          <div className="flex flex-col items-center gap-4">
+             {capturedPhoto ? (
+                <div className="relative">
+                   <div className="w-48 h-48 rounded-full border-4 border-emerald-500 shadow-2xl overflow-hidden">
+                      <img src={capturedPhoto} className="w-full h-full object-cover" />
+                   </div>
+                   <button 
+                      type="button"
+                      onClick={() => setCapturedPhoto(null)}
+                      className="absolute bottom-0 right-0 bg-red-500 text-white p-3 rounded-full shadow-lg hover:bg-red-600 transition-colors"
+                   >
+                      <RefreshCw size={20} />
+                   </button>
+                </div>
+             ) : (
+                <div className="w-full bg-slate-900 rounded-3xl border-2 border-dashed border-slate-800 p-8 flex flex-col items-center justify-center gap-4 hover:border-blue-500/50 transition-colors cursor-pointer" onClick={() => setIsCameraFullscreen(true)}>
+                   <div className="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center text-blue-500">
+                      <Camera size={40} />
+                   </div>
+                   <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Toque para Abrir Câmera</p>
+                </div>
+             )}
           </div>
         </section>
 

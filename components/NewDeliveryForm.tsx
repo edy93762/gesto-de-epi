@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Collaborator, EPI, Delivery, DeliveryReason } from '../types';
-import { generateId } from '../utils/helpers';
+import { generateId, formatDate, formatDateTime } from '../utils/helpers';
 import { 
   X, 
   User, 
@@ -12,8 +12,13 @@ import {
   Building2,
   RefreshCw,
   ArrowLeft,
-  Package
+  Package,
+  Download,
+  FileText,
+  Shield
 } from 'lucide-react';
+import { jsPDF } from "jspdf";
+import html2canvas from "html2canvas";
 
 interface NewDeliveryFormProps {
   collaborators: Collaborator[];
@@ -39,6 +44,7 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
   // Câmera e Foto
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
+  const [isSaving, setIsSaving] = useState(false);
   
   // Busca
   const [searchTerm, setSearchTerm] = useState('');
@@ -46,6 +52,7 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const receiptRef = useRef<HTMLDivElement>(null); // Ref para o PDF
 
   const filteredCollaborators = collaborators.filter(c => 
     c.active && (
@@ -54,6 +61,8 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
       c.branch.toLowerCase().includes(searchTerm.toLowerCase())
     )
   );
+
+  const selectedEpi = epis.find(e => e.id === selectedEpiId);
 
   // Efeito para controlar a câmera apenas quando estiver no passo CAMERA
   useEffect(() => {
@@ -115,19 +124,55 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
     }
   };
 
-  const handleSave = () => {
+  const generateAndDownloadPDF = async (deliveryId: string) => {
+    if (!receiptRef.current) return;
+    
+    try {
+        const element = receiptRef.current;
+        const canvas = await html2canvas(element, { 
+            scale: 2, 
+            useCORS: true,
+            backgroundColor: "#ffffff",
+            allowTaint: true
+        });
+        
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+        
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        pdf.save(`NR06_${selectedCol?.name?.replace(/\s+/g, '_')}_${deliveryId}.pdf`);
+    } catch (error) {
+        console.error("Erro ao gerar PDF", error);
+        alert("A entrega foi salva, mas houve um erro ao gerar o PDF.");
+    }
+  };
+
+  const handleSave = async () => {
     if (!selectedCol || !selectedEpiId || !capturedPhoto) return;
+    
+    setIsSaving(true);
+    const newId = generateId('REC');
+    
+    // Aguarda um pequeno delay para garantir que o React renderizou o componente oculto com os dados atuais
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    await generateAndDownloadPDF(newId);
+
     onSave({
-      id: generateId('REC'),
+      id: newId,
       date: new Date().toISOString(),
       collaboratorId: selectedCol.id,
       epiId: selectedEpiId,
       reason,
-      notes: 'Entrega Registrada com Foto',
+      notes: 'Entrega com Evidência Fotográfica e Assinatura Digital',
       responsibleEmail: 'admin@nr06.com',
       photo: capturedPhoto,
       verificationResult: { match: true, confidence: 100, reason: 'Registro Fotográfico' }
     });
+    
+    setIsSaving(false);
   };
 
   // --- RENDER STEP 1: SELEÇÃO DE USUÁRIO ---
@@ -302,15 +347,24 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
                      <div className="flex gap-4 max-w-md mx-auto">
                         <button 
                           onClick={() => setCapturedPhoto(null)} 
-                          className="flex-1 py-4 bg-slate-800 text-white rounded-2xl font-black uppercase text-xs tracking-widest border border-slate-700"
+                          disabled={isSaving}
+                          className="flex-1 py-4 bg-slate-800 text-white rounded-2xl font-black uppercase text-xs tracking-widest border border-slate-700 disabled:opacity-50"
                         >
                            Tirar Outra
                         </button>
                         <button 
                           onClick={handleSave} 
-                          className="flex-[2] py-4 bg-emerald-500 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl hover:bg-emerald-400"
+                          disabled={isSaving}
+                          className="flex-[2] py-4 bg-emerald-500 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl hover:bg-emerald-400 disabled:opacity-50 flex items-center justify-center gap-2"
                         >
-                           Confirmar Entrega
+                           {isSaving ? (
+                             <>
+                               <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                               Gerando PDF...
+                             </>
+                           ) : (
+                             "Confirmar & Baixar"
+                           )}
                         </button>
                      </div>
                   </div>
@@ -318,6 +372,114 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
             )}
          </div>
          <canvas ref={canvasRef} className="hidden" />
+
+         {/* --- HIDDEN RECEIPT TEMPLATE FOR PDF --- */}
+         {/* This div is positioned way off-screen but rendered so html2canvas can capture it */}
+         <div 
+            ref={receiptRef} 
+            className="fixed -left-[9999px] top-0 w-[800px] bg-white text-black p-12 font-sans"
+            style={{ width: '800px', minHeight: '1120px' }}
+         >
+            {/* Header */}
+            <div className="border-b-4 border-black pb-6 mb-8 flex justify-between items-start">
+               <div>
+                  <h1 className="text-3xl font-black uppercase tracking-tighter mb-1">Ficha de Entrega de EPI</h1>
+                  <p className="text-sm font-bold uppercase tracking-widest text-gray-500">Norma Regulamentadora NR-06</p>
+               </div>
+               <div className="text-right">
+                  <p className="text-xs font-bold uppercase text-gray-400">Emissão</p>
+                  <p className="text-lg font-mono font-bold">{formatDateTime(new Date().toISOString())}</p>
+               </div>
+            </div>
+
+            {/* Employer / Employee Info */}
+            <div className="grid grid-cols-2 gap-8 mb-8">
+               <div className="bg-gray-100 p-6 rounded-lg">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-gray-500 mb-4">Empregador / Unidade</h3>
+                  <p className="text-xl font-bold uppercase mb-1">{selectedCol?.branch || 'Sede Principal'}</p>
+                  <p className="text-sm text-gray-600">Gestor Resp: {selectedCol?.managerName || 'RH'}</p>
+               </div>
+               <div className="bg-gray-100 p-6 rounded-lg">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-gray-500 mb-4">Colaborador</h3>
+                  <p className="text-xl font-bold uppercase mb-1">{selectedCol?.name}</p>
+                  <div className="flex gap-4 text-sm text-gray-600 font-bold">
+                     <span>MAT: {selectedCol?.matricula || '---'}</span>
+                     <span>|</span>
+                     <span>{selectedCol?.role}</span>
+                  </div>
+               </div>
+            </div>
+
+            {/* EPI Info */}
+            <div className="mb-8 border border-gray-300 rounded-lg overflow-hidden">
+               <div className="bg-black text-white px-6 py-3 text-sm font-black uppercase tracking-widest">Equipamento Fornecido</div>
+               <div className="p-6">
+                  <div className="flex justify-between items-center">
+                     <div>
+                        <p className="text-2xl font-bold uppercase">{selectedEpi?.description}</p>
+                        <p className="text-sm font-bold text-gray-500 mt-1">ID: {selectedEpi?.id}</p>
+                     </div>
+                     <div className="text-right">
+                        <p className="text-xs font-black text-gray-400 uppercase">Certificado de Aprovação</p>
+                        <p className="text-xl font-bold">CA: {selectedEpi?.ca}</p>
+                     </div>
+                  </div>
+                  <div className="mt-4 pt-4 border-t border-gray-200 text-xs text-gray-500 uppercase font-bold">
+                     Motivo da Entrega: <span className="text-black">{reason}</span>
+                  </div>
+               </div>
+            </div>
+
+            {/* Legal Text */}
+            <div className="mb-8 text-xs text-justify leading-relaxed text-gray-600 uppercase border-l-4 border-gray-300 pl-4">
+               <p>
+                  Declaro para os devidos fins que recebi o Equipamento de Proteção Individual (EPI) descrito acima, em perfeito estado de conservação e funcionamento. 
+                  Comprometo-me a utilizá-lo apenas para as finalidades a que se destina, responsabilizando-me pela sua guarda e conservação, comunicando ao empregador qualquer alteração que o torne impróprio para uso, e cumprindo as determinações da NR-06.
+               </p>
+            </div>
+
+            {/* Photo Evidence & Digital Signature */}
+            <div className="grid grid-cols-2 gap-8 items-end">
+               <div>
+                  <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-2">Evidência Fotográfica</p>
+                  <div className="w-full h-64 bg-gray-100 border-2 border-gray-300 rounded-lg overflow-hidden">
+                     {capturedPhoto && <img src={capturedPhoto} className="w-full h-full object-cover grayscale contrast-125" />}
+                  </div>
+               </div>
+               
+               <div className="border-t-2 border-black pt-4">
+                   <p className="text-sm font-bold uppercase mb-2">Assinatura Digital</p>
+                   <div className="border-2 border-black p-4 rounded-lg bg-gray-50 relative overflow-hidden flex flex-col items-center">
+                      <div className="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none">
+                         <Shield size={120} />
+                      </div>
+                      
+                      {/* FOTO DO COLABORADOR NO PDF - FIX */}
+                      {selectedCol?.photo && (
+                        <div className="w-16 h-16 rounded-full border-2 border-gray-300 overflow-hidden mb-2">
+                           <img src={selectedCol.photo} className="w-full h-full object-cover" crossOrigin="anonymous" />
+                        </div>
+                      )}
+
+                      <p className="text-[10px] uppercase font-bold text-gray-500 text-center mb-1">Autenticação Biométrica / Sistema</p>
+                      <p className="text-center font-mono font-bold text-xs break-all leading-tight mb-2">
+                         KEY: {Math.random().toString(36).substring(2, 15).toUpperCase()}-{Date.now().toString(36).toUpperCase()}
+                      </p>
+                      <p className="text-center text-[10px] uppercase font-black">
+                         {selectedCol?.name}
+                      </p>
+                      <p className="text-center text-[8px] text-gray-400 uppercase mt-1">
+                         Assinado Eletronicamente em {formatDate(new Date().toISOString())}
+                      </p>
+                   </div>
+               </div>
+            </div>
+
+            {/* Footer */}
+            <div className="mt-12 pt-6 border-t border-gray-200 text-center">
+               <p className="text-[8px] font-bold text-gray-400 uppercase tracking-[0.5em]">Sistema de Controle NR-06 PRO</p>
+            </div>
+         </div>
       </div>
     );
   }
