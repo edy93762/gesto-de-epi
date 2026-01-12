@@ -1,7 +1,7 @@
 
 {
   "name": "gesto-de-epi",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "private": true,
   "scripts": {
     "dev": "vite",
@@ -14,6 +14,8 @@
     "lucide-react": "^0.460.0",
     "recharts": "^2.13.0",
     "@google/genai": "latest",
+    "jspdf": "^2.5.1",
+    "html2canvas": "^1.4.1",
     "vite": "^5.4.2",
     "@vitejs/plugin-react": "^4.3.1"
   },

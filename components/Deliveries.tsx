@@ -2,7 +2,7 @@
 import React, { useState, useRef } from 'react';
 import { Delivery, EPI, Collaborator } from '../types';
 import { formatDateTime, formatDate } from '../utils/helpers';
-import { Search, Camera, X, ShieldCheck, FileText, Download, User, HardHat as Hat, Tag } from 'lucide-react';
+import { Search, Camera, X, ShieldCheck, FileText, Download, User, HardHat as Hat, Tag, MapPin, Briefcase } from 'lucide-react';
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
 
@@ -32,15 +32,20 @@ export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collab
     if (!fichaRef.current) return;
     setIsExporting(true);
     try {
-      const canvas = await html2canvas(fichaRef.current, { scale: 2 });
+      const canvas = await html2canvas(fichaRef.current, { 
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: "#ffffff"
+      });
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`FICHA_EPI_${fichaPreview?.id}.pdf`);
+      pdf.save(`FICHA_EPI_${fichaPreview?.id || 'RECEBIMENTO'}.pdf`);
     } catch (error) {
-      console.error(error);
+      console.error("Erro ao gerar PDF:", error);
     } finally {
       setIsExporting(false);
     }
@@ -115,6 +120,15 @@ export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collab
         </div>
       </div>
 
+      {selectedPhoto && (
+        <div className="fixed inset-0 z-[110] bg-black/95 backdrop-blur-md flex items-center justify-center p-4" onClick={() => setSelectedPhoto(null)}>
+          <div className="relative max-w-lg w-full">
+            <img src={selectedPhoto} className="w-full h-auto rounded-[2rem] shadow-2xl border-4 border-slate-800" />
+            <button className="absolute -top-12 right-0 text-white p-2"><X size={32} /></button>
+          </div>
+        </div>
+      )}
+
       {fichaPreview && (
         <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden relative animate-in zoom-in-95 duration-300">
@@ -126,76 +140,105 @@ export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collab
             </div>
 
             <div ref={fichaRef} className="p-16 bg-white text-slate-900 font-serif leading-relaxed">
+               {/* CABEÇALHO GRUPADO */}
                <div className="flex justify-between items-start border-b-4 border-slate-900 pb-10 mb-10">
                   <div className="space-y-1">
                     <h1 className="text-3xl font-black tracking-tighter uppercase leading-none">Recibo de Entrega de EPI</h1>
-                    <p className="text-[10px] uppercase font-bold text-slate-400 tracking-[0.3em]">Controle Interno de Segurança</p>
+                    <p className="text-[10px] uppercase font-bold text-slate-400 tracking-[0.3em]">NR-06 | Controle de Segurança e Saúde</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Registro</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Cod. Registro</p>
                     <p className="text-lg font-black text-blue-600">{fichaPreview.id}</p>
                   </div>
                </div>
                
-               <div className="grid grid-cols-2 gap-10 mb-12">
-                  <div className="space-y-4">
-                    <div>
-                      <span className="block text-[8px] uppercase font-bold text-slate-400 tracking-widest mb-1">Colaborador</span>
-                      <span className="font-black uppercase text-base text-slate-900 leading-tight">{getCollaborator(fichaPreview.collaboratorId)?.name}</span>
-                    </div>
-                    <div>
-                      <span className="block text-[8px] uppercase font-bold text-slate-400 tracking-widest mb-1">Função / Cargo</span>
-                      <span className="font-bold text-xs">{getCollaborator(fichaPreview.collaboratorId)?.role}</span>
-                    </div>
+               {/* GRUPO: DADOS DO COLABORADOR */}
+               <div className="bg-slate-50 p-8 rounded-3xl border border-slate-100 mb-10">
+                  <div className="flex items-center gap-2 mb-6 border-b border-slate-200 pb-2">
+                     <User size={14} className="text-blue-600" />
+                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Grupo: Dados do Beneficiário</span>
                   </div>
-                  <div className="space-y-4">
-                    <div>
-                      <span className="block text-[8px] uppercase font-bold text-slate-400 tracking-widest mb-1">Data de Emissão</span>
-                      <span className="font-bold text-sm">{formatDate(fichaPreview.date)}</span>
+                  <div className="grid grid-cols-2 gap-8">
+                    <div className="space-y-4">
+                      <div>
+                        <span className="block text-[8px] uppercase font-bold text-slate-400 tracking-widest mb-1">Nome Completo</span>
+                        <span className="font-black uppercase text-base text-slate-900 leading-tight">{getCollaborator(fichaPreview.collaboratorId)?.name}</span>
+                      </div>
+                      <div>
+                        <span className="block text-[8px] uppercase font-bold text-slate-400 tracking-widest mb-1 flex items-center gap-1"><Briefcase size={8}/> Cargo</span>
+                        <span className="font-bold text-xs">{getCollaborator(fichaPreview.collaboratorId)?.role}</span>
+                      </div>
                     </div>
-                    <div>
-                      <span className="block text-[8px] uppercase font-bold text-slate-400 tracking-widest mb-1">Matrícula</span>
-                      <span className="font-bold text-sm">{getCollaborator(fichaPreview.collaboratorId)?.matricula}</span>
+                    <div className="space-y-4">
+                      <div>
+                        <span className="block text-[8px] uppercase font-bold text-slate-400 tracking-widest mb-1">Matrícula</span>
+                        <span className="font-bold text-sm">{getCollaborator(fichaPreview.collaboratorId)?.matricula}</span>
+                      </div>
+                      <div>
+                        <span className="block text-[8px] uppercase font-bold text-slate-400 tracking-widest mb-1 flex items-center gap-1"><MapPin size={8}/> Unidade/Agência</span>
+                        <span className="font-bold text-xs">{getCollaborator(fichaPreview.collaboratorId)?.branch}</span>
+                      </div>
                     </div>
                   </div>
                </div>
 
-               <div className="mb-12 border border-slate-900 rounded-2xl overflow-hidden">
+               {/* GRUPO: DADOS DO EQUIPAMENTO */}
+               <div className="mb-12 border-2 border-slate-100 rounded-3xl overflow-hidden shadow-sm">
+                 <div className="bg-slate-900 text-white p-4 flex items-center gap-2">
+                    <Hat size={16} />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Grupo: Equipamento Fornecido</span>
+                 </div>
                  <table className="w-full border-collapse">
-                    <thead className="bg-slate-900 text-white text-[9px] uppercase font-black tracking-widest">
+                    <thead className="bg-slate-50 text-slate-500 text-[9px] uppercase font-black tracking-widest border-b border-slate-200">
                       <tr>
-                        <th className="px-4 py-3 text-left">Equipamento (EPI)</th>
-                        <th className="px-4 py-3 text-right">Código ID</th>
+                        <th className="px-6 py-4 text-left">Especificação Técnica</th>
+                        <th className="px-6 py-4 text-left">ID Interno</th>
+                        <th className="px-6 py-4 text-right">Certificado CA</th>
                       </tr>
                     </thead>
                     <tbody className="text-xs">
                       <tr>
-                        <td className="px-4 py-6 font-bold uppercase">{getEPI(fichaPreview.epiId)?.description}</td>
-                        <td className="px-4 py-6 text-right font-mono font-black">{fichaPreview.epiId}</td>
+                        <td className="px-6 py-6 font-bold uppercase text-slate-900">{getEPI(fichaPreview.epiId)?.description}</td>
+                        <td className="px-6 py-6 font-mono font-black text-blue-600">{fichaPreview.epiId}</td>
+                        <td className="px-6 py-6 text-right font-black text-slate-900">{getEPI(fichaPreview.epiId)?.ca || '---'}</td>
                       </tr>
                     </tbody>
                  </table>
                </div>
 
-               <div className="flex justify-between items-end gap-12 mt-20">
-                  <div className="flex-1 flex flex-col items-center">
-                     <div className="w-full border-t-2 border-slate-900 mb-2"></div>
-                     <span className="text-[10px] uppercase font-black tracking-widest">Assinatura do Funcionário</span>
-                  </div>
-                  <div className="shrink-0 flex flex-col items-center gap-3">
-                     <div className="w-32 h-32 rounded-3xl border-4 border-slate-100 overflow-hidden shadow-2xl relative grayscale">
-                        {fichaPreview.photo && <img src={fichaPreview.photo} className="w-full h-full object-cover" />}
+               {/* GRUPO: TERMO E AUTENTICAÇÃO */}
+               <div className="mb-12">
+                  <p className="text-[10px] text-slate-500 leading-relaxed text-justify mb-10">
+                    Declaro ter recebido da empresa o Equipamento de Proteção Individual (EPI) acima descrito, em perfeitas condições de uso, orientações sobre a forma correta de utilização e conservação. Comprometo-me a utilizá-lo apenas para as finalidades a que se destina e devolvê-lo quando solicitado ou na rescisão do contrato de trabalho.
+                  </p>
+                  
+                  <div className="flex justify-between items-end gap-12 pt-8">
+                     <div className="flex-1 flex flex-col items-center">
+                        <div className="w-full border-t-2 border-slate-900 mb-2"></div>
+                        <span className="text-[10px] uppercase font-black tracking-widest">Assinatura Eletrônica do Funcionário</span>
+                        <span className="text-[8px] text-slate-400 mt-1">Data: {formatDate(fichaPreview.date)}</span>
                      </div>
-                     <span className="text-[8px] font-black text-emerald-600 uppercase flex items-center gap-1 tracking-widest">
-                        <ShieldCheck size={10} /> Face Validada
-                     </span>
+                     <div className="shrink-0 flex flex-col items-center gap-3">
+                        <div className="w-32 h-32 rounded-3xl border-4 border-slate-100 overflow-hidden shadow-2xl relative">
+                           {fichaPreview.photo && <img src={fichaPreview.photo} className="w-full h-full object-cover filter contrast-125" />}
+                           <div className="absolute inset-0 border-2 border-slate-900/10 pointer-events-none rounded-3xl"></div>
+                        </div>
+                        <span className="text-[8px] font-black text-emerald-600 uppercase flex items-center gap-1 tracking-widest bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100">
+                           <ShieldCheck size={10} /> Face Validada via Gemini AI
+                        </span>
+                     </div>
                   </div>
                </div>
             </div>
 
-            <div className="p-10 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row justify-end gap-4">
-               <button onClick={generatePDF} disabled={isExporting} className="flex items-center justify-center gap-3 bg-slate-900 text-white px-12 py-5 rounded-2xl font-black uppercase text-xs hover:bg-blue-600 transition-all shadow-xl active:scale-95">
-                 <Download size={18} /> Exportar Documento
+            <div className="p-10 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row justify-end gap-4 no-print">
+               <button 
+                 onClick={generatePDF} 
+                 disabled={isExporting} 
+                 className="flex items-center justify-center gap-3 bg-slate-900 text-white px-12 py-5 rounded-2xl font-black uppercase text-xs hover:bg-blue-600 transition-all shadow-xl active:scale-95 disabled:opacity-50"
+               >
+                 {isExporting ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
+                 {isExporting ? 'Processando Documento...' : 'Exportar Ficha Oficial'}
                </button>
             </div>
           </div>
@@ -204,3 +247,20 @@ export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collab
     </div>
   );
 };
+
+// Componente Loader auxiliar para o botão
+const Loader2 = ({ size, className }: { size: number, className?: string }) => (
+  <svg 
+    width={size} 
+    height={size} 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="3" 
+    strokeLinecap="round" 
+    strokeLinejoin="round" 
+    className={className}
+  >
+    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+  </svg>
+);
