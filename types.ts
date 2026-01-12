@@ -6,7 +6,7 @@ export interface Collaborator {
   sector: string; 
   role: string; 
   branch: string; 
-  managerEmail: string; 
+  managerName: string; // Alterado de Email para Nome
   active: boolean; 
   photo?: string; 
 }
@@ -17,7 +17,6 @@ export interface EPI {
   category: string; 
   active: boolean; 
   createdAt: string;
-  // Added ca and validityCA to fix errors in Inventory.tsx and support technical standards compliance
   ca?: string;
   validityCA?: string;
 }

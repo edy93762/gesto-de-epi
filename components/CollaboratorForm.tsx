@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Collaborator } from '../types';
 import { generateId } from '../utils/helpers';
-import { UserPlus, X, Camera, RefreshCw, User, Briefcase, Mail, Scan, AlertCircle, Building2 } from 'lucide-react';
+import { UserPlus, X, Camera, RefreshCw, User, Briefcase, UserCheck, Scan, AlertCircle, Building2 } from 'lucide-react';
 
 interface CollaboratorFormProps {
   onSave: (collaborator: Collaborator) => void;
@@ -17,13 +17,12 @@ export const CollaboratorForm: React.FC<CollaboratorFormProps> = ({ onSave, onCa
     sector: '',
     role: '',
     branch: '',
-    managerEmail: '',
+    managerName: '',
   });
   
   const [isCameraOpen, setIsCameraOpen] = useState(true);
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
-  // Padrão Traseira
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -75,7 +74,6 @@ export const CollaboratorForm: React.FC<CollaboratorFormProps> = ({ onSave, onCa
       canvas.height = size;
       const context = canvas.getContext('2d');
       if (context) {
-        // Espelha se for frontal
         if (facingMode === 'user') {
             context.translate(size, 0);
             context.scale(-1, 1);
@@ -93,7 +91,7 @@ export const CollaboratorForm: React.FC<CollaboratorFormProps> = ({ onSave, onCa
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!capturedPhoto) {
-      alert("ATENÇÃO: A foto biométrica é OBRIGATÓRIA para o cadastro.");
+      alert("ATENÇÃO: A foto de cadastro é OBRIGATÓRIA.");
       return;
     }
     onSave({ ...formData, id: generateId('COL'), active: true, photo: capturedPhoto || undefined });
@@ -112,11 +110,11 @@ export const CollaboratorForm: React.FC<CollaboratorFormProps> = ({ onSave, onCa
 
       <form onSubmit={handleSubmit} className="p-8 space-y-8">
         
-        {/* BIOMETRIC ENROLLMENT */}
+        {/* FOTO DE PERFIL */}
         <section className="bg-slate-950/50 p-8 rounded-[3rem] border border-slate-800/50 space-y-6 relative">
           <div className="flex items-center gap-3 border-b border-slate-800 pb-4">
              <Scan size={18} className="text-blue-500" />
-             <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Captura Biométrica de Referência</h3>
+             <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Foto de Perfil</h3>
              {!capturedPhoto && <span className="text-[10px] text-red-500 font-black uppercase tracking-widest ml-auto animate-pulse">* Obrigatório</span>}
           </div>
           
@@ -144,7 +142,6 @@ export const CollaboratorForm: React.FC<CollaboratorFormProps> = ({ onSave, onCa
                     />
                     <div className="scanner-line"></div>
                     
-                    {/* Botão de Troca Visível */}
                     <button 
                       type="button" 
                       onClick={toggleCamera} 
@@ -170,15 +167,14 @@ export const CollaboratorForm: React.FC<CollaboratorFormProps> = ({ onSave, onCa
                )}
             </div>
           </div>
-          <p className="text-center text-[9px] text-slate-500 font-bold uppercase tracking-widest">Posicione o rosto no círculo e clique na câmera</p>
         </section>
 
-        {/* FORM DATA */}
+        {/* DADOS DO FORMULÁRIO */}
         <section className="space-y-6">
           <div className="bg-slate-950/50 p-6 rounded-3xl border border-slate-800/50 space-y-4">
             <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
                <User size={14} className="text-emerald-500" />
-               <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Identificação Básica</h3>
+               <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Identificação</h3>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
@@ -202,7 +198,7 @@ export const CollaboratorForm: React.FC<CollaboratorFormProps> = ({ onSave, onCa
           <div className="bg-slate-950/50 p-6 rounded-3xl border border-slate-800/50 space-y-4">
             <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
                <Briefcase size={14} className="text-orange-500" />
-               <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Vínculo Operacional</h3>
+               <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Dados Operacionais</h3>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -214,8 +210,8 @@ export const CollaboratorForm: React.FC<CollaboratorFormProps> = ({ onSave, onCa
                 <input required type="text" className="w-full p-4 bg-slate-950 border border-slate-800 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-white text-sm font-bold" value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })} />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2"><Mail size={10} /> E-mail do Gestor (Notificações)</label>
-                <input required type="email" className="w-full p-4 bg-slate-950 border border-slate-800 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-white text-sm font-bold" value={formData.managerEmail} onChange={(e) => setFormData({ ...formData, managerEmail: e.target.value })} />
+                <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2"><UserCheck size={10} /> Nome do Gestor</label>
+                <input required type="text" className="w-full p-4 bg-slate-950 border border-slate-800 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-white text-sm font-bold" value={formData.managerName} onChange={(e) => setFormData({ ...formData, managerName: e.target.value })} placeholder="Nome do Responsável" />
               </div>
             </div>
           </div>
@@ -223,11 +219,7 @@ export const CollaboratorForm: React.FC<CollaboratorFormProps> = ({ onSave, onCa
 
         <div className="flex justify-end gap-4 pt-8 border-t border-slate-800">
           <button type="button" onClick={onCancel} className="px-8 py-4 text-slate-500 font-black uppercase text-[10px] tracking-widest hover:text-white transition-colors">Cancelar</button>
-          <button 
-            type="submit" 
-            disabled={!capturedPhoto} 
-            className="px-12 py-5 bg-white text-black font-black rounded-2xl hover:bg-blue-600 hover:text-white transition-all active:scale-95 uppercase text-[11px] tracking-widest disabled:opacity-20 shadow-2xl disabled:cursor-not-allowed"
-          >
+          <button type="submit" disabled={!capturedPhoto} className="px-12 py-5 bg-white text-black font-black rounded-2xl hover:bg-blue-600 hover:text-white transition-all active:scale-95 uppercase text-[11px] tracking-widest disabled:opacity-20 shadow-2xl disabled:cursor-not-allowed">
             {capturedPhoto ? 'Efetivar Cadastro' : 'Aguardando Foto...'}
           </button>
         </div>
