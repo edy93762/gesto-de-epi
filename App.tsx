@@ -58,11 +58,27 @@ const App: React.FC = () => {
     localStorage.setItem('epi_cols', JSON.stringify(updated));
   };
 
+  const handleDeleteCollaborator = (id: string) => {
+    if (window.confirm('Deseja realmente excluir este colaborador? O histórico de entregas permanecerá intacto.')) {
+      const updated = collaborators.filter(c => c.id !== id);
+      setCollaborators(updated);
+      localStorage.setItem('epi_cols', JSON.stringify(updated));
+    }
+  };
+
   const handleAddEPI = (newEpi: EPI) => {
     const updated = [...epis, newEpi];
     setEpis(updated);
     localStorage.setItem('epi_data', JSON.stringify(updated));
     setCurrentView('epis');
+  };
+
+  const handleDeleteEPI = (id: string) => {
+    if (window.confirm('Deseja realmente excluir este EPI?')) {
+      const updated = epis.filter(e => e.id !== id);
+      setEpis(updated);
+      localStorage.setItem('epi_data', JSON.stringify(updated));
+    }
   };
 
   const handleSaveDelivery = (delivery: Delivery) => {
@@ -75,7 +91,7 @@ const App: React.FC = () => {
   const renderContent = () => {
     switch (currentView) {
       case 'dashboard':
-        return <Dashboard deliveries={deliveries} epis={epis} collaborators={collaborators} />;
+        return <Dashboard deliveries={deliveries} epis={epis} collaborators={collaborators} onNavigate={setCurrentView} />;
       case 'deliveries':
         return <Deliveries deliveries={deliveries} epis={epis} collaborators={collaborators} />;
       case 'new-delivery':
@@ -89,23 +105,29 @@ const App: React.FC = () => {
           />
         );
       case 'collaborators':
-        return <CollaboratorsList collaborators={collaborators} onAddClick={() => setCurrentView('new-collaborator')} />;
+        return (
+          <CollaboratorsList 
+            collaborators={collaborators} 
+            onAddClick={() => setCurrentView('new-collaborator')} 
+            onDelete={handleDeleteCollaborator}
+          />
+        );
       case 'new-collaborator':
         return <CollaboratorForm onSave={(c) => { handleAddCollaborator(c); setCurrentView('collaborators'); }} onCancel={() => setCurrentView('collaborators')} />;
       case 'epis':
-        return <Inventory epis={epis} onAddClick={() => setCurrentView('new-epi')} />;
+        return <Inventory epis={epis} onAddClick={() => setCurrentView('new-epi')} onDelete={handleDeleteEPI} />;
       case 'new-epi':
         return <EPIForm existingEpis={epis} onSave={handleAddEPI} onCancel={() => setCurrentView('epis')} />;
       default:
-        return <Dashboard deliveries={deliveries} epis={epis} collaborators={collaborators} />;
+        return <Dashboard deliveries={deliveries} epis={epis} collaborators={collaborators} onNavigate={setCurrentView} />;
     }
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-50 font-sans text-slate-900">
+    <div className="flex min-h-screen bg-slate-50 font-sans text-slate-900 pb-20 md:pb-0">
       <Sidebar currentView={currentView} onChangeView={setCurrentView} />
       
-      <main className="flex-1 ml-64 p-8 transition-all">
+      <main className="flex-1 md:ml-64 p-4 md:p-8 transition-all overflow-x-hidden">
         <div className="max-w-7xl mx-auto animate-in fade-in duration-500">
             {renderContent()}
         </div>

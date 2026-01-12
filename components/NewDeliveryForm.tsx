@@ -62,16 +62,29 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
       return;
     }
 
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        streamRef.current = stream;
-        setIsCameraOpen(true);
+    const constraints = [
+      { video: { facingMode: 'user' } }, // Preferência: Câmera frontal
+      { video: true } // Fallback: Qualquer câmera
+    ];
+
+    let success = false;
+    for (const constraint of constraints) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia(constraint);
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          streamRef.current = stream;
+          setIsCameraOpen(true);
+          success = true;
+          break;
+        }
+      } catch (err) {
+        console.warn("Tentativa de abrir câmera falhou com constraint:", constraint, err);
       }
-    } catch (err) {
-      console.error("Erro ao acessar a câmera:", err);
-      alert("Não foi possível acessar a câmera.");
+    }
+
+    if (!success) {
+      alert("Não foi possível acessar a câmera. Verifique se deu permissão no navegador ou se outro app a está usando.");
     }
   };
 
@@ -199,7 +212,6 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
     setShowQuickAdd(false);
   };
 
-  const selectedEpi = epis.find(e => e.id === formData.epiId);
   const selectedCollaborator = collaborators.find(c => c.id === formData.collaboratorId);
 
   return (

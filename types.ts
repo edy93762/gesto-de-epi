@@ -5,6 +5,7 @@ export interface Collaborator {
   matricula: string; // Matrícula
   sector: string; // Setor
   role: string; // Cargo
+  branch: string; // Agência / Unidade (NOVO)
   managerEmail: string; // GestorEmail
   active: boolean; // Ativo (TRUE/FALSE)
   photo?: string; // Para reconhecimento facial (Assinatura base)
