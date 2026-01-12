@@ -1,7 +1,7 @@
 
 {
-  "name": "controle-epi-biometria",
-  "version": "1.0.0",
+  "name": "gesto-de-epi",
+  "version": "1.0.2",
   "private": true,
   "dependencies": {
     "react": "^19.0.0",
