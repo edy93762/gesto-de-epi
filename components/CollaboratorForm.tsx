@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Collaborator } from '../types';
 import { generateId } from '../utils/helpers';
-import { Save, UserPlus, X, Camera, RefreshCw, User, Briefcase, Mail } from 'lucide-react';
+import { Save, UserPlus, X, Camera, RefreshCw, User, Briefcase, Mail, Scan, AlertCircle } from 'lucide-react';
 
 interface CollaboratorFormProps {
   onSave: (collaborator: Collaborator) => void;
@@ -22,58 +22,55 @@ export const CollaboratorForm: React.FC<CollaboratorFormProps> = ({ onSave, onCa
   
   const [isCameraOpen, setIsCameraOpen] = useState(true);
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
-    if (isCameraOpen && videoRef.current && !streamRef.current) {
-      const initCamera = async () => {
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { facingMode: 'user' } 
-          });
-          if (videoRef.current) { 
-            videoRef.current.srcObject = stream; 
-            streamRef.current = stream; 
-          }
-        } catch (err) {
-          console.error("Erro ao acessar câmera frontal:", err);
-          try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-            if (videoRef.current) { 
-              videoRef.current.srcObject = stream; 
-              streamRef.current = stream; 
-            }
-          } catch (e) { 
-            alert("Acesso à câmera negado."); 
-            setIsCameraOpen(false); 
-          }
-        }
-      };
-      initCamera();
+    if (isCameraOpen && !capturedPhoto) {
+      startCamera();
     }
-  }, [isCameraOpen]);
+    return () => stopCamera();
+  }, [isCameraOpen, capturedPhoto]);
 
-  useEffect(() => { return () => stopCamera(); }, []);
+  const startCamera = async () => {
+    setCameraError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 640 } } 
+      });
+      if (videoRef.current) { 
+        videoRef.current.srcObject = stream; 
+        streamRef.current = stream; 
+      }
+    } catch (err) {
+      console.error("Erro câmera:", err);
+      setCameraError("Câmera indisponível.");
+      setIsCameraOpen(false);
+    }
+  };
 
   const stopCamera = () => {
     if (streamRef.current) { 
       streamRef.current.getTracks().forEach(track => track.stop()); 
       streamRef.current = null; 
     }
-    setIsCameraOpen(false);
   };
 
   const takePhoto = () => {
     if (videoRef.current && canvasRef.current) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      const size = Math.min(video.videoWidth, video.videoHeight);
+      canvas.width = size;
+      canvas.height = size;
       const context = canvas.getContext('2d');
       if (context) {
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const startX = (video.videoWidth - size) / 2;
+        const startY = (video.videoHeight - size) / 2;
+        context.drawImage(video, startX, startY, size, size, 0, 0, size, size);
         setCapturedPhoto(canvas.toDataURL('image/jpeg', 0.8));
         stopCamera();
       }
@@ -82,6 +79,10 @@ export const CollaboratorForm: React.FC<CollaboratorFormProps> = ({ onSave, onCa
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!capturedPhoto) {
+      alert("A foto biométrica é obrigatória para o cadastro.");
+      return;
+    }
     onSave({ ...formData, id: generateId('COL'), active: true, photo: capturedPhoto || undefined });
   };
 
@@ -90,7 +91,7 @@ export const CollaboratorForm: React.FC<CollaboratorFormProps> = ({ onSave, onCa
       <div className="p-8 border-b border-slate-800 bg-slate-900/50 flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-black text-white uppercase tracking-tighter flex items-center gap-3">
-            <UserPlus className="text-blue-500" size={24} /> Novo Colaborador
+            <UserPlus className="text-blue-500" size={24} /> Novo Cadastro
           </h2>
         </div>
         <button onClick={onCancel} className="text-slate-500 hover:text-white transition-colors p-2"><X size={24} /></button>
@@ -98,85 +99,102 @@ export const CollaboratorForm: React.FC<CollaboratorFormProps> = ({ onSave, onCa
 
       <form onSubmit={handleSubmit} className="p-8 space-y-8">
         
-        {/* GRUPO 1: BIOMETRIA */}
-        <section className="bg-slate-950/50 p-6 rounded-3xl border border-slate-800/50 space-y-4">
-          <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
-             <Camera size={14} className="text-blue-500" />
-             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Grupo: Biometria Facial</h3>
+        {/* BIOMETRIC ENROLLMENT */}
+        <section className="bg-slate-950/50 p-8 rounded-[3rem] border border-slate-800/50 space-y-6">
+          <div className="flex items-center gap-3 border-b border-slate-800 pb-4">
+             <Scan size={18} className="text-blue-500" />
+             <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Captura Biométrica de Referência</h3>
           </div>
-          <div className="flex justify-center py-2">
-            <div className="relative w-32 h-32 bg-slate-950 rounded-full border-2 border-slate-800 overflow-hidden flex items-center justify-center">
+          
+          <div className="flex justify-center">
+            <div className="relative w-48 h-48 bg-slate-950 rounded-full border-4 border-slate-800 overflow-hidden flex items-center justify-center shadow-2xl">
                {capturedPhoto ? (
-                  <div className="relative w-full h-full">
+                  <div className="relative w-full h-full animate-in zoom-in-95">
                     <img src={capturedPhoto} className="w-full h-full object-cover" />
-                    <button type="button" onClick={() => { setCapturedPhoto(null); setIsCameraOpen(true); }} className="absolute bottom-1 right-1 bg-white p-2 rounded-full shadow-lg text-slate-900"><RefreshCw size={14} /></button>
+                    <button 
+                      type="button" 
+                      onClick={() => { setCapturedPhoto(null); setIsCameraOpen(true); }} 
+                      className="absolute bottom-2 right-2 bg-white p-3 rounded-full shadow-2xl text-slate-900 active:scale-90 transition-all"
+                    >
+                      <RefreshCw size={18} />
+                    </button>
                   </div>
                ) : isCameraOpen ? (
                   <div className="relative w-full h-full">
                     <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
-                    <button type="button" onClick={takePhoto} className="absolute inset-0 m-auto w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-lg active:scale-95"><Camera size={20} /></button>
+                    <div className="scanner-line"></div>
+                    <button 
+                      type="button" 
+                      onClick={takePhoto} 
+                      className="absolute inset-0 m-auto w-16 h-16 bg-blue-600/90 text-white rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(37,99,235,0.4)] active:scale-95 border-2 border-white/30"
+                    >
+                      <Camera size={28} />
+                    </button>
                   </div>
                ) : (
-                  <button type="button" onClick={() => setIsCameraOpen(true)} className="text-slate-700 hover:text-white flex flex-col items-center gap-1 transition-colors">
-                    <Camera size={32} className="opacity-20" />
-                    <span className="text-[8px] font-black uppercase">Ativar</span>
-                  </button>
+                  <div className="text-center p-4">
+                    {cameraError ? <AlertCircle className="text-red-500 mx-auto mb-2" /> : <Camera size={32} className="text-slate-800 mx-auto mb-2" />}
+                    <button type="button" onClick={() => setIsCameraOpen(true)} className="text-[10px] font-black uppercase text-blue-500 hover:text-white">Ativar Câmera</button>
+                  </div>
                )}
             </div>
           </div>
+          <p className="text-center text-[9px] text-slate-500 font-bold uppercase tracking-widest">Posicione o rosto no círculo e clique na câmera</p>
         </section>
 
-        {/* GRUPO 2: DADOS PESSOAIS */}
-        <section className="bg-slate-950/50 p-6 rounded-3xl border border-slate-800/50 space-y-4">
-          <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
-             <User size={14} className="text-emerald-500" />
-             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Grupo: Identificação</h3>
+        {/* FORM DATA */}
+        <section className="space-y-6">
+          <div className="bg-slate-950/50 p-6 rounded-3xl border border-slate-800/50 space-y-4">
+            <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
+               <User size={14} className="text-emerald-500" />
+               <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Identificação Básica</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Nome Completo</label>
+                <input required type="text" className="w-full p-4 bg-slate-950 border border-slate-800 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-white text-sm font-bold transition-all" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
+              </div>
+              <div>
+                <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Matrícula / ID Funcional</label>
+                <input required type="text" className="w-full p-4 bg-slate-950 border border-slate-800 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-white text-sm font-bold" value={formData.matricula} onChange={(e) => setFormData({ ...formData, matricula: e.target.value })} />
+              </div>
+              <div>
+                <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Agência / Unidade</label>
+                <input required type="text" className="w-full p-4 bg-slate-950 border border-slate-800 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-white text-sm font-bold" value={formData.branch} onChange={(e) => setFormData({ ...formData, branch: e.target.value })} />
+              </div>
+            </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2">
-              <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Nome Completo</label>
-              <input required type="text" className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl focus:ring-1 focus:ring-blue-600 outline-none text-white text-sm" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
+
+          <div className="bg-slate-950/50 p-6 rounded-3xl border border-slate-800/50 space-y-4">
+            <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
+               <Briefcase size={14} className="text-orange-500" />
+               <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Vínculo Operacional</h3>
             </div>
-            <div>
-              <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Matrícula</label>
-              <input required type="text" className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl focus:ring-1 focus:ring-blue-600 outline-none text-white text-sm" value={formData.matricula} onChange={(e) => setFormData({ ...formData, matricula: e.target.value })} />
-            </div>
-            <div>
-              <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Agência/Filial</label>
-              <input required type="text" className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl focus:ring-1 focus:ring-blue-600 outline-none text-white text-sm" value={formData.branch} onChange={(e) => setFormData({ ...formData, branch: e.target.value })} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Setor</label>
+                <input required type="text" className="w-full p-4 bg-slate-950 border border-slate-800 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-white text-sm font-bold" value={formData.sector} onChange={(e) => setFormData({ ...formData, sector: e.target.value })} />
+              </div>
+              <div>
+                <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Cargo</label>
+                <input required type="text" className="w-full p-4 bg-slate-950 border border-slate-800 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-white text-sm font-bold" value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })} />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2"><Mail size={10} /> E-mail do Gestor (Notificações)</label>
+                <input required type="email" className="w-full p-4 bg-slate-950 border border-slate-800 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-white text-sm font-bold" value={formData.managerEmail} onChange={(e) => setFormData({ ...formData, managerEmail: e.target.value })} />
+              </div>
             </div>
           </div>
         </section>
 
-        {/* GRUPO 3: DADOS PROFISSIONAIS */}
-        <section className="bg-slate-950/50 p-6 rounded-3xl border border-slate-800/50 space-y-4">
-          <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
-             <Briefcase size={14} className="text-orange-500" />
-             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Grupo: Alotação</h3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Setor</label>
-              <input required type="text" className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl focus:ring-1 focus:ring-blue-600 outline-none text-white text-sm" value={formData.sector} onChange={(e) => setFormData({ ...formData, sector: e.target.value })} />
-            </div>
-            <div>
-              <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Cargo</label>
-              <input required type="text" className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl focus:ring-1 focus:ring-blue-600 outline-none text-white text-sm" value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })} />
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2"><Mail size={10} /> E-mail do Gestor Direto</label>
-              <input required type="email" className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl focus:ring-1 focus:ring-blue-600 outline-none text-white text-sm" value={formData.managerEmail} onChange={(e) => setFormData({ ...formData, managerEmail: e.target.value })} />
-            </div>
-          </div>
-        </section>
-
-        <div className="flex justify-end gap-3 pt-6 border-t border-slate-800">
-          <button type="button" onClick={onCancel} className="px-6 py-3 text-slate-500 font-black uppercase text-[10px] tracking-widest">Cancelar</button>
-          <button type="submit" className="px-10 py-4 bg-white text-black font-black rounded-xl hover:bg-blue-600 hover:text-white transition-all active:scale-95 uppercase text-[10px] tracking-widest">
-            Confirmar Registro
+        <div className="flex justify-end gap-4 pt-8 border-t border-slate-800">
+          <button type="button" onClick={onCancel} className="px-8 py-4 text-slate-500 font-black uppercase text-[10px] tracking-widest hover:text-white transition-colors">Cancelar</button>
+          <button type="submit" disabled={!capturedPhoto} className="px-12 py-5 bg-white text-black font-black rounded-2xl hover:bg-blue-600 hover:text-white transition-all active:scale-95 uppercase text-[11px] tracking-widest disabled:opacity-20 shadow-2xl">
+            Efetivar Cadastro
           </button>
         </div>
       </form>
+      <canvas ref={canvasRef} className="hidden" />
     </div>
   );
 };
