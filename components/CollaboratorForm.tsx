@@ -23,6 +23,8 @@ export const CollaboratorForm: React.FC<CollaboratorFormProps> = ({ onSave, onCa
   const [isCameraOpen, setIsCameraOpen] = useState(true);
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  // Padrão Traseira
+  const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -33,13 +35,14 @@ export const CollaboratorForm: React.FC<CollaboratorFormProps> = ({ onSave, onCa
       startCamera();
     }
     return () => stopCamera();
-  }, [isCameraOpen, capturedPhoto]);
+  }, [isCameraOpen, capturedPhoto, facingMode]);
 
   const startCamera = async () => {
+    stopCamera();
     setCameraError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 640 } } 
+        video: { facingMode: facingMode, width: { ideal: 640 }, height: { ideal: 640 } } 
       });
       if (videoRef.current) { 
         videoRef.current.srcObject = stream; 
@@ -59,6 +62,10 @@ export const CollaboratorForm: React.FC<CollaboratorFormProps> = ({ onSave, onCa
     }
   };
 
+  const toggleCamera = () => {
+    setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
+  };
+
   const takePhoto = () => {
     if (videoRef.current && canvasRef.current) {
       const video = videoRef.current;
@@ -68,6 +75,12 @@ export const CollaboratorForm: React.FC<CollaboratorFormProps> = ({ onSave, onCa
       canvas.height = size;
       const context = canvas.getContext('2d');
       if (context) {
+        // Espelha se for frontal
+        if (facingMode === 'user') {
+            context.translate(size, 0);
+            context.scale(-1, 1);
+        }
+
         const startX = (video.videoWidth - size) / 2;
         const startY = (video.videoHeight - size) / 2;
         context.drawImage(video, startX, startY, size, size, 0, 0, size, size);
@@ -80,7 +93,7 @@ export const CollaboratorForm: React.FC<CollaboratorFormProps> = ({ onSave, onCa
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!capturedPhoto) {
-      alert("A foto biométrica é obrigatória para o cadastro.");
+      alert("ATENÇÃO: A foto biométrica é OBRIGATÓRIA para o cadastro.");
       return;
     }
     onSave({ ...formData, id: generateId('COL'), active: true, photo: capturedPhoto || undefined });
@@ -100,10 +113,11 @@ export const CollaboratorForm: React.FC<CollaboratorFormProps> = ({ onSave, onCa
       <form onSubmit={handleSubmit} className="p-8 space-y-8">
         
         {/* BIOMETRIC ENROLLMENT */}
-        <section className="bg-slate-950/50 p-8 rounded-[3rem] border border-slate-800/50 space-y-6">
+        <section className="bg-slate-950/50 p-8 rounded-[3rem] border border-slate-800/50 space-y-6 relative">
           <div className="flex items-center gap-3 border-b border-slate-800 pb-4">
              <Scan size={18} className="text-blue-500" />
              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Captura Biométrica de Referência</h3>
+             {!capturedPhoto && <span className="text-[10px] text-red-500 font-black uppercase tracking-widest ml-auto animate-pulse">* Obrigatório</span>}
           </div>
           
           <div className="flex justify-center">
@@ -121,8 +135,25 @@ export const CollaboratorForm: React.FC<CollaboratorFormProps> = ({ onSave, onCa
                   </div>
                ) : isCameraOpen ? (
                   <div className="relative w-full h-full">
-                    <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
+                    <video 
+                        ref={videoRef} 
+                        autoPlay 
+                        playsInline 
+                        muted 
+                        className={`w-full h-full object-cover ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`} 
+                    />
                     <div className="scanner-line"></div>
+                    
+                    {/* Botão de Troca Visível */}
+                    <button 
+                      type="button" 
+                      onClick={toggleCamera} 
+                      className="absolute top-2 right-2 p-1.5 bg-slate-950/90 rounded-lg text-white border border-slate-600 hover:bg-slate-800 z-10 flex items-center gap-1"
+                      title="Trocar Câmera"
+                    >
+                      <RefreshCw size={12} />
+                    </button>
+
                     <button 
                       type="button" 
                       onClick={takePhoto} 
@@ -192,8 +223,12 @@ export const CollaboratorForm: React.FC<CollaboratorFormProps> = ({ onSave, onCa
 
         <div className="flex justify-end gap-4 pt-8 border-t border-slate-800">
           <button type="button" onClick={onCancel} className="px-8 py-4 text-slate-500 font-black uppercase text-[10px] tracking-widest hover:text-white transition-colors">Cancelar</button>
-          <button type="submit" disabled={!capturedPhoto} className="px-12 py-5 bg-white text-black font-black rounded-2xl hover:bg-blue-600 hover:text-white transition-all active:scale-95 uppercase text-[11px] tracking-widest disabled:opacity-20 shadow-2xl">
-            Efetivar Cadastro
+          <button 
+            type="submit" 
+            disabled={!capturedPhoto} 
+            className="px-12 py-5 bg-white text-black font-black rounded-2xl hover:bg-blue-600 hover:text-white transition-all active:scale-95 uppercase text-[11px] tracking-widest disabled:opacity-20 shadow-2xl disabled:cursor-not-allowed"
+          >
+            {capturedPhoto ? 'Efetivar Cadastro' : 'Aguardando Foto...'}
           </button>
         </div>
       </form>

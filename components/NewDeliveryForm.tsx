@@ -14,7 +14,8 @@ import {
   ChevronRight,
   Camera,
   Search,
-  Building2
+  Building2,
+  RefreshCw
 } from 'lucide-react';
 import { GoogleGenAI, Type } from "@google/genai";
 
@@ -40,7 +41,9 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [statusMsg, setStatusMsg] = useState('Posicione o rosto no centro');
   
-  // States para busca manual
+  // Controle de Câmera (Padrão: Traseira/Environment)
+  const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
+  
   const [searchTerm, setSearchTerm] = useState('');
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -62,12 +65,13 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
       stopCamera();
     }
     return () => stopCamera();
-  }, [mode]);
+  }, [mode, facingMode]);
 
   const startCamera = async () => {
+    stopCamera();
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'user', width: 480, height: 480 } // Reduzido levemente para performance
+        video: { facingMode: facingMode, width: { ideal: 640 }, height: { ideal: 640 } } 
       });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -86,6 +90,10 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
     }
   };
 
+  const toggleCamera = () => {
+    setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
+  };
+
   const handleIdentification = async () => {
     if (!videoRef.current || !canvasRef.current || collaborators.length === 0) {
       setStatusMsg("Sem dados para comparação.");
@@ -97,13 +105,22 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
     
     const canvas = canvasRef.current;
     const video = videoRef.current;
-    canvas.width = 480;
-    canvas.height = 480;
+    
+    // Ajuste de resolução para captura
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     
-    ctx.drawImage(video, 0, 0, 480, 480);
-    const livePhotoBase64 = canvas.toDataURL('image/jpeg', 0.7); // Compressão maior para envio rápido
+    // Espelhar se for frontal (selfie)
+    if (facingMode === 'user') {
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+    }
+    
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const livePhotoBase64 = canvas.toDataURL('image/jpeg', 0.8);
     setCapturedPhoto(livePhotoBase64);
 
     setStatusMsg("Analisando Biometria...");
@@ -111,7 +128,6 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       
-      // Envia apenas IDs e Fotos para economizar tokens
       const candidates = collaborators
         .filter(c => c.active && c.photo)
         .map(c => ({
@@ -169,7 +185,7 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
 
   const selectManual = (col: Collaborator) => {
     setIdentifiedCol(col);
-    setCapturedPhoto(col.photo || null); // Usa a foto do cadastro se não tiver scan
+    setCapturedPhoto(col.photo || null); 
     setMode('IDENTIFIED');
   };
 
@@ -213,7 +229,23 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
             
             {mode === 'SCANNING' && (
               <>
-                <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
+                <video 
+                  ref={videoRef} 
+                  autoPlay 
+                  playsInline 
+                  muted 
+                  className={`w-full h-full object-cover ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`} 
+                />
+                
+                {/* Botão de Troca de Câmera - Mais Visível */}
+                <button 
+                  onClick={toggleCamera}
+                  className="absolute top-4 right-4 bg-slate-950/90 text-white p-3 rounded-xl border border-slate-700 z-20 shadow-xl flex items-center gap-2 hover:bg-blue-600 transition-colors"
+                >
+                  <RefreshCw size={18} />
+                  <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Trocar Câmera</span>
+                </button>
+
                 <div className="scanner-overlay">
                    <div className="scanner-line"></div>
                    <div className="absolute inset-0 border-[60px] border-slate-950/60 pointer-events-none flex items-center justify-center">
@@ -222,7 +254,7 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
                 </div>
                 
                 {!isProcessing && (
-                  <div className="absolute bottom-6 w-full flex justify-center gap-4 px-6">
+                  <div className="absolute bottom-6 w-full flex justify-center gap-4 px-6 z-20">
                      <button 
                       onClick={() => setMode('MANUAL_SEARCH')}
                       className="flex-1 bg-slate-900/80 backdrop-blur-md text-white py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest border border-slate-700 hover:bg-slate-800"
