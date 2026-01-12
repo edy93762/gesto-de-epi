@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Collaborator, EPI, Delivery, DeliveryReason } from '../types';
 import { generateId, addDays, calculateStatus } from '../utils/helpers';
-import { AlertCircle, Save, HardHat, User, UserPlus, Search, Camera, X, RefreshCw, ShieldCheck, ShieldAlert, Loader2, Medal, Calendar } from 'lucide-react';
+import { AlertCircle, Save, HardHat, User, UserPlus, Search, Camera, X, RefreshCw, ShieldCheck, ShieldAlert, Loader2, Medal, Calendar, MessageSquare } from 'lucide-react';
 import { CollaboratorForm } from './CollaboratorForm';
 import { GoogleGenAI, Type } from "@google/genai";
 
@@ -275,14 +275,6 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
                   )}
                </div>
             </div>
-            {verificationResult && (
-               <div className={`mt-3 p-2 rounded-lg text-center ${verificationResult.match ? 'bg-green-50' : 'bg-red-50'}`}>
-                  <p className={`text-[11px] font-bold ${verificationResult.match ? 'text-green-700' : 'text-red-700'}`}>
-                    {verificationResult.reason} <span className="opacity-50 font-normal">| Confiança: {verificationResult.confidence}%</span>
-                  </p>
-               </div>
-            )}
-            <canvas ref={canvasRef} className="hidden" />
           </div>
 
           <div className="col-span-2 relative">
@@ -345,11 +337,6 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
               <option value="">Selecione...</option>
               {activeEpis.map(e => <option key={e.id} value={e.id}>{e.id} - {e.description} (CA: {e.ca})</option>)}
             </select>
-            {selectedEpi && (
-               <p className="mt-1 text-[10px] text-blue-600 font-bold flex items-center gap-1 uppercase">
-                 <Calendar size={10} /> Vida Útil: {selectedEpi.shelfLifeDays} dias
-               </p>
-            )}
           </div>
 
           <div className="col-span-1">
@@ -377,6 +364,19 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
               <option value="Dano">Dano / Avaria</option>
             </select>
           </div>
+
+          <div className="col-span-2">
+            <label className="block text-sm font-medium text-slate-700 mb-1 font-bold uppercase text-[10px] flex items-center gap-1">
+              <MessageSquare size={12} /> Observações (Opcional)
+            </label>
+            <textarea
+              className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+              rows={2}
+              placeholder="Ex: Entregue luva extra devido a trabalho pesado..."
+              value={formData.notes}
+              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+            />
+          </div>
         </div>
 
         <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
@@ -386,7 +386,6 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
             disabled={isVerifying}
             className={`px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold flex items-center gap-2 shadow-lg transition-all active:scale-95 ${isVerifying ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
-            {verificationResult?.match && <Medal size={20} className="text-yellow-400" fill="currentColor" />}
             REGISTRAR ENTREGA
           </button>
         </div>

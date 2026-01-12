@@ -11,7 +11,7 @@ export interface Collaborator {
 }
 
 export interface EPI {
-  id: string; // EPI_ID manual e único
+  id: string; // EPI_ID (Chave na planilha)
   description: string;
   category: string;
   ca: string;
@@ -25,21 +25,21 @@ export interface EPI {
 export type DeliveryReason = 'Primeira' | 'Troca validade' | 'Desgaste' | 'Perda' | 'Dano';
 
 export interface Delivery {
-  id: string;
-  date: string; // ISO String
-  collaboratorId: string;
-  epiId: string;
+  id: string; // EntregaID (UNIQUEID na planilha)
+  date: string; // Data_Entrega
+  collaboratorId: string; // ColaboradorID (Ref)
+  epiId: string; // EPI_ID (Ref)
   quantity: number;
-  reason: DeliveryReason;
-  notes: string;
-  responsibleEmail: string;
-  photo?: string; // Base64 da imagem capturada na entrega
+  reason: DeliveryReason; // Motivo
+  notes: string; // Observacao
+  responsibleEmail: string; // ResponsavelEmail
+  photo?: string; // Assinatura (Biometria)
   verificationResult?: {
     match: boolean;
     confidence: number;
     reason: string;
   };
-  predictedReplacementDate?: string;
+  predictedReplacementDate?: string; // Data_Prevista_Troca
   status: 'VENCIDO' | 'A VENCER' | 'OK'; 
 }
 
