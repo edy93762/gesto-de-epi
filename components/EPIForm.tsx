@@ -1,6 +1,7 @@
+
 import React, { useState } from 'react';
 import { EPI } from '../types';
-import { Save, HardHat, X, AlertCircle, MapPin } from 'lucide-react';
+import { Save, HardHat, X, AlertCircle, MapPin, Calendar, Tag, Shield } from 'lucide-react';
 
 interface EPIFormProps {
   existingEpis: EPI[];
@@ -12,6 +13,10 @@ export const EPIForm: React.FC<EPIFormProps> = ({ existingEpis, onSave, onCancel
   const [formData, setFormData] = useState({
     id: '',
     description: '',
+    category: '',
+    ca: '',
+    validityCA: '',
+    shelfLifeDays: 180,
     location: '',
   });
   const [error, setError] = useState('');
@@ -22,21 +27,19 @@ export const EPIForm: React.FC<EPIFormProps> = ({ existingEpis, onSave, onCancel
 
     const idUpper = formData.id.trim().toUpperCase();
     
-    // Validação de ID único
     if (existingEpis.some(epi => epi.id.toUpperCase() === idUpper)) {
       setError('Este ID de EPI já está cadastrado. Escolha um ID único.');
       return;
     }
 
-    if (!formData.id.trim() || !formData.description.trim() || !formData.location.trim()) {
-      setError('Todos os campos são obrigatórios.');
+    if (!formData.id.trim() || !formData.description.trim() || !formData.ca.trim()) {
+      setError('Campos obrigatórios: ID, Descrição e CA.');
       return;
     }
 
     const newEPI: EPI = {
+      ...formData,
       id: idUpper,
-      description: formData.description.trim(),
-      location: formData.location.trim(),
       active: true,
       createdAt: new Date().toISOString(),
     };
@@ -51,7 +54,7 @@ export const EPIForm: React.FC<EPIFormProps> = ({ existingEpis, onSave, onCancel
             <HardHat className="text-orange-600" size={24} />
             Cadastrar Novo EPI
           </h2>
-          <p className="text-sm text-slate-500 mt-1">Identificação e localização do equipamento.</p>
+          <p className="text-sm text-slate-500 mt-1">Conformidade com CA e controle de vida útil.</p>
         </div>
         <button onClick={onCancel} className="text-slate-400 hover:text-slate-600">
           <X size={24} />
@@ -66,22 +69,33 @@ export const EPIForm: React.FC<EPIFormProps> = ({ existingEpis, onSave, onCancel
           </div>
         )}
 
-        <div className="space-y-4">
-          <div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="md:col-span-1">
             <label className="block text-sm font-medium text-slate-700 mb-1">ID do EPI (EPI_ID)</label>
             <input
               required
               type="text"
-              className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none uppercase"
+              className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none uppercase font-mono"
               value={formData.id}
               onChange={(e) => setFormData({ ...formData, id: e.target.value })}
-              placeholder="Ex: LUV-01, CAP-SEG-02"
+              placeholder="Ex: LUV-01"
             />
-            <p className="text-xs text-slate-400 mt-1">Código identificador único.</p>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Descrição do EPI</label>
+          <div className="md:col-span-1">
+            <label className="block text-sm font-medium text-slate-700 mb-1">Categoria</label>
+            <input
+              required
+              type="text"
+              className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              value={formData.category}
+              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+              placeholder="Ex: Proteção das Mãos"
+            />
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-slate-700 mb-1">Descrição</label>
             <input
               required
               type="text"
@@ -94,7 +108,47 @@ export const EPIForm: React.FC<EPIFormProps> = ({ existingEpis, onSave, onCancel
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1">
-              <MapPin size={14} className="text-slate-400" /> Local
+              <Shield size={14} className="text-slate-400" /> Certificado de Aprovação (CA)
+            </label>
+            <input
+              required
+              type="text"
+              className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-bold"
+              value={formData.ca}
+              onChange={(e) => setFormData({ ...formData, ca: e.target.value })}
+              placeholder="Ex: 12345"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1">
+              <Calendar size={14} className="text-slate-400" /> Validade do CA
+            </label>
+            <input
+              required
+              type="date"
+              className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              value={formData.validityCA}
+              onChange={(e) => setFormData({ ...formData, validityCA: e.target.value })}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1">
+              Vida Útil Estimada (Dias)
+            </label>
+            <input
+              required
+              type="number"
+              className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-bold"
+              value={formData.shelfLifeDays}
+              onChange={(e) => setFormData({ ...formData, shelfLifeDays: parseInt(e.target.value) || 0 })}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1">
+              <MapPin size={14} className="text-slate-400" /> Local no Estoque
             </label>
             <input
               required
@@ -102,7 +156,7 @@ export const EPIForm: React.FC<EPIFormProps> = ({ existingEpis, onSave, onCancel
               className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
               value={formData.location}
               onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-              placeholder="Ex: Almoxarifado A, Prateleira 02"
+              placeholder="Ex: Prateleira A-01"
             />
           </div>
         </div>

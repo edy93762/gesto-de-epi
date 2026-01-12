@@ -13,6 +13,10 @@ export interface Collaborator {
 export interface EPI {
   id: string; // EPI_ID manual e único
   description: string;
+  category: string;
+  ca: string;
+  validityCA: string;
+  shelfLifeDays: number;
   location: string;
   active: boolean;
   createdAt: string;
