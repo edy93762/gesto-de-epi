@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Collaborator } from '../types';
-import { CheckCircle, XCircle, UserPlus, ShieldCheck, MapPin, Trash2, Building2, User } from 'lucide-react';
+import { CheckCircle, XCircle, UserPlus, Building2, User, Trash2 } from 'lucide-react';
 
 interface CollaboratorsListProps {
   collaborators: Collaborator[];
@@ -15,7 +15,7 @@ export const CollaboratorsList: React.FC<CollaboratorsListProps> = ({ collaborat
       <div className="bg-slate-900 rounded-[2rem] border border-slate-800 p-8 flex flex-col md:flex-row justify-between items-center gap-6">
         <div>
           <h2 className="text-3xl font-black text-white uppercase tracking-tighter text-center md:text-left">Gestão de Pessoal</h2>
-          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mt-1 text-center md:text-left">Equipe Ativa e Cadastro Facial</p>
+          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mt-1 text-center md:text-left">Equipe Ativa</p>
         </div>
         <button 
           onClick={onAddClick}
@@ -36,14 +36,9 @@ export const CollaboratorsList: React.FC<CollaboratorsListProps> = ({ collaborat
             <div key={c.id} className="bg-slate-900 p-6 rounded-[2.5rem] border border-slate-800 hover:border-slate-700 transition-all group relative">
               <div className="flex items-center gap-5 mb-6">
                 <div className="relative shrink-0">
-                  <div className="w-20 h-20 rounded-full bg-slate-950 border-2 border-slate-800 overflow-hidden flex items-center justify-center">
-                    {c.photo ? <img src={c.photo} className="w-full h-full object-cover" /> : <User size={32} className="text-slate-800" />}
+                  <div className="w-16 h-16 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-center">
+                    <User size={32} className="text-slate-700" />
                   </div>
-                  {c.photo && (
-                    <div className="absolute -bottom-1 -right-1 bg-blue-600 text-white rounded-full p-1.5 border-4 border-slate-900 shadow-xl" title="Biometria Ativa">
-                      <ShieldCheck size={14} />
-                    </div>
-                  )}
                 </div>
                 <div className="min-w-0">
                    <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">#{c.id}</span>
@@ -58,7 +53,7 @@ export const CollaboratorsList: React.FC<CollaboratorsListProps> = ({ collaborat
                    <span className="text-white flex items-center gap-1"><Building2 size={10} className="text-blue-500" /> {c.branch}</span>
                 </div>
                 <div className="flex items-center justify-between text-[10px] font-bold">
-                   <span className="text-slate-500 uppercase tracking-widest">Matrícula</span>
+                   <span className="text-slate-500 uppercase tracking-widest">CPF/Matrícula</span>
                    <span className="text-white">{c.matricula || '-'}</span>
                 </div>
                 <div className="flex items-center justify-between text-[10px] font-bold">

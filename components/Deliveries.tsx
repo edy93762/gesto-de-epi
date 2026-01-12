@@ -29,7 +29,7 @@ export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collab
   ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   const generatePDF = async () => {
-    if (!fichaRef.current) return;
+    if (!fichaRef.current || !fichaPreview) return;
     setIsExporting(true);
     try {
       const element = fichaRef.current;
@@ -44,7 +44,17 @@ export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collab
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`FICHA_EPI_${fichaPreview?.id || 'RECEBIMENTO'}.pdf`);
+      
+      const col = getCollaborator(fichaPreview.collaboratorId);
+      const epi = getEPI(fichaPreview.epiId);
+      const dateStr = new Date(fichaPreview.date).toISOString().split('T')[0];
+      
+      // Nome do arquivo solicitado
+      const fileName = `${col?.name}_${epi?.description}_${dateStr}_${col?.branch}_${col?.matricula}.pdf`
+          .replace(/\s+/g, '_')
+          .replace(/[^a-zA-Z0-9_.]/g, '');
+
+      pdf.save(fileName);
     } catch (error) {
       console.error("Erro ao gerar PDF:", error);
       alert("Erro ao processar o PDF. Verifique os logs.");
@@ -77,7 +87,7 @@ export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collab
           <table className="w-full text-left text-sm text-slate-400">
             <thead className="bg-slate-950 text-slate-500 font-black text-[10px] uppercase tracking-[0.2em] border-b border-slate-800">
               <tr>
-                <th className="px-8 py-6">Bio</th>
+                <th className="px-8 py-6">Evidência</th>
                 <th className="px-8 py-6">Data / Hora</th>
                 <th className="px-8 py-6">Colaborador</th>
                 <th className="px-8 py-6">Equipamento (ID)</th>
@@ -117,7 +127,7 @@ export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collab
                     </td>
                     <td className="px-8 py-5 text-right">
                       <button onClick={() => setFichaPreview(delivery)} className="bg-white text-black px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all active:scale-95 shadow-lg">
-                        Gerar Ficha
+                        Ver Ficha
                       </button>
                     </td>
                   </tr>
@@ -176,7 +186,7 @@ export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collab
                     </div>
                     <div className="space-y-4">
                       <div>
-                        <span className="block text-[8px] uppercase font-bold text-slate-400 tracking-widest mb-1">Matrícula</span>
+                        <span className="block text-[8px] uppercase font-bold text-slate-400 tracking-widest mb-1">CPF / Matrícula</span>
                         <span className="font-bold text-sm">{getCollaborator(fichaPreview.collaboratorId)?.matricula}</span>
                       </div>
                       <div>
@@ -224,7 +234,7 @@ export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collab
                  className="flex items-center justify-center gap-3 bg-slate-900 text-white px-12 py-5 rounded-2xl font-black uppercase text-xs hover:bg-blue-600 transition-all shadow-xl active:scale-95 disabled:opacity-50"
                >
                  {isExporting ? <span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full" /> : <Download size={18} />}
-                 {isExporting ? 'Exportando...' : 'Exportar PDF Oficial'}
+                 {isExporting ? 'Exportando...' : 'Baixar PDF Novamente'}
                </button>
             </div>
           </div>

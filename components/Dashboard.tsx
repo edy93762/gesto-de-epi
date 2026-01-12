@@ -7,7 +7,6 @@ import {
   History,
   HardHat,
   Users,
-  // Added User icon import to fix reference error on line 129
   User,
   Activity,
   ShieldCheck,
@@ -101,7 +100,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </div>
                 <div className="text-left">
                   <p className="text-xs font-black text-white uppercase">Cadastrar Membro</p>
-                  <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Inclusão Biométrica</p>
+                  <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Inclusão Administrativa</p>
                 </div>
              </button>
              <button onClick={() => onNavigate('new-epi')} className="bg-slate-900 border border-slate-800 rounded-[2rem] p-6 hover:bg-slate-800 transition-all flex items-center gap-4">
@@ -127,9 +126,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <div className="flex-1 space-y-4 overflow-y-auto pr-2 custom-scrollbar">
               {recentDeliveries.slice(0, 8).map((d, i) => (
                 <div key={i} className="bg-slate-950 p-4 rounded-2xl border border-slate-800/50 flex gap-4 animate-in slide-in-from-right-2" style={{ animationDelay: `${i * 100}ms` }}>
-                  <div className="w-10 h-10 rounded-xl overflow-hidden bg-slate-800 shrink-0 border border-slate-700">
-                    {/* Fixed error: Using User icon component after adding it to the imports */}
-                    {d.photo ? <img src={d.photo} className="w-full h-full object-cover" /> : <User size={14} className="m-auto mt-2 text-slate-700" />}
+                  <div className="w-10 h-10 rounded-xl overflow-hidden bg-slate-900 shrink-0 border border-slate-800 flex items-center justify-center">
+                     <User size={18} className="text-slate-700" />
                   </div>
                   <div className="min-w-0">
                     <p className="text-[10px] font-black text-white uppercase truncate mb-0.5">{getColName(d.collaboratorId)}</p>

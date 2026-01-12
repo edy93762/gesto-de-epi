@@ -125,7 +125,7 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
   };
 
   const generateAndDownloadPDF = async (deliveryId: string) => {
-    if (!receiptRef.current) return;
+    if (!receiptRef.current || !selectedCol) return;
     
     try {
         const element = receiptRef.current;
@@ -142,7 +142,14 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
         const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
         
         pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-        pdf.save(`NR06_${selectedCol?.name?.replace(/\s+/g, '_')}_${deliveryId}.pdf`);
+        
+        // Nome do arquivo: NOME_EPI_DATA_EMPRESA_CPF
+        const dateStr = new Date().toISOString().split('T')[0];
+        const fileName = `${selectedCol.name}_${selectedEpi?.description}_${dateStr}_${selectedCol.branch}_${selectedCol.matricula}.pdf`
+          .replace(/\s+/g, '_')
+          .replace(/[^a-zA-Z0-9_.]/g, ''); // Remove caracteres especiais
+
+        pdf.save(fileName);
     } catch (error) {
         console.error("Erro ao gerar PDF", error);
         alert("A entrega foi salva, mas houve um erro ao gerar o PDF.");
@@ -168,7 +175,7 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
       reason,
       notes: 'Entrega com Evidência Fotográfica e Assinatura Digital',
       responsibleEmail: 'admin@nr06.com',
-      photo: capturedPhoto,
+      photo: capturedPhoto, // Mantemos a foto na entrega para histórico
       verificationResult: { match: true, confidence: 100, reason: 'Registro Fotográfico' }
     });
     
@@ -193,7 +200,7 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
             <input 
               autoFocus
               type="text" 
-              placeholder="Buscar Nome, Matrícula ou Empresa..." 
+              placeholder="Buscar por Nome ou CPF..." 
               className="w-full pl-12 pr-4 py-4 bg-slate-900 border border-slate-800 rounded-2xl text-white outline-none focus:border-blue-500 transition-all font-bold"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
@@ -207,15 +214,15 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
                  onClick={() => { setSelectedCol(c); setStep('FORM_DATA'); }}
                  className="w-full p-4 bg-slate-900/50 border border-slate-800 rounded-2xl flex items-center gap-4 hover:bg-slate-800 hover:border-blue-500/50 transition-all text-left group"
                >
-                  <div className="w-12 h-12 rounded-xl bg-slate-950 border border-slate-700 overflow-hidden shrink-0">
-                    {c.photo ? <img src={c.photo} className="w-full h-full object-cover" /> : <User size={20} className="m-auto mt-3 text-slate-600" />}
+                  <div className="w-12 h-12 rounded-xl bg-slate-950 border border-slate-700 overflow-hidden shrink-0 flex items-center justify-center">
+                    <User size={20} className="text-slate-600" />
                   </div>
                   <div className="min-w-0 flex-1">
                      <p className="text-white text-sm font-black uppercase truncate group-hover:text-blue-400">{c.name}</p>
                      <p className="text-[10px] text-slate-500 font-bold uppercase truncate flex items-center gap-2">
                         <span><Building2 size={10} className="inline mr-1"/>{c.branch}</span>
                         <span>•</span>
-                        <span>{c.matricula || 'S/ Matrícula'}</span>
+                        <span>CPF: {c.matricula || '---'}</span>
                      </p>
                   </div>
                   <ChevronRight size={20} className="text-slate-700 group-hover:text-blue-500" />
@@ -247,8 +254,8 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
         <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-8 space-y-8">
             {/* Resumo Colaborador */}
             <div className="bg-slate-950 p-6 rounded-3xl border border-slate-800 flex items-center gap-4">
-               <div className="w-16 h-16 rounded-2xl overflow-hidden border border-slate-700">
-                  {selectedCol?.photo ? <img src={selectedCol.photo} className="w-full h-full object-cover" /> : <User size={32} className="m-auto mt-4" />}
+               <div className="w-16 h-16 rounded-2xl overflow-hidden border border-slate-700 flex items-center justify-center bg-slate-900">
+                  <User size={32} className="text-slate-600" />
                </div>
                <div>
                   <p className="text-xs font-black text-slate-500 uppercase tracking-widest mb-1">Colaborador</p>
@@ -403,7 +410,7 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
                   <h3 className="text-xs font-black uppercase tracking-widest text-gray-500 mb-4">Colaborador</h3>
                   <p className="text-xl font-bold uppercase mb-1">{selectedCol?.name}</p>
                   <div className="flex gap-4 text-sm text-gray-600 font-bold">
-                     <span>MAT: {selectedCol?.matricula || '---'}</span>
+                     <span>CPF/MAT: {selectedCol?.matricula || '---'}</span>
                      <span>|</span>
                      <span>{selectedCol?.role}</span>
                   </div>
@@ -454,13 +461,6 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
                          <Shield size={120} />
                       </div>
                       
-                      {/* FOTO DO COLABORADOR NO PDF - FIX */}
-                      {selectedCol?.photo && (
-                        <div className="w-16 h-16 rounded-full border-2 border-gray-300 overflow-hidden mb-2">
-                           <img src={selectedCol.photo} className="w-full h-full object-cover" crossOrigin="anonymous" />
-                        </div>
-                      )}
-
                       <p className="text-[10px] uppercase font-bold text-gray-500 text-center mb-1">Autenticação Biométrica / Sistema</p>
                       <p className="text-center font-mono font-bold text-xs break-all leading-tight mb-2">
                          KEY: {Math.random().toString(36).substring(2, 15).toUpperCase()}-{Date.now().toString(36).toUpperCase()}

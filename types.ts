@@ -2,13 +2,13 @@
 export interface Collaborator {
   id: string; 
   name: string; 
-  matricula: string; 
+  matricula: string; // Será usado como CPF/Matrícula
   sector: string; 
   role: string; 
   branch: string; 
-  managerName: string; // Alterado de Email para Nome
+  managerName: string; 
   active: boolean; 
-  photo?: string; 
+  // photo removido conforme solicitado
 }
 
 export interface EPI {
@@ -31,7 +31,7 @@ export interface Delivery {
   reason: DeliveryReason; 
   notes: string; 
   responsibleEmail: string; 
-  photo?: string; 
+  photo?: string; // Foto da evidência da entrega
   verificationResult?: {
     match: boolean;
     confidence: number;
