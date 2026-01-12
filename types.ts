@@ -2,14 +2,14 @@
 export interface Collaborator {
   id: string; 
   name: string; 
-  matricula: string; // Será usado como CPF/Matrícula
+  cpf: string; // Alterado de matricula para CPF
   sector: string; 
   role: string; 
   branch: string; 
+  shift: 'T1' | 'T2' | 'T3' | 'T4' | 'T5'; // Novo campo de Turno
   managerName: string; 
-  managerEmail: string; // Novo campo obrigatório
+  managerEmail: string; 
   active: boolean; 
-  // photo removido conforme solicitado
 }
 
 export interface EPI {
@@ -32,7 +32,7 @@ export interface Delivery {
   reason: DeliveryReason; 
   notes: string; 
   responsibleEmail: string; 
-  photo?: string; // Foto da evidência da entrega
+  photo?: string; 
   verificationResult?: {
     match: boolean;
     confidence: number;

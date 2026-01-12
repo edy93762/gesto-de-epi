@@ -52,7 +52,7 @@ export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collab
       const epi = getEPI(fichaPreview.epiId);
       const dateStr = new Date(fichaPreview.date).toISOString().split('T')[0];
       
-      const fileName = `${col?.name}_${epi?.description}_${dateStr}_${col?.branch}_${col?.matricula}.pdf`
+      const fileName = `${col?.name}_${epi?.description}_${dateStr}_${col?.branch}_${col?.cpf}.pdf`
           .replace(/\s+/g, '_')
           .replace(/[^a-zA-Z0-9_.]/g, '');
 
@@ -191,7 +191,7 @@ export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collab
                     </div>
                     <div className="flex border-b border-black">
                         <div className="w-1/2 border-r border-black p-1 pl-2">
-                            Matrícula: <span className="font-normal ml-2">{col.matricula}</span>
+                            CPF: <span className="font-normal ml-2">{col.cpf}</span>
                         </div>
                         <div className="w-1/2 p-1 pl-2">
                             Data de Admissão: <span className="font-normal ml-2">-</span>
@@ -202,7 +202,7 @@ export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collab
                             Unidade: <span className="font-normal ml-2">{col.branch}</span>
                         </div>
                         <div className="w-1/2 p-1 pl-2">
-                            Turno: <span className="font-normal ml-2">-</span>
+                            Turno: <span className="font-normal ml-2">{col.shift}</span>
                         </div>
                     </div>
                     <div className="p-1 pl-2">
@@ -218,6 +218,7 @@ export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collab
                                 <th className="border-r border-black p-1 w-8">Un</th>
                                 <th className="border-r border-black p-1">Discriminação</th>
                                 <th className="border-r border-black p-1 w-16">CA</th>
+                                <th className="border-r border-black p-1 w-16">Motivo</th>
                                 <th className="border-r border-black p-1 w-16">Entrega</th>
                                 <th className="border-r border-black p-1 w-24">Assinatura</th>
                             </tr>
@@ -228,11 +229,12 @@ export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collab
                                 <td className="border-r border-black">UN</td>
                                 <td className="border-r border-black text-left pl-2">{epi.description}</td>
                                 <td className="border-r border-black">{epi.ca}</td>
+                                <td className="border-r border-black font-bold">{fichaPreview.reason}</td>
                                 <td className="border-r border-black">{formatDate(fichaPreview.date)}</td>
                                 <td className="border-r border-black text-[7px]">DIGITAL</td>
                             </tr>
                             {[...Array(3)].map((_, i) => (
-                                <tr key={i} className="border-b border-black h-8"><td colSpan={6}></td></tr>
+                                <tr key={i} className="border-b border-black h-8"><td colSpan={7}></td></tr>
                             ))}
                         </tbody>
                     </table>
@@ -244,22 +246,24 @@ export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collab
                     </div>
                 )}
 
-                {/* AREA DE ASSINATURA E FOTO PEQUENA (3X4 / 5X5) */}
-                <div className="mt-8 flex justify-between items-end gap-4 px-4">
-                     {/* Assinatura Gestor */}
-                     <div className="flex-1 text-center">
-                         <div className="border-b border-black mb-1"></div>
-                         <p className="text-[9px] uppercase font-bold">Assinatura do Responsável</p>
+                {/* AREA DE ASSINATURA E FOTO PEQUENA - ATUALIZADO */}
+                <div className="mt-8 flex justify-between items-end gap-2 px-2 border-2 border-black p-2">
+                     <div className="flex-1 flex gap-4">
+                         {/* Assinatura Gestor */}
+                         <div className="flex-1 text-center">
+                             <div className="border-b border-black mb-1 mt-8"></div>
+                             <p className="text-[9px] uppercase font-bold">Responsável: {col.managerName}</p>
+                         </div>
+
+                         {/* Assinatura Colaborador */}
+                         <div className="flex-1 text-center">
+                             <div className="border-b border-black mb-1 mt-8"></div>
+                             <p className="text-[9px] uppercase font-bold">Colaborador: {col.name}</p>
+                         </div>
                      </div>
 
-                     {/* Assinatura Colaborador */}
-                     <div className="flex-1 text-center">
-                         <div className="border-b border-black mb-1"></div>
-                         <p className="text-[9px] uppercase font-bold">Assinatura do Colaborador</p>
-                     </div>
-
-                     {/* FOTO PEQUENA */}
-                     <div className="shrink-0">
+                     {/* FOTO PEQUENA AO LADO */}
+                     <div className="shrink-0 ml-4">
                          {fichaPreview.photo ? (
                              <div className="w-[80px] h-[100px] border border-black p-1 bg-white">
                                  <img src={fichaPreview.photo} className="w-full h-full object-cover" style={{ objectPosition: 'center' }} />

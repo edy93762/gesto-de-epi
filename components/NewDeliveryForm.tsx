@@ -13,7 +13,9 @@ import {
   RefreshCw,
   ArrowLeft,
   Package,
-  FileEdit
+  FileEdit,
+  Square,
+  CheckSquare
 } from 'lucide-react';
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
@@ -21,7 +23,7 @@ import html2canvas from "html2canvas";
 interface NewDeliveryFormProps {
   collaborators: Collaborator[];
   epis: EPI[];
-  onSave: (delivery: Delivery) => void;
+  onSave: (deliveries: Delivery[]) => void;
   onAddCollaborator: (collaborator: Collaborator) => void;
   onCancel: () => void;
 }
@@ -44,7 +46,7 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
 }) => {
   const [step, setStep] = useState<'SELECT_USER' | 'FORM_DATA' | 'CAMERA'>('SELECT_USER');
   const [selectedCol, setSelectedCol] = useState<Collaborator | null>(null);
-  const [selectedEpiId, setSelectedEpiId] = useState('');
+  const [selectedEpiIds, setSelectedEpiIds] = useState<string[]>([]);
   const [reason, setReason] = useState<DeliveryReason>('Primeira');
   const [notes, setNotes] = useState(''); 
   
@@ -61,12 +63,16 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
   const filteredCollaborators = collaborators.filter(c => 
     c.active && (
       c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      c.matricula.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.cpf.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.branch.toLowerCase().includes(searchTerm.toLowerCase())
     )
   );
 
-  const selectedEpi = epis.find(e => e.id === selectedEpiId);
+  const toggleEpiSelection = (id: string) => {
+    setSelectedEpiIds(prev => 
+      prev.includes(id) ? prev.filter(e => e !== id) : [...prev, id]
+    );
+  };
 
   useEffect(() => {
     if (step === 'CAMERA' && !capturedPhoto) {
@@ -127,29 +133,31 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
   };
 
   const handleSave = async () => {
-    if (!selectedCol || !selectedEpiId || !capturedPhoto) return;
+    if (!selectedCol || selectedEpiIds.length === 0 || !capturedPhoto) return;
     setIsSaving(true);
-    const newId = generateId('REC');
     
-    // Simula delay de salvamento e NÃO baixa o PDF automaticamente.
+    // Simula delay de salvamento
     await new Promise(resolve => setTimeout(resolve, 800));
 
-    onSave({
-      id: newId,
+    // Cria um registro de entrega para CADA EPI selecionado
+    const newDeliveries: Delivery[] = selectedEpiIds.map(epiId => ({
+      id: generateId('REC'),
       date: new Date().toISOString(),
       collaboratorId: selectedCol.id,
-      epiId: selectedEpiId,
+      epiId: epiId,
       reason,
       notes: notes,
       responsibleEmail: selectedCol.managerEmail || 'admin@nr06.com',
       photo: capturedPhoto, 
       verificationResult: { match: true, confidence: 100, reason: 'Registro Fotográfico' }
-    });
+    }));
     
+    onSave(newDeliveries);
     setIsSaving(false);
   };
 
   const isShopee = selectedCol?.branch?.toLowerCase().includes('shopee');
+  const selectedEpisList = epis.filter(e => selectedEpiIds.includes(e.id));
 
   // --- RENDER STEP 1 ---
   if (step === 'SELECT_USER') {
@@ -183,7 +191,7 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
                  onClick={() => { setSelectedCol(c); setStep('FORM_DATA'); }}
                  className="w-full p-4 bg-slate-900/50 border border-slate-800 rounded-2xl flex items-center gap-4 hover:bg-slate-800 hover:border-blue-500/50 transition-all text-left group"
                >
-                  <div className="w-12 h-12 rounded-xl bg-slate-950 border border-slate-700 overflow-hidden shrink-0 flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-xl bg-slate-950 border border-slate-700 overflow-hidden shrink-0 flex items-center justify-center relative">
                     <User size={20} className="text-slate-600" />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -191,9 +199,12 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
                      <p className="text-[10px] text-slate-500 font-bold uppercase truncate flex items-center gap-2">
                         <span><Building2 size={10} className="inline mr-1"/>{c.branch}</span>
                         <span>•</span>
-                        <span>CPF: {c.matricula || '---'}</span>
+                        <span>CPF: {c.cpf || '---'}</span>
                      </p>
                   </div>
+                   <div className="px-3 py-1 bg-blue-900/30 rounded-lg border border-blue-500/20 text-[10px] font-black text-blue-400">
+                     {c.shift}
+                   </div>
                   <ChevronRight size={20} className="text-slate-700 group-hover:text-blue-500" />
                </button>
              ))}
@@ -212,10 +223,10 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
       <div className="max-w-2xl mx-auto mb-20 animate-in slide-in-from-right-8 duration-500">
          <div className="bg-slate-900 border border-slate-800 p-6 rounded-[2.5rem] shadow-2xl mb-6 flex justify-between items-center">
           <div className="flex items-center gap-4">
-             <button onClick={() => { setStep('SELECT_USER'); setSelectedCol(null); }} className="p-3 bg-slate-950 rounded-xl hover:text-white text-slate-500"><ArrowLeft size={20} /></button>
+             <button onClick={() => { setStep('SELECT_USER'); setSelectedCol(null); setSelectedEpiIds([]); }} className="p-3 bg-slate-950 rounded-xl hover:text-white text-slate-500"><ArrowLeft size={20} /></button>
              <div>
                 <h2 className="text-xl font-black text-white uppercase tracking-tighter">Dados da Entrega</h2>
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Passo 2 de 3</p>
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Selecione os Itens</p>
              </div>
           </div>
         </div>
@@ -228,25 +239,39 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
                <div>
                   <p className="text-xs font-black text-slate-500 uppercase tracking-widest mb-1">Colaborador</p>
                   <p className="text-lg font-black text-white uppercase leading-none">{selectedCol?.name}</p>
-                  <p className="text-xs font-bold text-slate-400 mt-1">{selectedCol?.role}</p>
+                  <p className="text-xs font-bold text-slate-400 mt-1">{selectedCol?.role} • {selectedCol?.shift}</p>
                </div>
                <CheckCircle2 className="ml-auto text-emerald-500" size={24} />
             </div>
 
             <div className="space-y-4">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 flex items-center gap-2">
-                 <Package size={14} className="text-orange-500" /> Equipamento
+                 <Package size={14} className="text-orange-500" /> Selecione os Equipamentos (Múltipla Escolha)
               </label>
-              <select 
-                className="w-full p-5 bg-slate-950 border border-slate-800 rounded-3xl text-white font-black text-xs uppercase tracking-widest outline-none focus:ring-2 focus:ring-blue-600 transition-all"
-                value={selectedEpiId}
-                onChange={(e) => setSelectedEpiId(e.target.value)}
-              >
-                <option value="">Selecione o EPI...</option>
-                {epis.filter(e => e.active).map(e => (
-                  <option key={e.id} value={e.id}>{e.id} | {e.description}</option>
-                ))}
-              </select>
+              
+              <div className="bg-slate-950 border border-slate-800 rounded-3xl max-h-60 overflow-y-auto custom-scrollbar p-2">
+                 {epis.filter(e => e.active).map(e => {
+                   const isSelected = selectedEpiIds.includes(e.id);
+                   return (
+                     <button 
+                        key={e.id}
+                        onClick={() => toggleEpiSelection(e.id)}
+                        className={`w-full p-4 rounded-2xl flex items-center gap-4 transition-all mb-1 text-left ${isSelected ? 'bg-blue-900/20 border border-blue-500/50' : 'hover:bg-slate-900 border border-transparent'}`}
+                     >
+                        <div className={`shrink-0 ${isSelected ? 'text-blue-500' : 'text-slate-600'}`}>
+                           {isSelected ? <CheckSquare size={20} /> : <Square size={20} />}
+                        </div>
+                        <div className="min-w-0">
+                           <p className={`text-xs font-black uppercase ${isSelected ? 'text-white' : 'text-slate-400'}`}>{e.description}</p>
+                           <p className="text-[9px] text-slate-500 font-bold uppercase">{e.id} • CA: {e.ca || 'N/A'}</p>
+                        </div>
+                     </button>
+                   );
+                 })}
+              </div>
+              {selectedEpiIds.length > 0 && (
+                <p className="text-right text-[10px] font-black text-blue-500 uppercase tracking-widest px-2">{selectedEpiIds.length} Itens Selecionados</p>
+              )}
             </div>
 
             <div className="space-y-4">
@@ -278,7 +303,7 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
 
             <button 
               onClick={() => setStep('CAMERA')}
-              disabled={!selectedEpiId}
+              disabled={selectedEpiIds.length === 0}
               className="w-full py-5 bg-white text-black font-black rounded-2xl text-[11px] uppercase tracking-[0.2em] hover:bg-blue-500 hover:text-white transition-all active:scale-95 disabled:opacity-20 shadow-xl flex items-center justify-center gap-3"
             >
               <Camera size={20} /> Registrar Foto da Entrega
@@ -351,7 +376,7 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
          </div>
          <canvas ref={canvasRef} className="hidden" />
 
-         {/* --- HIDDEN RECEIPT TEMPLATE FOR PDF GENERATION --- */}
+         {/* --- FICHA TÉCNICA (PDF) --- */}
          <div 
             ref={receiptRef} 
             className="fixed -left-[9999px] top-0 bg-white text-black font-sans"
@@ -382,7 +407,7 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
                 </div>
                 <div className="flex border-b border-black">
                     <div className="w-1/2 border-r border-black p-1 pl-2">
-                        Matrícula: <span className="font-normal ml-2">{selectedCol?.matricula}</span>
+                        CPF: <span className="font-normal ml-2">{selectedCol?.cpf}</span>
                     </div>
                     <div className="w-1/2 p-1 pl-2">
                         Data de Admissão: <span className="font-normal ml-2">-</span>
@@ -393,7 +418,7 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
                         Unidade: <span className="font-normal ml-2">{selectedCol?.branch}</span>
                     </div>
                     <div className="w-1/2 p-1 pl-2">
-                        Turno: <span className="font-normal ml-2">-</span>
+                        Turno: <span className="font-normal ml-2">{selectedCol?.shift}</span>
                     </div>
                 </div>
                 <div className="p-1 pl-2">
@@ -409,25 +434,32 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
                             <th className="border-r border-black p-1 w-10">Unid.</th>
                             <th className="border-r border-black p-1">Discriminação</th>
                             <th className="border-r border-black p-1 w-20">Nº C. A</th>
+                            <th className="border-r border-black p-1 w-20">Motivo</th>
                             <th className="border-r border-black p-1 w-20">Data da Entrega</th>
-                            <th className="border-r border-black p-1 w-32">Assinatura</th>
+                            <th className="border-r border-black p-1 w-24">Assinatura</th>
                             <th className="border-r border-black p-1 w-20">Data da Devolução</th>
-                            <th className="p-1 w-32">Assinatura</th>
+                            <th className="p-1 w-24">Assinatura</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr className="border-b border-black h-8">
-                            <td className="border-r border-black">1</td>
-                            <td className="border-r border-black">UN</td>
-                            <td className="border-r border-black text-left pl-2">{selectedEpi?.description}</td>
-                            <td className="border-r border-black">{selectedEpi?.ca}</td>
-                            <td className="border-r border-black">{formatDate(new Date().toISOString())}</td>
-                            <td className="border-r border-black text-[7px] italic">BIOMETRIA DIGITAL</td>
-                            <td className="border-r border-black"></td>
-                            <td></td>
-                        </tr>
-                        {[...Array(6)].map((_, i) => (
-                            <tr key={i} className="border-b border-black h-8"><td colSpan={8}></td></tr>
+                        {/* LISTA DE EPIS SELECIONADOS */}
+                        {selectedEpisList.map((epi) => (
+                          <tr key={epi.id} className="border-b border-black h-8">
+                              <td className="border-r border-black">1</td>
+                              <td className="border-r border-black">UN</td>
+                              <td className="border-r border-black text-left pl-2">{epi.description}</td>
+                              <td className="border-r border-black">{epi.ca}</td>
+                              <td className="border-r border-black font-bold">{reason}</td>
+                              <td className="border-r border-black">{formatDate(new Date().toISOString())}</td>
+                              <td className="border-r border-black text-[7px] italic">BIOMETRIA DIGITAL</td>
+                              <td className="border-r border-black"></td>
+                              <td></td>
+                          </tr>
+                        ))}
+                        
+                        {/* LINHAS VAZIAS PARA PREENCHER */}
+                        {[...Array(Math.max(0, 6 - selectedEpisList.length))].map((_, i) => (
+                            <tr key={i} className="border-b border-black h-8"><td colSpan={9}></td></tr>
                         ))}
                     </tbody>
                 </table>
@@ -439,17 +471,21 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
                 </div>
             )}
 
-            {/* FOTO 3X4 NO RODAPÉ */}
-             <div className="mt-8 flex justify-between items-end gap-4 px-4">
-                 <div className="flex-1 text-center">
-                     <div className="border-b border-black mb-1"></div>
-                     <p className="text-[9px] uppercase font-bold">Assinatura do Responsável</p>
+            {/* AREA DE ASSINATURA E FOTO NA MESMA LINHA */}
+             <div className="mt-8 flex justify-between items-end gap-2 px-2 border-2 border-black p-2">
+                 
+                 <div className="flex-1 flex gap-4">
+                    <div className="flex-1 text-center">
+                        <div className="border-b border-black mb-1 mt-8"></div>
+                        <p className="text-[9px] uppercase font-bold">Responsável: {selectedCol?.managerName || 'ADM'}</p>
+                    </div>
+                    <div className="flex-1 text-center">
+                        <div className="border-b border-black mb-1 mt-8"></div>
+                        <p className="text-[9px] uppercase font-bold">Colaborador: {selectedCol?.name}</p>
+                    </div>
                  </div>
-                 <div className="flex-1 text-center">
-                     <div className="border-b border-black mb-1"></div>
-                     <p className="text-[9px] uppercase font-bold">Assinatura do Colaborador</p>
-                 </div>
-                 <div className="shrink-0">
+
+                 <div className="shrink-0 ml-4">
                      {capturedPhoto && (
                          <div className="w-[3cm] h-[4cm] border border-black p-1 bg-white">
                              <img src={capturedPhoto} className="w-full h-full object-cover" />

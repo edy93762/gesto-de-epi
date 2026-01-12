@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Collaborator } from '../types';
-import { CheckCircle, XCircle, UserPlus, Building2, User, Trash2 } from 'lucide-react';
+import { CheckCircle, XCircle, UserPlus, Building2, User, Trash2, Clock } from 'lucide-react';
 
 interface CollaboratorsListProps {
   collaborators: Collaborator[];
@@ -39,6 +39,9 @@ export const CollaboratorsList: React.FC<CollaboratorsListProps> = ({ collaborat
                   <div className="w-16 h-16 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-center">
                     <User size={32} className="text-slate-700" />
                   </div>
+                  <div className="absolute -bottom-2 -right-2 bg-blue-900 text-blue-200 text-[9px] font-black px-2 py-1 rounded-lg border border-blue-700 shadow-sm">
+                     {c.shift}
+                  </div>
                 </div>
                 <div className="min-w-0">
                    <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">#{c.id}</span>
@@ -53,12 +56,12 @@ export const CollaboratorsList: React.FC<CollaboratorsListProps> = ({ collaborat
                    <span className="text-white flex items-center gap-1"><Building2 size={10} className="text-blue-500" /> {c.branch}</span>
                 </div>
                 <div className="flex items-center justify-between text-[10px] font-bold">
-                   <span className="text-slate-500 uppercase tracking-widest">CPF/Matrícula</span>
-                   <span className="text-white">{c.matricula || '-'}</span>
+                   <span className="text-slate-500 uppercase tracking-widest">CPF</span>
+                   <span className="text-white font-mono">{c.cpf || '-'}</span>
                 </div>
                 <div className="flex items-center justify-between text-[10px] font-bold">
-                   <span className="text-slate-500 uppercase tracking-widest">Setor</span>
-                   <span className="text-white">{c.sector}</span>
+                   <span className="text-slate-500 uppercase tracking-widest">Gestor</span>
+                   <span className="text-white truncate max-w-[120px] text-right">{c.managerName || '-'}</span>
                 </div>
               </div>
 

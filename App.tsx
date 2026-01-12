@@ -8,7 +8,9 @@ import { CollaboratorsList } from './components/CollaboratorsList';
 import { CollaboratorForm } from './components/CollaboratorForm';
 import { EPIForm } from './components/EPIForm';
 import { EPIList } from './components/EPIList';
+import { Login } from './components/Login';
 import { Collaborator, EPI, Delivery, ViewState } from './types';
+import { CheckCircle2 } from 'lucide-react';
 
 const INITIAL_EPIS: EPI[] = [
   {
@@ -23,34 +25,82 @@ const INITIAL_EPIS: EPI[] = [
 ];
 
 const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<ViewState>('dashboard');
+  // Auth State
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isPublicRegister, setIsPublicRegister] = useState(false);
   
+  // App State
+  const [currentView, setCurrentView] = useState<ViewState>('dashboard');
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [epis, setEpis] = useState<EPI[]>(INITIAL_EPIS);
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
 
+  // Carrega dados locais
   useEffect(() => {
     const savedCols = localStorage.getItem('epi_cols');
     const savedEpis = localStorage.getItem('epi_data');
     const savedDels = localStorage.getItem('epi_deliveries');
+    const savedAuth = localStorage.getItem('epi_auth');
     
     if (savedCols) setCollaborators(JSON.parse(savedCols));
     if (savedEpis) setEpis(JSON.parse(savedEpis));
     if (savedDels) setDeliveries(JSON.parse(savedDels));
+    if (savedAuth === 'true') setIsAuthenticated(true);
   }, []);
+
+  const handleLogin = () => {
+    setIsAuthenticated(true);
+    localStorage.setItem('epi_auth', 'true');
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    localStorage.removeItem('epi_auth');
+    setCurrentView('dashboard');
+  };
 
   const handleAddCollaborator = (newCol: Collaborator) => {
     const updated = [...collaborators, newCol];
     setCollaborators(updated);
     localStorage.setItem('epi_cols', JSON.stringify(updated));
+    
+    if (isPublicRegister) {
+      alert("Cadastro realizado com sucesso! Solicite seu EPI no balcão.");
+      setIsPublicRegister(false);
+    }
   };
 
-  const handleSaveDelivery = (delivery: Delivery) => {
-    const updated = [delivery, ...deliveries];
+  const handleSaveDeliveries = (newDeliveries: Delivery[]) => {
+    const updated = [...newDeliveries, ...deliveries];
     setDeliveries(updated);
     localStorage.setItem('epi_deliveries', JSON.stringify(updated));
     setCurrentView('deliveries');
   };
+
+  // --- RENDERIZAÇÃO PÚBLICA (LOGIN / REGISTRO) ---
+
+  if (!isAuthenticated) {
+    if (isPublicRegister) {
+      return (
+        <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4">
+          <div className="w-full max-w-2xl animate-in zoom-in-95 duration-300">
+             <div className="mb-6 text-center">
+                <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Auto-Cadastro</h2>
+                <p className="text-slate-500 text-xs uppercase tracking-widest mt-1">Preencha seus dados para retirada de EPI</p>
+             </div>
+             <CollaboratorForm 
+                onSave={handleAddCollaborator} 
+                onCancel={() => setIsPublicRegister(false)} 
+                isModal={false}
+             />
+          </div>
+        </div>
+      );
+    }
+    return <Login onLogin={handleLogin} onPublicRegister={() => setIsPublicRegister(true)} />;
+  }
+
+  // --- RENDERIZAÇÃO PRIVADA (DASHBOARD) ---
 
   const renderContent = () => {
     const stats = {
@@ -77,7 +127,7 @@ const App: React.FC = () => {
           <NewDeliveryForm 
             collaborators={collaborators} 
             epis={epis} 
-            onSave={handleSaveDelivery}
+            onSave={handleSaveDeliveries}
             onAddCollaborator={handleAddCollaborator}
             onCancel={() => setCurrentView('dashboard')}
           />
@@ -121,8 +171,18 @@ const App: React.FC = () => {
 
   return (
     <div className="flex min-h-screen bg-slate-950 font-sans text-slate-100 pb-20 md:pb-0 selection:bg-blue-600/30">
-      <Sidebar currentView={currentView} onChangeView={setCurrentView} />
+      <Sidebar currentView={currentView} onChangeView={(v) => {
+         setCurrentView(v);
+      }} />
       
+      {/* Botão Sair Flutuante (Mobile/Desktop) */}
+      <button 
+        onClick={handleLogout} 
+        className="fixed top-6 right-6 z-50 px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-[10px] font-black uppercase text-red-500 hover:bg-red-500 hover:text-white transition-colors"
+      >
+        Sair
+      </button>
+
       <main className="flex-1 md:ml-64 p-4 md:p-10 transition-all overflow-x-hidden">
         <div className="max-w-7xl mx-auto">
             {renderContent()}

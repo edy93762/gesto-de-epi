@@ -46,8 +46,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
              <ShieldCheck className="text-white" size={28} />
            </div>
            <div>
-             <h1 className="text-2xl font-black text-white tracking-tighter uppercase italic">COMMAND <span className="text-blue-500">CENTER</span></h1>
-             <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Protocolo Biométrico NR-06 v2.4</p>
+             <h1 className="text-2xl font-black text-white tracking-tighter uppercase italic">GESTÃO <span className="text-blue-500">DE EPI</span></h1>
+             <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Controle de Segurança & Almoxarifado</p>
            </div>
         </div>
         <div className="bg-slate-900 border border-slate-800 p-6 rounded-[2rem] flex items-center justify-around">
@@ -57,12 +57,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
            </div>
            <div className="w-px h-8 bg-slate-800"></div>
            <div className="text-center">
-             <p className="text-[8px] font-black text-slate-500 uppercase">Estoque</p>
+             <p className="text-[8px] font-black text-slate-500 uppercase">Itens</p>
              <p className="text-xl font-black text-white">{stats.epis}</p>
            </div>
            <div className="w-px h-8 bg-slate-800"></div>
            <div className="text-center">
-             <p className="text-[8px] font-black text-slate-500 uppercase">Registros</p>
+             <p className="text-[8px] font-black text-slate-500 uppercase">Saídas</p>
              <p className="text-xl font-black text-blue-500">{stats.deliveries}</p>
            </div>
         </div>
@@ -82,11 +82,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <div className="w-16 h-16 bg-white/20 backdrop-blur-xl rounded-[1.5rem] flex items-center justify-center mb-8 border border-white/20">
                 <ClipboardCheck size={32} className="text-white" />
               </div>
-              <h2 className="text-4xl font-black text-white uppercase tracking-tighter leading-none">Checkout Facial</h2>
-              <p className="text-blue-100 text-sm font-bold mt-3 opacity-90 uppercase tracking-widest">Iniciar Reconhecimento Automático</p>
+              <h2 className="text-4xl font-black text-white uppercase tracking-tighter leading-none">Nova Entrega</h2>
+              <p className="text-blue-100 text-sm font-bold mt-3 opacity-90 uppercase tracking-widest">Registrar saída de EPI com Foto</p>
               
               <div className="mt-10 inline-flex items-center gap-4 text-white font-black text-[11px] uppercase tracking-[0.3em] bg-black/20 px-6 py-3 rounded-full border border-white/10 hover:bg-black/30 transition-all">
-                Acessar Terminal <ArrowRight size={16} className="group-hover:translate-x-2 transition-transform" />
+                Iniciar Processo <ArrowRight size={16} className="group-hover:translate-x-2 transition-transform" />
               </div>
             </div>
             <ClipboardCheck size={220} className="absolute -right-12 -bottom-12 text-white/10 rotate-12 group-hover:scale-110 transition-transform duration-700" />
@@ -120,7 +120,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div className="bg-slate-900 rounded-[2.5rem] border border-slate-800 p-6 flex flex-col h-full min-h-[500px]">
             <div className="flex items-center gap-3 mb-6 border-b border-slate-800 pb-4">
               <Activity size={18} className="text-blue-500" />
-              <h3 className="text-[10px] font-black text-white uppercase tracking-[0.2em]">Fluxo de Operação</h3>
+              <h3 className="text-[10px] font-black text-white uppercase tracking-[0.2em]">Fluxo de Saída</h3>
             </div>
             
             <div className="flex-1 space-y-4 overflow-y-auto pr-2 custom-scrollbar">
