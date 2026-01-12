@@ -63,13 +63,7 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
     }
 
     try {
-      let stream: MediaStream;
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
-      } catch (err) {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      }
-
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         streamRef.current = stream;
@@ -159,7 +153,7 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
       setVerificationResult(result);
     } catch (err) {
       console.error("Erro na verificação facial:", err);
-      setVerificationResult({ match: true, confidence: 100, reason: "Verificação manual habilitada." });
+      setVerificationResult({ match: true, confidence: 100, reason: "Verificação manual." });
     } finally {
       setIsVerifying(false);
     }
@@ -183,18 +177,18 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
     const predictedDate = addDays(now, shelfLife);
 
     onSave({
-      id: generateId('DEL'),
-      date: now.toISOString(),
-      collaboratorId: formData.collaboratorId,
-      epiId: formData.epiId,
+      id: generateId('DEL'), // UNIQUEID
+      date: now.toISOString(), // Data_Entrega
+      collaboratorId: formData.collaboratorId, // ColaboradorID (Ref)
+      epiId: formData.epiId, // EPI_ID (Ref)
       quantity: formData.quantity,
       reason: formData.reason,
       notes: formData.notes,
-      responsibleEmail: 'admin@empresa.com.br',
-      photo: capturedPhoto || undefined,
+      responsibleEmail: 'admin@empresa.com.br', // ResponsavelEmail
+      photo: capturedPhoto || undefined, // Assinatura (Imagem)
       verificationResult: verificationResult || undefined,
-      predictedReplacementDate: predictedDate.toISOString(),
-      status: calculateStatus(predictedDate.toISOString())
+      predictedReplacementDate: predictedDate.toISOString(), // Data_Prevista_Troca
+      status: calculateStatus(predictedDate.toISOString()) // Status calculado
     });
   };
 
@@ -209,28 +203,27 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
   const selectedCollaborator = collaborators.find(c => c.id === formData.collaboratorId);
 
   return (
-    <div className="max-w-3xl mx-auto bg-white rounded-lg shadow-sm border border-slate-200 relative mb-20">
-      <div className="p-6 border-b border-slate-200 bg-slate-50 rounded-t-lg">
-        <h2 className="text-xl font-bold text-slate-800">Nova Entrega de EPI</h2>
-        <p className="text-sm text-slate-500 mt-1">Sincronizado com registro de validade e vida útil.</p>
+    <div className="max-w-3xl mx-auto bg-white rounded-xl shadow-sm border border-slate-200 relative mb-20 overflow-hidden">
+      <div className="p-6 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+        <div>
+          <h2 className="text-xl font-bold text-slate-800">Registrar Entrega de EPI</h2>
+          <p className="text-sm text-slate-500 mt-1">Geração automática de Data de Troca e Status.</p>
+        </div>
+        <button onClick={onCancel} className="text-slate-400 hover:text-slate-600 transition-colors">
+          <X size={24} />
+        </button>
       </div>
 
       <form onSubmit={handleSubmit} className="p-6 space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="col-span-2">
             <div className="flex justify-between items-end mb-2">
-               <label className="block text-sm font-medium text-slate-700 flex items-center gap-2 uppercase tracking-wider text-[10px] font-bold">
-                <ShieldCheck size={14} className="text-blue-600" /> Scanner Biométrico Facial
+               <label className="block text-xs font-black text-slate-400 uppercase tracking-widest">
+                Validação Biométrica (Assinatura)
               </label>
               {isVerifying && (
-                <div className="flex items-center gap-1 text-blue-600 animate-pulse text-xs font-bold">
-                  <Loader2 size={14} className="animate-spin" /> VALIDANDO...
-                </div>
-              )}
-              {verificationResult && !isVerifying && (
-                <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black shadow-sm ${verificationResult.match ? 'bg-yellow-400 text-slate-900 animate-bounce' : 'bg-red-600 text-white'}`}>
-                  {verificationResult.match ? <Medal size={16} fill="currentColor" /> : <ShieldAlert size={16} />}
-                  {verificationResult.match ? 'IDENTIDADE CERTIFICADA' : 'ALERTA DE SEGURANÇA'}
+                <div className="flex items-center gap-1 text-blue-600 animate-pulse text-[10px] font-bold">
+                  <Loader2 size={12} className="animate-spin" /> PROCESSANDO...
                 </div>
               )}
             </div>
@@ -239,14 +232,14 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
                <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 flex flex-col items-center justify-center h-64 shadow-inner">
                   {selectedCollaborator?.photo ? (
                     <div className="text-center">
-                      <p className="text-[10px] uppercase font-bold text-slate-400 mb-2 tracking-widest">Foto de Referência</p>
-                      <img src={selectedCollaborator.photo} className="w-40 h-40 rounded-full object-cover border-4 border-white shadow-xl mx-auto" alt="Ref" />
-                      <p className="mt-2 font-black text-slate-800 uppercase text-xs">{selectedCollaborator.name}</p>
+                      <img src={selectedCollaborator.photo} className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg mx-auto mb-3" alt="Ref" />
+                      <p className="font-bold text-slate-700 text-sm">{selectedCollaborator.name}</p>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase">{selectedCollaborator.matricula}</p>
                     </div>
                   ) : (
-                    <div className="text-center text-slate-400 flex flex-col items-center gap-2">
-                       <User size={48} className="opacity-10" />
-                       <p className="text-[10px] font-bold uppercase tracking-widest">Selecione o Colaborador</p>
+                    <div className="text-center text-slate-300">
+                       <User size={48} className="mx-auto mb-2 opacity-20" />
+                       <p className="text-[10px] font-bold uppercase tracking-widest">Selecione Colaborador</p>
                     </div>
                   )}
                </div>
@@ -255,49 +248,56 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
                   {capturedPhoto ? (
                     <div className="relative w-full h-full group">
                       <img src={capturedPhoto} alt="Live" className="w-full h-full object-cover" />
-                      <div className={`absolute inset-0 border-8 transition-colors pointer-events-none ${verificationResult?.match ? 'border-yellow-400/70 scale-[0.98]' : verificationResult ? 'border-red-600/70' : 'border-transparent'}`} />
-                      <button type="button" onClick={() => { setCapturedPhoto(null); startCamera(); }} className="absolute bottom-4 right-4 bg-white/90 p-2 rounded-full shadow-lg text-blue-600 hover:scale-110 transition-all border border-slate-200">
-                        <RefreshCw size={20} />
+                      <div className={`absolute inset-0 border-4 transition-colors pointer-events-none ${verificationResult?.match ? 'border-green-500/50' : verificationResult ? 'border-red-500/50' : 'border-transparent'}`} />
+                      <button type="button" onClick={() => { setCapturedPhoto(null); startCamera(); }} className="absolute bottom-4 right-4 bg-white/90 p-2 rounded-full shadow-lg text-blue-600 hover:scale-110 transition-all">
+                        <RefreshCw size={18} />
                       </button>
                     </div>
                   ) : isCameraOpen ? (
                     <div className="relative w-full h-full">
                       <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover scale-x-[-1]" />
-                      <button type="button" onClick={takePhoto} className="absolute bottom-4 left-0 right-0 m-auto bg-blue-600 text-white p-3 rounded-full shadow-2xl hover:scale-110 active:scale-95 transition-all w-14 h-14 flex items-center justify-center border-2 border-white">
+                      <button type="button" onClick={takePhoto} className="absolute bottom-4 left-0 right-0 m-auto bg-blue-600 text-white p-3 rounded-full shadow-2xl hover:scale-110 active:scale-95 transition-all w-14 h-14 flex items-center justify-center">
                         <Camera size={24} />
                       </button>
                     </div>
                   ) : (
-                    <button type="button" onClick={startCamera} className="flex flex-col items-center gap-2 text-slate-500 hover:text-blue-600 transition-all group">
-                      <Camera size={48} className="group-hover:scale-110 transition-transform" />
-                      <span className="font-black text-[10px] uppercase tracking-widest">Iniciar Captura</span>
+                    <button type="button" onClick={startCamera} className="flex flex-col items-center gap-2 text-slate-400 hover:text-blue-600 transition-all">
+                      <Camera size={40} />
+                      <span className="font-bold text-[10px] uppercase tracking-widest">Iniciar Câmera</span>
                     </button>
                   )}
                </div>
             </div>
+            {verificationResult && (
+               <div className={`mt-3 p-2 rounded-lg text-center flex items-center justify-center gap-2 ${verificationResult.match ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                  {verificationResult.match ? <ShieldCheck size={16}/> : <ShieldAlert size={16}/>}
+                  <p className="text-xs font-bold uppercase tracking-tighter">
+                    {verificationResult.match ? 'Biometria Confirmada' : 'Biometria Divergente'} ({verificationResult.confidence}%)
+                  </p>
+               </div>
+            )}
+            <canvas ref={canvasRef} className="hidden" />
           </div>
 
           <div className="col-span-2 relative">
             <div className="flex justify-between items-center mb-1">
-              <label className="block text-sm font-medium text-slate-700 flex items-center gap-2 font-bold uppercase text-[10px]">
-                <User size={14} /> Colaborador Responsável
-              </label>
-              <button type="button" onClick={() => setShowQuickAdd(true)} className="text-[10px] text-blue-600 hover:text-blue-800 font-black flex items-center gap-1 uppercase tracking-tighter">
-                <UserPlus size={12} /> + Novo Cadastro
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Colaborador</label>
+              <button type="button" onClick={() => setShowQuickAdd(true)} className="text-[10px] text-blue-600 hover:text-blue-800 font-black uppercase tracking-tighter">
+                + Novo Cadastro
               </button>
             </div>
             <div className="relative">
               <input
                 type="text"
-                className={`w-full p-2.5 pl-10 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none ${errors.collaboratorId ? 'border-red-300' : 'border-slate-300'}`}
-                placeholder="Busque pelo nome ou matrícula..."
+                className={`w-full p-3 pl-10 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm ${errors.collaboratorId ? 'border-red-300' : 'border-slate-300'}`}
+                placeholder="Pesquisar por nome ou matrícula..."
                 value={collaboratorSearch}
                 onChange={(e) => {
                   setCollaboratorSearch(e.target.value);
                   if (formData.collaboratorId) setFormData({ ...formData, collaboratorId: '' });
                 }}
               />
-              <Search className="absolute left-3 top-3 text-slate-400" size={18} />
+              <Search className="absolute left-3 top-3.5 text-slate-400" size={16} />
               
               {collaboratorSearch && !formData.collaboratorId && (
                 <div className="absolute z-20 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-48 overflow-y-auto">
@@ -313,10 +313,10 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
                         if (capturedPhoto && c.photo) verifyIdentity(c.photo, capturedPhoto);
                       }}
                     >
-                      <img src={c.photo || 'https://via.placeholder.com/40'} className="w-10 h-10 rounded-full object-cover border border-slate-200" />
+                      <img src={c.photo || 'https://via.placeholder.com/32'} className="w-8 h-8 rounded-full object-cover border border-slate-200" />
                       <div className="flex flex-col">
                         <span className="font-bold text-slate-800 text-xs">{c.name}</span>
-                        <span className="text-[9px] text-slate-500 uppercase">{c.sector} | {c.matricula}</span>
+                        <span className="text-[9px] text-slate-400 uppercase">{c.sector} | {c.matricula}</span>
                       </div>
                     </button>
                   ))}
@@ -326,34 +326,32 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
           </div>
 
           <div className="col-span-1">
-            <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-2 font-bold uppercase text-[10px]">
-              <HardHat size={14} /> Seleção de EPI
-            </label>
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">EPI</label>
             <select
-              className={`w-full p-2.5 border rounded-lg bg-white focus:ring-2 focus:ring-blue-500 outline-none ${errors.epiId ? 'border-red-300' : 'border-slate-300'}`}
+              className={`w-full p-3 border rounded-lg bg-white focus:ring-2 focus:ring-blue-500 outline-none text-sm ${errors.epiId ? 'border-red-300' : 'border-slate-300'}`}
               value={formData.epiId}
               onChange={(e) => setFormData({ ...formData, epiId: e.target.value })}
             >
               <option value="">Selecione...</option>
-              {activeEpis.map(e => <option key={e.id} value={e.id}>{e.id} - {e.description} (CA: {e.ca})</option>)}
+              {activeEpis.map(e => <option key={e.id} value={e.id}>{e.id} - {e.description}</option>)}
             </select>
           </div>
 
           <div className="col-span-1">
-            <label className="block text-sm font-medium text-slate-700 mb-1 font-bold uppercase text-[10px]">Quantidade</label>
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Quantidade</label>
             <input
               type="number"
               min="1"
-              className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-bold"
+              className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-bold text-sm"
               value={formData.quantity}
               onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 0 })}
             />
           </div>
 
           <div className="col-span-2">
-            <label className="block text-sm font-medium text-slate-700 mb-1 font-bold uppercase text-[10px]">Motivo da Entrega</label>
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Motivo</label>
             <select
-              className="w-full p-2.5 border border-slate-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+              className="w-full p-3 border border-slate-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 outline-none text-sm"
               value={formData.reason}
               onChange={(e) => setFormData({ ...formData, reason: e.target.value as DeliveryReason })}
             >
@@ -366,34 +364,34 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
           </div>
 
           <div className="col-span-2">
-            <label className="block text-sm font-medium text-slate-700 mb-1 font-bold uppercase text-[10px] flex items-center gap-1">
-              <MessageSquare size={12} /> Observações (Opcional)
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1">
+              Observações
             </label>
             <textarea
-              className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+              className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none text-sm"
               rows={2}
-              placeholder="Ex: Entregue luva extra devido a trabalho pesado..."
+              placeholder="Detalhes adicionais da entrega..."
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
             />
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-          <button type="button" onClick={onCancel} className="px-5 py-2.5 text-slate-500 font-medium hover:text-slate-800 transition-colors uppercase text-xs font-bold tracking-widest">Cancelar</button>
+        <div className="flex justify-end gap-3 pt-6 border-t border-slate-100">
+          <button type="button" onClick={onCancel} className="px-6 py-2.5 text-slate-500 font-bold hover:text-slate-700 transition-colors uppercase text-[10px] tracking-widest">Cancelar</button>
           <button
             type="submit"
             disabled={isVerifying}
-            className={`px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold flex items-center gap-2 shadow-lg transition-all active:scale-95 ${isVerifying ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`px-10 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold flex items-center gap-2 shadow-lg transition-all active:scale-95 ${isVerifying ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
-            REGISTRAR ENTREGA
+            SALVAR REGISTRO
           </button>
         </div>
       </form>
 
       {showQuickAdd && (
-        <div className="absolute inset-0 z-50 bg-slate-900/40 backdrop-blur-sm rounded-lg flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-white rounded-xl shadow-2xl overflow-hidden my-auto">
+        <div className="absolute inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden">
              <CollaboratorForm isModal={true} onSave={handleQuickAddSave} onCancel={() => setShowQuickAdd(false)} />
           </div>
         </div>

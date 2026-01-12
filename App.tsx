@@ -42,7 +42,6 @@ const App: React.FC = () => {
   const [epis, setEpis] = useState<EPI[]>(INITIAL_EPIS);
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
 
-  // Salvar no localStorage para persistência simulada
   useEffect(() => {
     const savedCols = localStorage.getItem('epi_cols');
     const savedEpis = localStorage.getItem('epi_data');
@@ -103,11 +102,11 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen bg-slate-100 font-sans text-slate-900">
+    <div className="flex min-h-screen bg-slate-50 font-sans text-slate-900">
       <Sidebar currentView={currentView} onChangeView={setCurrentView} />
       
-      <main className="flex-1 ml-64 p-8 overflow-y-auto">
-        <div className="max-w-7xl mx-auto">
+      <main className="flex-1 ml-64 p-8 transition-all">
+        <div className="max-w-7xl mx-auto animate-in fade-in duration-500">
             {renderContent()}
         </div>
       </main>

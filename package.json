@@ -1,7 +1,7 @@
 
 {
   "name": "gesto-de-epi",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "private": true,
   "scripts": {
     "dev": "vite",
@@ -11,13 +11,13 @@
   "dependencies": {
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "lucide-react": "^0.562.0",
+    "lucide-react": "^0.460.0",
     "recharts": "^2.13.0",
-    "@google/genai": "latest"
+    "@google/genai": "latest",
+    "vite": "^5.4.2",
+    "@vitejs/plugin-react": "^4.3.1"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "^4.3.1",
-    "vite": "^5.4.2",
     "typescript": "^5.5.4",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0"
