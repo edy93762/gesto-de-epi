@@ -10,19 +10,15 @@ import { EPIForm } from './components/EPIForm';
 import { EPIList } from './components/EPIList';
 import { Login } from './components/Login';
 import { Collaborator, EPI, Delivery, ViewState } from './types';
-import { CheckCircle2 } from 'lucide-react';
+import { DatabaseService } from './services/db';
+import { Loader2 } from 'lucide-react';
 
-const INITIAL_EPIS: EPI[] = [
-  {
+const INITIAL_EPI: EPI = {
     id: 'CAP-01',
     description: 'Capacete de Proteção Jugular',
-    category: 'Cabeça',
     active: true,
-    createdAt: new Date().toISOString(),
-    ca: '34.414',
-    validityCA: '2026-10-15'
-  }
-];
+    createdAt: new Date().toISOString()
+};
 
 const App: React.FC = () => {
   // Auth State
@@ -30,22 +26,49 @@ const App: React.FC = () => {
   const [isPublicRegister, setIsPublicRegister] = useState(false);
   
   // App State
+  const [isLoading, setIsLoading] = useState(true);
   const [currentView, setCurrentView] = useState<ViewState>('dashboard');
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
-  const [epis, setEpis] = useState<EPI[]>(INITIAL_EPIS);
+  const [epis, setEpis] = useState<EPI[]>([]);
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
 
-  // Carrega dados locais
+  // Inicialização do Banco de Dados
   useEffect(() => {
-    const savedCols = localStorage.getItem('epi_cols');
-    const savedEpis = localStorage.getItem('epi_data');
-    const savedDels = localStorage.getItem('epi_deliveries');
-    const savedAuth = localStorage.getItem('epi_auth');
-    
-    if (savedCols) setCollaborators(JSON.parse(savedCols));
-    if (savedEpis) setEpis(JSON.parse(savedEpis));
-    if (savedDels) setDeliveries(JSON.parse(savedDels));
-    if (savedAuth === 'true') setIsAuthenticated(true);
+    const initApp = async () => {
+      try {
+        setIsLoading(true);
+        // 1. Inicializa DB (Cria tabelas se necessário)
+        await DatabaseService.init();
+
+        // 3. Carrega dados
+        const dbCollaborators = await DatabaseService.getCollaborators();
+        const dbEpis = await DatabaseService.getEpis();
+        const dbDeliveries = await DatabaseService.getDeliveries();
+
+        setCollaborators(dbCollaborators);
+        setDeliveries(dbDeliveries);
+
+        // Se não houver EPIs, cria o inicial
+        if (dbEpis.length === 0) {
+            await DatabaseService.addEpi(INITIAL_EPI);
+            setEpis([INITIAL_EPI]);
+        } else {
+            setEpis(dbEpis);
+        }
+
+        // Verifica auth local (apenas visual, segurança real seria no backend)
+        const savedAuth = localStorage.getItem('epi_auth');
+        if (savedAuth === 'true') setIsAuthenticated(true);
+
+      } catch (error) {
+        console.error("Falha ao inicializar app:", error);
+        alert("Erro ao conectar ao Banco de Dados Neon. Verifique o console.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initApp();
   }, []);
 
   const handleLogin = () => {
@@ -59,23 +82,78 @@ const App: React.FC = () => {
     setCurrentView('dashboard');
   };
 
-  const handleAddCollaborator = (newCol: Collaborator) => {
-    const updated = [...collaborators, newCol];
-    setCollaborators(updated);
-    localStorage.setItem('epi_cols', JSON.stringify(updated));
-    
-    if (isPublicRegister) {
-      alert("Cadastro realizado com sucesso! Solicite seu EPI no balcão.");
-      setIsPublicRegister(false);
+  const handleAddCollaborator = async (newCol: Collaborator) => {
+    try {
+      await DatabaseService.addCollaborator(newCol);
+      setCollaborators(prev => [...prev, newCol]);
+      
+      if (isPublicRegister) {
+        alert("Cadastro salvo no Banco de Dados! Solicite seu EPI.");
+        setIsPublicRegister(false);
+      }
+    } catch (e) {
+      alert("Erro ao salvar colaborador no banco.");
     }
   };
 
-  const handleSaveDeliveries = (newDeliveries: Delivery[]) => {
-    const updated = [...newDeliveries, ...deliveries];
-    setDeliveries(updated);
-    localStorage.setItem('epi_deliveries', JSON.stringify(updated));
-    setCurrentView('deliveries');
+  const handleDeleteCollaborator = async (id: string) => {
+      try {
+          await DatabaseService.deleteCollaborator(id);
+          setCollaborators(prev => prev.filter(c => c.id !== id));
+      } catch (e) {
+          alert("Erro ao excluir colaborador.");
+      }
   };
+
+  const handleSaveDeliveries = async (newDeliveries: Delivery[]) => {
+    try {
+      // Salva um por um no banco
+      for (const d of newDeliveries) {
+          await DatabaseService.addDelivery(d);
+      }
+      setDeliveries(prev => [...newDeliveries, ...prev]);
+      setCurrentView('deliveries');
+    } catch (e) {
+        alert("Erro ao salvar entregas no banco.");
+    }
+  };
+
+  const handleAddEpi = async (newEpi: EPI) => {
+      try {
+          await DatabaseService.addEpi(newEpi);
+          setEpis(prev => [...prev, newEpi]);
+          setCurrentView('epis');
+      } catch (e) {
+          alert("Erro ao salvar EPI.");
+      }
+  };
+
+  const handleDeleteEpi = async (id: string) => {
+      try {
+          await DatabaseService.deleteEpi(id);
+          setEpis(prev => prev.filter(e => e.id !== id));
+      } catch (e) {
+          alert("Erro ao excluir EPI.");
+      }
+  };
+
+  // Função utilitária para limpar entregas manualmente (se necessário)
+  const handleWipeDeliveries = async () => {
+      if(confirm("Tem certeza que deseja APAGAR TODAS as fichas de entrega do banco de dados?")) {
+          await DatabaseService.deleteAllDeliveries();
+          setDeliveries([]);
+          alert("Banco de entregas limpo.");
+      }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white">
+        <Loader2 className="animate-spin text-blue-500 mb-4" size={48} />
+        <p className="uppercase font-black tracking-widest text-xs">Conectando ao Banco de Dados...</p>
+      </div>
+    );
+  }
 
   // --- RENDERIZAÇÃO PÚBLICA (LOGIN / REGISTRO) ---
 
@@ -86,7 +164,7 @@ const App: React.FC = () => {
           <div className="w-full max-w-2xl animate-in zoom-in-95 duration-300">
              <div className="mb-6 text-center">
                 <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Auto-Cadastro</h2>
-                <p className="text-slate-500 text-xs uppercase tracking-widest mt-1">Preencha seus dados para retirada de EPI</p>
+                <p className="text-slate-500 text-xs uppercase tracking-widest mt-1">Seus dados serão salvos no Banco de Dados</p>
              </div>
              <CollaboratorForm 
                 onSave={handleAddCollaborator} 
@@ -121,7 +199,17 @@ const App: React.FC = () => {
           />
         );
       case 'deliveries':
-        return <Deliveries deliveries={deliveries} epis={epis} collaborators={collaborators} />;
+        return (
+             <div className="relative">
+                 <button 
+                    onClick={handleWipeDeliveries} 
+                    className="absolute top-0 right-0 z-10 text-[9px] bg-red-900/20 text-red-500 border border-red-900/50 px-3 py-2 rounded-lg hover:bg-red-900/50 uppercase font-black tracking-widest"
+                 >
+                    Apagar Tudo (Admin)
+                 </button>
+                 <Deliveries deliveries={deliveries} epis={epis} collaborators={collaborators} />
+             </div>
+        );
       case 'new-delivery':
         return (
           <NewDeliveryForm 
@@ -137,11 +225,7 @@ const App: React.FC = () => {
           <CollaboratorsList 
             collaborators={collaborators} 
             onAddClick={() => setCurrentView('new-collaborator')} 
-            onDelete={(id) => {
-              const updated = collaborators.filter(c => c.id !== id);
-              setCollaborators(updated);
-              localStorage.setItem('epi_cols', JSON.stringify(updated));
-            }}
+            onDelete={handleDeleteCollaborator}
           />
         );
       case 'new-collaborator':
@@ -152,18 +236,9 @@ const App: React.FC = () => {
           />
         );
       case 'epis':
-        return <EPIList epis={epis} onAddClick={() => setCurrentView('new-epi')} onDelete={(id) => {
-          const updated = epis.filter(e => e.id !== id);
-          setEpis(updated);
-          localStorage.setItem('epi_data', JSON.stringify(updated));
-        }} />;
+        return <EPIList epis={epis} onAddClick={() => setCurrentView('new-epi')} onDelete={handleDeleteEpi} />;
       case 'new-epi':
-        return <EPIForm existingEpis={epis} onSave={(e) => {
-          const updated = [...epis, e];
-          setEpis(updated);
-          localStorage.setItem('epi_data', JSON.stringify(updated));
-          setCurrentView('epis');
-        }} onCancel={() => setCurrentView('epis')} />;
+        return <EPIForm existingEpis={epis} onSave={handleAddEpi} onCancel={() => setCurrentView('epis')} />;
       default:
         return <Dashboard onNavigate={setCurrentView} stats={stats} />;
     }

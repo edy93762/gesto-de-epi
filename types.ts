@@ -2,11 +2,11 @@
 export interface Collaborator {
   id: string; 
   name: string; 
-  cpf: string; // Alterado de matricula para CPF
+  cpf: string; 
   sector: string; 
   role: string; 
   branch: string; 
-  shift: 'T1' | 'T2' | 'T3' | 'T4' | 'T5'; // Novo campo de Turno
+  shift: 'T1' | 'T2' | 'T3' | 'T4' | 'T5'; 
   managerName: string; 
   managerEmail: string; 
   active: boolean; 
@@ -15,11 +15,8 @@ export interface Collaborator {
 export interface EPI {
   id: string; 
   description: string; 
-  category: string; 
   active: boolean; 
   createdAt: string;
-  ca?: string;
-  validityCA?: string;
 }
 
 export type DeliveryReason = 'Primeira' | 'Troca validade' | 'Desgaste' | 'Perda' | 'Dano';

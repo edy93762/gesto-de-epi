@@ -51,7 +51,6 @@ export const EPIList: React.FC<EPIListProps> = ({ epis, onAddClick, onDelete }) 
                   <Tag size={12} /> {epi.id}
                 </div>
                 <h3 className="text-xl font-black text-white uppercase tracking-tight truncate">{epi.description}</h3>
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{epi.category}</p>
               </div>
 
               <div className="flex items-center justify-between pt-4 border-t border-slate-800 text-[10px] font-black uppercase">

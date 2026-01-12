@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { EPI } from '../types';
-import { Save, HardHat, X, AlertCircle, Tag, Package, Shield, Calendar } from 'lucide-react';
+import { HardHat, X, AlertCircle, Package } from 'lucide-react';
 
 interface EPIFormProps {
   existingEpis: EPI[];
@@ -13,9 +13,6 @@ export const EPIForm: React.FC<EPIFormProps> = ({ existingEpis, onSave, onCancel
   const [formData, setFormData] = useState({
     id: '',
     description: '',
-    category: '',
-    ca: '',
-    validityCA: '',
   });
   const [error, setError] = useState('');
 
@@ -61,28 +58,6 @@ export const EPIForm: React.FC<EPIFormProps> = ({ existingEpis, onSave, onCancel
             <div>
               <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Descrição Completa</label>
               <input required type="text" className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Ex: Luva de Raspa G" />
-            </div>
-            <div>
-              <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Categoria</label>
-              <input required type="text" className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm" value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })} placeholder="Mãos" />
-            </div>
-          </div>
-        </section>
-
-        {/* GRUPO: DADOS TÉCNICOS */}
-        <section className="bg-slate-950/50 p-6 rounded-3xl border border-slate-800/50 space-y-4">
-          <div className="flex items-center gap-2 border-b border-slate-800 pb-2">
-             <Shield size={14} className="text-emerald-500" />
-             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Grupo: Normas Técnicas</h3>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Nº Certificado CA</label>
-              <input required type="text" className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm font-bold" value={formData.ca} onChange={(e) => setFormData({ ...formData, ca: e.target.value })} />
-            </div>
-            <div>
-              <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Validade CA</label>
-              <input required type="date" className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm" value={formData.validityCA} onChange={(e) => setFormData({ ...formData, validityCA: e.target.value })} />
             </div>
           </div>
         </section>

@@ -217,7 +217,6 @@ export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collab
                                 <th className="border-r border-black p-1 w-8">Qt</th>
                                 <th className="border-r border-black p-1 w-8">Un</th>
                                 <th className="border-r border-black p-1">Discriminação</th>
-                                <th className="border-r border-black p-1 w-16">CA</th>
                                 <th className="border-r border-black p-1 w-16">Motivo</th>
                                 <th className="border-r border-black p-1 w-16">Entrega</th>
                                 <th className="border-r border-black p-1 w-24">Assinatura</th>
@@ -228,13 +227,12 @@ export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collab
                                 <td className="border-r border-black">1</td>
                                 <td className="border-r border-black">UN</td>
                                 <td className="border-r border-black text-left pl-2">{epi.description}</td>
-                                <td className="border-r border-black">{epi.ca}</td>
                                 <td className="border-r border-black font-bold">{fichaPreview.reason}</td>
                                 <td className="border-r border-black">{formatDate(fichaPreview.date)}</td>
                                 <td className="border-r border-black text-[7px]">DIGITAL</td>
                             </tr>
                             {[...Array(3)].map((_, i) => (
-                                <tr key={i} className="border-b border-black h-8"><td colSpan={7}></td></tr>
+                                <tr key={i} className="border-b border-black h-8"><td colSpan={6}></td></tr>
                             ))}
                         </tbody>
                     </table>

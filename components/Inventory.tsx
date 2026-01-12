@@ -1,7 +1,6 @@
-
 import React from 'react';
 import { EPI } from '../types';
-import { HardHat, Calendar, Tag, Shield, Plus, Trash2 } from 'lucide-react';
+import { Calendar, Tag, Plus, Trash2 } from 'lucide-react';
 import { formatDate } from '../utils/helpers';
 
 interface InventoryProps {
@@ -33,9 +32,9 @@ export const Inventory: React.FC<InventoryProps> = ({ epis, onAddClick, onDelete
           <table className="w-full text-left text-sm text-slate-600">
             <thead className="bg-slate-50 text-slate-900 font-semibold border-b border-slate-200">
               <tr>
-                <th className="px-6 py-4">ID / CA</th>
-                <th className="px-6 py-4">Descrição / Categoria</th>
-                <th className="px-6 py-4">Validade CA</th>
+                <th className="px-6 py-4">ID</th>
+                <th className="px-6 py-4">Descrição</th>
+                <th className="px-6 py-4">Criado em</th>
                 <th className="px-6 py-4">Status</th>
                 <th className="px-6 py-4 text-right">Ações</th>
               </tr>
@@ -55,21 +54,17 @@ export const Inventory: React.FC<InventoryProps> = ({ epis, onAddClick, onDelete
                          <span className="font-bold text-slate-900 flex items-center gap-1">
                            <Tag size={12} className="text-slate-400" /> {epi.id}
                          </span>
-                         <span className="text-[10px] bg-slate-100 text-slate-600 px-1 rounded flex items-center gap-1 w-fit mt-1">
-                           <Shield size={10} /> CA: {epi.ca}
-                         </span>
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-col">
                          <span className="font-medium text-slate-700">{epi.description}</span>
-                         <span className="text-[10px] text-slate-400 uppercase font-bold">{epi.category}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-1 text-slate-500 font-medium">
                         <Calendar size={14} />
-                        {formatDate(epi.validityCA)}
+                        {formatDate(epi.createdAt)}
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -127,17 +122,9 @@ export const Inventory: React.FC<InventoryProps> = ({ epis, onAddClick, onDelete
                  </div>
               </div>
               
-              <div className="grid grid-cols-1 gap-2 text-[11px]">
-                 <div className="bg-slate-50 p-2 rounded-lg flex items-center gap-2">
-                    <Shield size={14} className="text-slate-400" />
-                    <span className="text-slate-500">CA: <strong className="text-slate-800">{epi.ca}</strong></span>
-                 </div>
-              </div>
-
               <div className="pt-2 border-t border-slate-100 flex justify-between items-center">
-                 <span className="text-[10px] text-slate-400 font-bold uppercase">{epi.category}</span>
                  <div className="flex items-center gap-1 text-[10px] text-slate-500">
-                    <Calendar size={12} /> {formatDate(epi.validityCA)}
+                    <Calendar size={12} /> {formatDate(epi.createdAt)}
                  </div>
               </div>
             </div>

@@ -263,7 +263,7 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
                         </div>
                         <div className="min-w-0">
                            <p className={`text-xs font-black uppercase ${isSelected ? 'text-white' : 'text-slate-400'}`}>{e.description}</p>
-                           <p className="text-[9px] text-slate-500 font-bold uppercase">{e.id} • CA: {e.ca || 'N/A'}</p>
+                           <p className="text-[9px] text-slate-500 font-bold uppercase">{e.id}</p>
                         </div>
                      </button>
                    );
@@ -433,7 +433,6 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
                             <th className="border-r border-black p-1 w-10">Quant.</th>
                             <th className="border-r border-black p-1 w-10">Unid.</th>
                             <th className="border-r border-black p-1">Discriminação</th>
-                            <th className="border-r border-black p-1 w-20">Nº C. A</th>
                             <th className="border-r border-black p-1 w-20">Motivo</th>
                             <th className="border-r border-black p-1 w-20">Data da Entrega</th>
                             <th className="border-r border-black p-1 w-24">Assinatura</th>
@@ -448,7 +447,6 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
                               <td className="border-r border-black">1</td>
                               <td className="border-r border-black">UN</td>
                               <td className="border-r border-black text-left pl-2">{epi.description}</td>
-                              <td className="border-r border-black">{epi.ca}</td>
                               <td className="border-r border-black font-bold">{reason}</td>
                               <td className="border-r border-black">{formatDate(new Date().toISOString())}</td>
                               <td className="border-r border-black text-[7px] italic">BIOMETRIA DIGITAL</td>
@@ -459,7 +457,7 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
                         
                         {/* LINHAS VAZIAS PARA PREENCHER */}
                         {[...Array(Math.max(0, 6 - selectedEpisList.length))].map((_, i) => (
-                            <tr key={i} className="border-b border-black h-8"><td colSpan={9}></td></tr>
+                            <tr key={i} className="border-b border-black h-8"><td colSpan={8}></td></tr>
                         ))}
                     </tbody>
                 </table>
