@@ -63,6 +63,7 @@ export const CollaboratorForm: React.FC<CollaboratorFormProps> = ({ onSave, onCa
     
     // Verificações Básicas
     if (!formData.branch) { alert("Selecione a Unidade (Branch)."); return; }
+    if (!formData.agency) { alert("O campo Agência é obrigatório."); return; } // Validação Obrigatória
     if (!formData.hseName) { alert("Selecione o Responsável HSE."); return; }
 
     // Verificação de Duplicidade (CPF ou Nome Exato)
@@ -124,14 +125,16 @@ export const CollaboratorForm: React.FC<CollaboratorFormProps> = ({ onSave, onCa
                 </div>
               </div>
 
-               {/* CAMPO AGÊNCIA NOVO */}
+               {/* CAMPO AGÊNCIA OBRIGATÓRIO */}
                <div>
-                  <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2"><Building size={10} className="text-blue-400"/> Agência</label>
+                  <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2 text-blue-400">
+                      <Building size={10} /> Agência (Obrigatório)
+                  </label>
                   <input 
                       required 
                       type="text" 
                       list="agencies-list"
-                      className="w-full p-4 bg-slate-950 border border-slate-800 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-white text-sm font-bold" 
+                      className="w-full p-4 bg-slate-950 border border-blue-500/30 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-white text-sm font-bold" 
                       value={formData.agency} 
                       onChange={(e) => setFormData({ ...formData, agency: e.target.value })} 
                       placeholder="Agência (Selecione ou Digite)" 
