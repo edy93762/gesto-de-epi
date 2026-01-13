@@ -1,8 +1,8 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { Delivery, EPI, Collaborator } from '../types';
 import { formatDateTime, formatDate } from '../utils/helpers';
-import { Search, Camera, X, ShieldCheck, FileText, Download, User, HardHat as Hat, Tag, MapPin, Briefcase } from 'lucide-react';
+import { Search, X, FileText, Download, User, HardHat, Building2, ChevronRight, Calendar } from 'lucide-react';
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
 
@@ -17,22 +17,53 @@ Portaria 3214, 08/06/78 do M T E, NR- 01 e NR-06... (Texto Completo na Versão I
 
 export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collaborators }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
-  const [fichaPreview, setFichaPreview] = useState<Delivery | null>(null);
+  const [selectedCollaboratorId, setSelectedCollaboratorId] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const fichaRef = useRef<HTMLDivElement>(null);
 
   const getCollaborator = (id: string) => collaborators.find(c => c.id === id);
   const getEPI = (id: string) => epis.find(e => e.id === id);
 
-  const filteredDeliveries = deliveries.filter(d => 
-    getCollaborator(d.collaboratorId)?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    getEPI(d.epiId)?.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    getEPI(d.epiId)?.id.toLowerCase().includes(searchTerm.toLowerCase())
-  ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  // 1. Agrupar entregas por Colaborador para a lista principal
+  const collaboratorsWithHistory = useMemo(() => {
+    const uniqueIds = Array.from(new Set(deliveries.map(d => d.collaboratorId)));
+    
+    return uniqueIds.map(id => {
+      const col = getCollaborator(id);
+      const colDeliveries = deliveries.filter(d => d.collaboratorId === id);
+      // Pega a data mais recente
+      const lastDelivery = colDeliveries.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+      
+      return {
+        collaborator: col,
+        totalItems: colDeliveries.length,
+        lastUpdate: lastDelivery?.date
+      };
+    }).filter(item => 
+      item.collaborator && 
+      (item.collaborator.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+       item.collaborator.cpf.includes(searchTerm))
+    );
+  }, [deliveries, collaborators, searchTerm]);
+
+  // 2. Dados da Ficha Selecionada (Histórico Completo)
+  const activeFichaData = useMemo(() => {
+    if (!selectedCollaboratorId) return null;
+    
+    const col = getCollaborator(selectedCollaboratorId);
+    if (!col) return null;
+
+    // Ordena do ANTIGO para o NOVO (preenchimento de cima para baixo na ficha)
+    const history = deliveries
+      .filter(d => d.collaboratorId === selectedCollaboratorId)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    return { col, history };
+  }, [selectedCollaboratorId, deliveries, collaborators]);
+
 
   const generatePDF = async () => {
-    if (!fichaRef.current || !fichaPreview) return;
+    if (!fichaRef.current || !activeFichaData) return;
     setIsExporting(true);
     try {
       const element = fichaRef.current;
@@ -43,18 +74,19 @@ export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collab
         backgroundColor: "#ffffff"
       });
       const imgData = canvas.toDataURL('image/png');
+      
+      // Configuração A4 Altura Automática baseada no conteúdo
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
       
-      const col = getCollaborator(fichaPreview.collaboratorId);
-      const epi = getEPI(fichaPreview.epiId);
-      const dateStr = new Date(fichaPreview.date).toISOString().split('T')[0];
-      
-      const fileName = `${col?.name}_${epi?.description}_${dateStr}_${col?.branch}_${col?.cpf}.pdf`
+      const { col } = activeFichaData;
+      // Nome do Arquivo Padronizado: FICHA_EPI_NOME_CPF.pdf
+      const fileName = `FICHA_EPI_${col.name}_${col.cpf}`
           .replace(/\s+/g, '_')
-          .replace(/[^a-zA-Z0-9_.]/g, '');
+          .toUpperCase() + '.pdf';
 
       pdf.save(fileName);
     } catch (error) {
@@ -65,21 +97,23 @@ export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collab
     }
   };
 
-  const col = fichaPreview ? getCollaborator(fichaPreview.collaboratorId) : null;
-  const epi = fichaPreview ? getEPI(fichaPreview.epiId) : null;
-  const isShopee = col?.branch?.toLowerCase().includes('shopee');
+  const isShopee = activeFichaData?.col.branch?.toLowerCase().includes('shopee');
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
+      
+      {/* Header Principal */}
       <div className="bg-slate-900 rounded-[2rem] border border-slate-800 p-8 flex flex-col md:flex-row justify-between items-center gap-6 shadow-xl">
         <div>
-          <h2 className="text-3xl font-black text-white uppercase tracking-tighter">Histórico de Entregas</h2>
-          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mt-1">Registros de Recebimento de Materiais</p>
+          <h2 className="text-3xl font-black text-white uppercase tracking-tighter">Fichas de EPI</h2>
+          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mt-1">
+             Documentos Consolidados por Colaborador
+          </p>
         </div>
         <div className="relative w-full md:w-80">
           <input
             type="text"
-            placeholder="Pesquisar por nome ou ID..."
+            placeholder="Buscar Colaborador..."
             className="w-full pl-12 pr-4 py-4 bg-slate-950 border border-slate-800 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-sm text-white font-bold transition-all"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -88,201 +122,193 @@ export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collab
         </div>
       </div>
 
-      <div className="bg-slate-900 rounded-[2.5rem] border border-slate-800 overflow-hidden shadow-2xl">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-slate-400">
-            <thead className="bg-slate-950 text-slate-500 font-black text-[10px] uppercase tracking-[0.2em] border-b border-slate-800">
-              <tr>
-                <th className="px-8 py-6">Evidência</th>
-                <th className="px-8 py-6">Data / Hora</th>
-                <th className="px-8 py-6">Colaborador</th>
-                <th className="px-8 py-6">Equipamento (ID)</th>
-                <th className="px-8 py-6">Motivo</th>
-                <th className="px-8 py-6 text-right">Ação</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/50 font-bold">
-              {filteredDeliveries.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-8 py-20 text-center opacity-30 text-xs font-black uppercase">Nenhuma entrega registrada</td>
-                </tr>
-              ) : (
-                filteredDeliveries.map((delivery) => (
-                  <tr key={delivery.id} className="hover:bg-slate-800/30 transition-colors">
-                    <td className="px-8 py-5">
-                      {delivery.photo ? (
-                        <button onClick={() => setSelectedPhoto(delivery.photo!)} className="w-12 h-12 rounded-xl overflow-hidden border border-slate-800 hover:scale-110 transition-transform bg-slate-950 p-0.5">
-                          <img src={delivery.photo} className="w-full h-full object-cover rounded-[10px]" />
-                        </button>
-                      ) : (
-                        <div className="w-12 h-12 rounded-xl bg-slate-950 flex items-center justify-center text-slate-800 border border-slate-800"><Camera size={18} /></div>
-                      )}
-                    </td>
-                    <td className="px-8 py-5 font-mono text-[11px] text-slate-500">{formatDateTime(delivery.date)}</td>
-                    <td className="px-8 py-5 text-white uppercase tracking-tight text-xs">
-                       {getCollaborator(delivery.collaboratorId)?.name || 'N/A'}
-                    </td>
-                    <td className="px-8 py-5">
-                      <div className="flex flex-col">
-                        <span className="text-white text-xs uppercase tracking-tight">{getEPI(delivery.epiId)?.description || 'EPI Excluído'}</span>
-                        <span className="text-[9px] text-blue-500 font-black uppercase tracking-widest flex items-center gap-1"><Tag size={8} /> {delivery.epiId}</span>
-                      </div>
-                    </td>
-                    <td className="px-8 py-5">
-                      <span className="text-[9px] text-slate-400 uppercase font-black px-2 py-1 bg-slate-800 rounded-lg">{delivery.reason}</span>
-                    </td>
-                    <td className="px-8 py-5 text-right">
-                      <button onClick={() => setFichaPreview(delivery)} className="bg-white text-black px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all active:scale-95 shadow-lg">
-                        Ver Ficha
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+      {/* Lista de Fichas (Colaboradores) */}
+      <div className="grid grid-cols-1 gap-4">
+         {collaboratorsWithHistory.length === 0 ? (
+            <div className="p-20 text-center text-slate-500 font-black uppercase text-xs border-2 border-dashed border-slate-800 rounded-[2rem]">
+               Nenhum histórico encontrado.
+            </div>
+         ) : (
+            collaboratorsWithHistory.map(({ collaborator, totalItems, lastUpdate }) => (
+               <div key={collaborator?.id} className="bg-slate-900 p-6 rounded-[2rem] border border-slate-800 flex flex-col md:flex-row items-center justify-between gap-6 hover:border-blue-500/50 transition-all group">
+                  <div className="flex items-center gap-5 w-full md:w-auto">
+                     <div className="w-16 h-16 rounded-2xl bg-slate-950 border border-slate-700 flex items-center justify-center shrink-0">
+                        <User size={28} className="text-slate-500" />
+                     </div>
+                     <div>
+                        <h3 className="text-lg font-black text-white uppercase leading-none mb-1">{collaborator?.name}</h3>
+                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest flex items-center gap-2">
+                           <Building2 size={10} /> {collaborator?.branch}
+                        </p>
+                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">
+                           CPF: {collaborator?.cpf}
+                        </p>
+                     </div>
+                  </div>
+
+                  <div className="flex items-center gap-8 w-full md:w-auto justify-between md:justify-end">
+                     <div className="text-right">
+                        <p className="text-[9px] text-slate-600 font-black uppercase tracking-widest">Última Movimentação</p>
+                        <p className="text-xs font-bold text-white flex items-center justify-end gap-1">
+                           <Calendar size={12} className="text-blue-500" /> {lastUpdate ? formatDateTime(lastUpdate) : '-'}
+                        </p>
+                     </div>
+                     <div className="text-right">
+                        <p className="text-[9px] text-slate-600 font-black uppercase tracking-widest">Total Itens</p>
+                        <p className="text-xs font-bold text-white flex items-center justify-end gap-1">
+                           <HardHat size={12} className="text-orange-500" /> {totalItems}
+                        </p>
+                     </div>
+                     
+                     <button 
+                        onClick={() => setSelectedCollaboratorId(collaborator!.id)}
+                        className="bg-blue-600 text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-500 transition-all shadow-lg active:scale-95 flex items-center gap-2"
+                     >
+                        Abrir Ficha <ChevronRight size={14} />
+                     </button>
+                  </div>
+               </div>
+            ))
+         )}
       </div>
 
-      {selectedPhoto && (
-        <div className="fixed inset-0 z-[110] bg-black/95 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in" onClick={() => setSelectedPhoto(null)}>
-          <div className="relative max-w-lg w-full">
-            <img src={selectedPhoto} className="w-full h-auto rounded-[2rem] shadow-2xl border-4 border-slate-800" />
-            <button className="absolute -top-12 right-0 text-white p-2 hover:scale-110 transition-transform"><X size={32} /></button>
-          </div>
-        </div>
-      )}
-
-      {fichaPreview && col && epi && (
+      {/* --- MODAL DA FICHA ÚNICA --- */}
+      {activeFichaData && (
         <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in zoom-in-95 duration-300">
-          <div className="bg-white w-full max-w-2xl rounded-[1rem] shadow-2xl overflow-hidden relative my-8">
-            <div className="p-4 bg-slate-100 border-b border-slate-300 flex justify-between items-center no-print">
+          <div className="bg-white w-full max-w-3xl rounded-[1rem] shadow-2xl overflow-hidden relative my-8">
+            
+            {/* Toolbar do Modal */}
+            <div className="p-4 bg-slate-100 border-b border-slate-300 flex justify-between items-center no-print sticky top-0 z-50">
                <h3 className="font-bold text-slate-900 uppercase text-xs flex items-center gap-2">
-                 <FileText size={18} className="text-blue-600" /> Prévia da Ficha
+                 <FileText size={18} className="text-blue-600" /> Ficha Consolidada
                </h3>
-               <button onClick={() => setFichaPreview(null)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X size={20} className="text-slate-500" /></button>
+               <button onClick={() => setSelectedCollaboratorId(null)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X size={20} className="text-slate-500" /></button>
             </div>
 
-            {/* CONTEÚDO DA PRÉVIA - IGUAL AO PDF GERADO */}
-            <div ref={fichaRef} className="p-8 bg-white text-black font-sans text-xs">
+            {/* ÁREA DE IMPRESSÃO (O DOCUMENTO REAL) */}
+            <div ref={fichaRef} className="p-10 bg-white text-black font-sans text-xs min-h-[297mm]">
                 
-                {/* Header */}
+                {/* Cabeçalho Padrão */}
                 <div className="border-2 border-black mb-4 flex">
-                    <div className="w-1/3 border-r-2 border-black flex items-center justify-center p-2">
+                    <div className="w-1/3 border-r-2 border-black flex items-center justify-center p-2 bg-slate-50">
                         <h1 className={`text-xl font-black text-center uppercase ${isShopee ? 'text-red-600' : 'text-blue-900'}`}>
-                            {col.branch || 'LOGO'}
+                            {activeFichaData.col.branch || 'LOGO'}
                         </h1>
                     </div>
                     <div className="w-2/3 p-2">
-                        <h2 className="text-center font-bold text-[10px] uppercase mb-1">TERMO DE RESPONSABILIDADE</h2>
-                        <p className="text-[7px] text-justify leading-tight">
+                        <h2 className="text-center font-bold text-[10px] uppercase mb-1">TERMO DE RESPONSABILIDADE & FICHA DE CONTROLE</h2>
+                        <p className="text-[7px] text-justify leading-tight text-slate-600">
                             {LEGAL_TEXT}
                         </p>
                     </div>
                 </div>
 
-                <div className="border-2 border-black border-b-0 py-1 bg-white text-center">
-                    <h2 className="text-[10px] font-black uppercase">FICHA DE CONTROLE DE EPI</h2>
+                <div className="border-2 border-black border-b-0 py-1 bg-slate-100 text-center">
+                    <h2 className="text-[10px] font-black uppercase">DADOS DO COLABORADOR</h2>
                 </div>
 
-                <div className="border-2 border-black text-[10px] font-bold uppercase mb-0">
-                    <div className="border-b border-black p-1 pl-2">
-                        Nome: <span className="font-normal ml-2">{col.name}</span>
+                {/* Dados do Colaborador */}
+                <div className="border-2 border-black text-[10px] font-bold uppercase mb-4">
+                    <div className="border-b border-black p-1 pl-2 bg-white">
+                        Nome: <span className="font-normal ml-2">{activeFichaData.col.name}</span>
                     </div>
                     <div className="flex border-b border-black">
                         <div className="w-1/2 border-r border-black p-1 pl-2">
-                            CPF: <span className="font-normal ml-2">{col.cpf}</span>
+                            CPF: <span className="font-normal ml-2">{activeFichaData.col.cpf}</span>
                         </div>
                         <div className="w-1/2 p-1 pl-2">
-                            Data de Admissão: <span className="font-normal ml-2">-</span>
+                            Matrícula/ID: <span className="font-normal ml-2">{activeFichaData.col.id}</span>
                         </div>
                     </div>
                     <div className="flex border-b border-black">
                         <div className="w-1/2 border-r border-black p-1 pl-2">
-                            Unidade: <span className="font-normal ml-2">{col.branch}</span>
+                            Unidade: <span className="font-normal ml-2">{activeFichaData.col.branch}</span>
                         </div>
                         <div className="w-1/2 p-1 pl-2">
-                            Turno: <span className="font-normal ml-2">{col.shift}</span>
+                            Turno: <span className="font-normal ml-2">{activeFichaData.col.shift}</span>
                         </div>
                     </div>
                     <div className="p-1 pl-2">
-                        Função: <span className="font-normal ml-2">{col.role}</span>
+                        Função: <span className="font-normal ml-2">{activeFichaData.col.role}</span>
                     </div>
                 </div>
 
+                {/* TABELA DE REGISTROS (LINHAS ACUMULATIVAS) */}
                 <div className="mt-0">
-                    <table className="w-full border-2 border-black border-t-0 text-[9px] text-center">
-                        <thead>
-                            <tr className="border-b border-black font-bold uppercase">
+                    <h3 className="text-[10px] font-black uppercase mb-1">REGISTRO DE ENTREGAS</h3>
+                    <table className="w-full border-2 border-black text-[9px] text-center">
+                        <thead className="bg-slate-100">
+                            <tr className="border-b-2 border-black font-bold uppercase">
                                 <th className="border-r border-black p-1 w-8">Qt</th>
-                                <th className="border-r border-black p-1 w-8">Un</th>
-                                <th className="border-r border-black p-1">Discriminação</th>
-                                <th className="border-r border-black p-1 w-16">Motivo</th>
-                                <th className="border-r border-black p-1 w-16">Entrega</th>
-                                <th className="border-r border-black p-1 w-24">Assinatura</th>
+                                <th className="border-r border-black p-1">Descrição do EPI</th>
+                                <th className="border-r border-black p-1 w-20">CA/ID</th>
+                                <th className="border-r border-black p-1 w-20">Motivo</th>
+                                <th className="border-r border-black p-1 w-20">Data Entrega</th>
+                                <th className="border-r border-black p-1 w-24">Visto Colab.</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr className="border-b border-black h-8">
-                                <td className="border-r border-black">1</td>
-                                <td className="border-r border-black">UN</td>
-                                <td className="border-r border-black text-left pl-2">{epi.description}</td>
-                                <td className="border-r border-black font-bold">{fichaPreview.reason}</td>
-                                <td className="border-r border-black">{formatDate(fichaPreview.date)}</td>
-                                <td className="border-r border-black text-[7px]">DIGITAL</td>
-                            </tr>
-                            {[...Array(3)].map((_, i) => (
-                                <tr key={i} className="border-b border-black h-8"><td colSpan={6}></td></tr>
+                            {/* Mapeia TODAS as entregas do histórico */}
+                            {activeFichaData.history.map((delivery, index) => {
+                                const epi = getEPI(delivery.epiId);
+                                return (
+                                    <tr key={delivery.id} className="border-b border-black h-8 hover:bg-slate-50">
+                                        <td className="border-r border-black">1</td>
+                                        <td className="border-r border-black text-left pl-2 font-medium">{epi?.description || 'Item Excluído'}</td>
+                                        <td className="border-r border-black">{delivery.epiId}</td>
+                                        <td className="border-r border-black">{delivery.reason}</td>
+                                        <td className="border-r border-black font-bold">{formatDate(delivery.date)}</td>
+                                        <td className="border-r border-black text-[7px]">
+                                            {delivery.photo ? 'BIOMETRIA OK' : 'ASS. MANUAL'}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+
+                            {/* Linhas em branco para preenchimento manual futuro (opcional, visual de ficha) */}
+                            {[...Array(Math.max(0, 15 - activeFichaData.history.length))].map((_, i) => (
+                                <tr key={`empty-${i}`} className="border-b border-black h-8">
+                                    <td className="border-r border-black"></td>
+                                    <td className="border-r border-black"></td>
+                                    <td className="border-r border-black"></td>
+                                    <td className="border-r border-black"></td>
+                                    <td className="border-r border-black"></td>
+                                    <td className="border-r border-black"></td>
+                                </tr>
                             ))}
                         </tbody>
                     </table>
                 </div>
 
-                {fichaPreview.notes && (
-                    <div className="border border-black p-2 mt-4 text-[10px]">
-                        <strong>OBS:</strong> {fichaPreview.notes}
-                    </div>
-                )}
-
-                {/* AREA DE ASSINATURA E FOTO PEQUENA - ATUALIZADO */}
-                <div className="mt-8 flex justify-between items-end gap-2 px-2 border-2 border-black p-2">
-                     <div className="flex-1 flex gap-4">
+                {/* RODAPÉ DO DOCUMENTO */}
+                <div className="mt-8 flex justify-between items-end gap-2 border-t-2 border-black pt-4">
+                     <div className="flex-1 flex gap-8">
                          {/* Assinatura Gestor */}
                          <div className="flex-1 text-center">
                              <div className="border-b border-black mb-1 mt-8"></div>
-                             <p className="text-[9px] uppercase font-bold">Responsável: {col.managerName}</p>
+                             <p className="text-[9px] uppercase font-bold">Gestor: {activeFichaData.col.managerName}</p>
                          </div>
 
                          {/* Assinatura Colaborador */}
                          <div className="flex-1 text-center">
                              <div className="border-b border-black mb-1 mt-8"></div>
-                             <p className="text-[9px] uppercase font-bold">Colaborador: {col.name}</p>
+                             <p className="text-[9px] uppercase font-bold">Colaborador: {activeFichaData.col.name}</p>
                          </div>
                      </div>
-
-                     {/* FOTO PEQUENA AO LADO */}
-                     <div className="shrink-0 ml-4">
-                         {fichaPreview.photo ? (
-                             <div className="w-[80px] h-[100px] border border-black p-1 bg-white">
-                                 <img src={fichaPreview.photo} className="w-full h-full object-cover" style={{ objectPosition: 'center' }} />
-                             </div>
-                         ) : (
-                             <div className="w-[80px] h-[100px] border border-black flex items-center justify-center text-[8px] uppercase text-center p-2">
-                                 Foto Biometria
-                             </div>
-                         )}
-                         <p className="text-[7px] text-center mt-1 uppercase font-bold">Biometria</p>
-                     </div>
+                </div>
+                <div className="mt-4 text-[7px] text-center text-slate-400 uppercase">
+                    Este documento substitui e revoga as versões anteriores. Gerado eletronicamente em {formatDateTime(new Date().toISOString())}.
                 </div>
             </div>
 
+            {/* Footer do Modal com Ação */}
             <div className="p-4 bg-slate-100 border-t border-slate-300 flex justify-end gap-4 no-print">
                <button 
                  onClick={generatePDF} 
                  disabled={isExporting} 
-                 className="flex items-center justify-center gap-2 bg-slate-900 text-white px-6 py-3 rounded-xl font-bold uppercase text-xs hover:bg-blue-600 transition-all shadow-md active:scale-95 disabled:opacity-50"
+                 className="flex items-center justify-center gap-2 bg-blue-900 text-white px-8 py-4 rounded-xl font-bold uppercase text-xs hover:bg-blue-800 transition-all shadow-md active:scale-95 disabled:opacity-50"
                >
-                 {isExporting ? 'Processando...' : 'Baixar PDF'} <Download size={16} />
+                 {isExporting ? 'Gerando PDF Único...' : 'Baixar/Imprimir Ficha Completa'} <Download size={16} />
                </button>
             </div>
           </div>
