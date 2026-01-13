@@ -222,48 +222,34 @@ export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collab
                     <h2 className="text-[10px] font-black uppercase">DADOS DO COLABORADOR</h2>
                 </div>
 
-                {/* Dados do Colaborador COM FOTO */}
-                <div className="border-2 border-black text-[10px] font-bold uppercase mb-4 flex">
-                    <div className="flex-1">
-                        <div className="border-b border-black p-1 pl-2 bg-white">
-                            Nome: <span className="font-normal ml-2">{activeFichaData.col.name}</span>
+                {/* Dados do Colaborador (Formato Lista) */}
+                <div className="border-2 border-black text-[10px] font-bold uppercase mb-4">
+                    <div className="border-b border-black p-1 pl-2 bg-white">
+                        Nome: <span className="font-normal ml-2">{activeFichaData.col.name}</span>
+                    </div>
+                    <div className="flex border-b border-black">
+                        <div className="w-1/2 border-r border-black p-1 pl-2">
+                            CPF: <span className="font-normal ml-2">{activeFichaData.col.cpf}</span>
                         </div>
-                        <div className="flex border-b border-black">
-                            <div className="w-1/2 border-r border-black p-1 pl-2">
-                                CPF: <span className="font-normal ml-2">{activeFichaData.col.cpf}</span>
-                            </div>
-                            <div className="w-1/2 p-1 pl-2">
-                                Matrícula/ID: <span className="font-normal ml-2">{activeFichaData.col.id}</span>
-                            </div>
-                        </div>
-                        <div className="flex border-b border-black">
-                            <div className="w-1/2 border-r border-black p-1 pl-2">
-                                Unidade: <span className="font-normal ml-2">{activeFichaData.col.branch}</span>
-                            </div>
-                            <div className="w-1/2 p-1 pl-2">
-                                Agência: <span className="font-normal ml-2">{activeFichaData.col.agency || '-'}</span>
-                            </div>
-                        </div>
-                        <div className="flex">
-                             <div className="w-1/2 border-r border-black p-1 pl-2">
-                                Função: <span className="font-normal ml-2">{activeFichaData.col.role}</span>
-                             </div>
-                             <div className="w-1/2 p-1 pl-2">
-                                Turno: <span className="font-normal ml-2">{activeFichaData.col.shift}</span>
-                             </div>
+                        <div className="w-1/2 p-1 pl-2">
+                            Matrícula/ID: <span className="font-normal ml-2">{activeFichaData.col.id}</span>
                         </div>
                     </div>
-                    
-                    {/* Área da Foto */}
-                    <div className="w-28 border-l border-black flex flex-col items-center justify-center p-1 bg-slate-50">
-                       {latestPhoto ? (
-                           <img src={latestPhoto} className="w-20 h-24 object-cover border border-slate-400 shadow-sm" alt="Biometria" />
-                       ) : (
-                           <div className="w-20 h-24 border border-slate-300 bg-slate-200 flex items-center justify-center text-center p-1">
-                               <p className="text-[8px] text-slate-400 font-bold">SEM FOTO</p>
-                           </div>
-                       )}
-                       <p className="text-[6px] text-center font-bold mt-1 text-slate-500 uppercase">Biometria Recente</p>
+                    <div className="flex border-b border-black">
+                        <div className="w-1/2 border-r border-black p-1 pl-2">
+                            Unidade: <span className="font-normal ml-2">{activeFichaData.col.branch}</span>
+                        </div>
+                        <div className="w-1/2 p-1 pl-2">
+                            Agência: <span className="font-normal ml-2">{activeFichaData.col.agency || '-'}</span>
+                        </div>
+                    </div>
+                    <div className="flex">
+                            <div className="w-1/2 border-r border-black p-1 pl-2">
+                            Função: <span className="font-normal ml-2">{activeFichaData.col.role}</span>
+                            </div>
+                            <div className="w-1/2 p-1 pl-2">
+                            Turno: <span className="font-normal ml-2">{activeFichaData.col.shift}</span>
+                            </div>
                     </div>
                 </div>
 
@@ -329,6 +315,18 @@ export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collab
                              <p className="text-[9px] uppercase font-bold">Colaborador: {activeFichaData.col.name}</p>
                          </div>
                      </div>
+
+                     {/* Área da Foto (Rodapé) */}
+                     <div className="shrink-0 ml-4 flex flex-col items-center">
+                       {latestPhoto ? (
+                           <img src={latestPhoto} className="w-20 h-24 object-cover border border-slate-400 shadow-sm" alt="Biometria" />
+                       ) : (
+                           <div className="w-20 h-24 border border-slate-300 bg-slate-200 flex items-center justify-center text-center p-1">
+                               <p className="text-[8px] text-slate-400 font-bold">SEM FOTO</p>
+                           </div>
+                       )}
+                       <p className="text-[6px] text-center font-bold mt-1 text-slate-500 uppercase">Biometria Recente</p>
+                    </div>
                 </div>
                 <div className="mt-4 text-[7px] text-center text-slate-400 uppercase">
                     Este documento substitui e revoga as versões anteriores. Gerado eletronicamente em {formatDateTime(new Date().toISOString())}.
