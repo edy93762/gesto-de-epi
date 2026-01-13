@@ -33,6 +33,9 @@ export const DatabaseService = {
       // Migração: Adicionar coluna Coordenador se não existir
       await sql(`ALTER TABLE collaborators ADD COLUMN IF NOT EXISTS coordinator_name TEXT;`);
 
+      // Migração: Adicionar coluna Agência se não existir (NOVO)
+      await sql(`ALTER TABLE collaborators ADD COLUMN IF NOT EXISTS agency TEXT;`);
+
       // Tabela EPIs
       await sql(`
         CREATE TABLE IF NOT EXISTS epis (
@@ -92,11 +95,12 @@ export const DatabaseService = {
         sector: row.sector,
         role: row.role,
         branch: row.branch,
+        agency: row.agency || '', // Mapeia Agência
         shift: row.shift as any,
         managerName: row.manager_name,
         managerEmail: row.manager_email,
         hseName: row.hse_name || '', 
-        coordinatorName: row.coordinator_name || '', // Mapeia o novo campo
+        coordinatorName: row.coordinator_name || '', 
         active: row.active
       }));
     } catch (error) {
@@ -107,9 +111,9 @@ export const DatabaseService = {
 
   async addCollaborator(c: Collaborator) {
     await sql(
-      `INSERT INTO collaborators (id, name, cpf, sector, role, branch, shift, manager_name, manager_email, hse_name, coordinator_name, active)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-      [c.id, c.name, c.cpf, c.sector, c.role, c.branch, c.shift, c.managerName, c.managerEmail, c.hseName, c.coordinatorName, c.active]
+      `INSERT INTO collaborators (id, name, cpf, sector, role, branch, shift, manager_name, manager_email, hse_name, coordinator_name, agency, active)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+      [c.id, c.name, c.cpf, c.sector, c.role, c.branch, c.shift, c.managerName, c.managerEmail, c.hseName, c.coordinatorName, c.agency, c.active]
     );
   },
 

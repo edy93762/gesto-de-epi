@@ -61,6 +61,14 @@ export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collab
     return { col, history };
   }, [selectedCollaboratorId, deliveries, collaborators]);
 
+  // 3. Pega a foto mais recente (do último registro que tiver foto)
+  const latestPhoto = useMemo(() => {
+    if (!activeFichaData) return null;
+    // Percorre do mais novo para o mais antigo procurando foto
+    const reversedHistory = [...activeFichaData.history].reverse();
+    const deliveryWithPhoto = reversedHistory.find(d => d.photo);
+    return deliveryWithPhoto?.photo;
+  }, [activeFichaData]);
 
   const generatePDF = async () => {
     if (!fichaRef.current || !activeFichaData) return;
@@ -190,10 +198,17 @@ export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collab
                 
                 {/* Cabeçalho Padrão */}
                 <div className="border-2 border-black mb-4 flex">
-                    <div className="w-1/3 border-r-2 border-black flex items-center justify-center p-2 bg-slate-50">
-                        <h1 className={`text-xl font-black text-center uppercase ${isShopee ? 'text-red-600' : 'text-blue-900'}`}>
+                    <div className="w-1/3 border-r-2 border-black flex flex-col items-center justify-center p-2 bg-slate-50">
+                        <h1 className={`text-lg font-black text-center uppercase leading-tight ${isShopee ? 'text-red-600' : 'text-blue-900'}`}>
                             {activeFichaData.col.branch || 'LOGO'}
                         </h1>
+                        {/* Agência no Cabeçalho */}
+                        {activeFichaData.col.agency && (
+                           <div className="mt-2 pt-2 border-t border-slate-300 w-full text-center">
+                              <p className="text-[7px] text-slate-500 font-bold uppercase tracking-widest">Agência</p>
+                              <p className="text-[9px] font-black uppercase text-slate-800">{activeFichaData.col.agency}</p>
+                           </div>
+                        )}
                     </div>
                     <div className="w-2/3 p-2">
                         <h2 className="text-center font-bold text-[10px] uppercase mb-1">TERMO DE RESPONSABILIDADE & FICHA DE CONTROLE</h2>
@@ -207,29 +222,48 @@ export const Deliveries: React.FC<DeliveriesProps> = ({ deliveries, epis, collab
                     <h2 className="text-[10px] font-black uppercase">DADOS DO COLABORADOR</h2>
                 </div>
 
-                {/* Dados do Colaborador */}
-                <div className="border-2 border-black text-[10px] font-bold uppercase mb-4">
-                    <div className="border-b border-black p-1 pl-2 bg-white">
-                        Nome: <span className="font-normal ml-2">{activeFichaData.col.name}</span>
+                {/* Dados do Colaborador COM FOTO */}
+                <div className="border-2 border-black text-[10px] font-bold uppercase mb-4 flex">
+                    <div className="flex-1">
+                        <div className="border-b border-black p-1 pl-2 bg-white">
+                            Nome: <span className="font-normal ml-2">{activeFichaData.col.name}</span>
+                        </div>
+                        <div className="flex border-b border-black">
+                            <div className="w-1/2 border-r border-black p-1 pl-2">
+                                CPF: <span className="font-normal ml-2">{activeFichaData.col.cpf}</span>
+                            </div>
+                            <div className="w-1/2 p-1 pl-2">
+                                Matrícula/ID: <span className="font-normal ml-2">{activeFichaData.col.id}</span>
+                            </div>
+                        </div>
+                        <div className="flex border-b border-black">
+                            <div className="w-1/2 border-r border-black p-1 pl-2">
+                                Unidade: <span className="font-normal ml-2">{activeFichaData.col.branch}</span>
+                            </div>
+                            <div className="w-1/2 p-1 pl-2">
+                                Agência: <span className="font-normal ml-2">{activeFichaData.col.agency || '-'}</span>
+                            </div>
+                        </div>
+                        <div className="flex">
+                             <div className="w-1/2 border-r border-black p-1 pl-2">
+                                Função: <span className="font-normal ml-2">{activeFichaData.col.role}</span>
+                             </div>
+                             <div className="w-1/2 p-1 pl-2">
+                                Turno: <span className="font-normal ml-2">{activeFichaData.col.shift}</span>
+                             </div>
+                        </div>
                     </div>
-                    <div className="flex border-b border-black">
-                        <div className="w-1/2 border-r border-black p-1 pl-2">
-                            CPF: <span className="font-normal ml-2">{activeFichaData.col.cpf}</span>
-                        </div>
-                        <div className="w-1/2 p-1 pl-2">
-                            Matrícula/ID: <span className="font-normal ml-2">{activeFichaData.col.id}</span>
-                        </div>
-                    </div>
-                    <div className="flex border-b border-black">
-                        <div className="w-1/2 border-r border-black p-1 pl-2">
-                            Unidade: <span className="font-normal ml-2">{activeFichaData.col.branch}</span>
-                        </div>
-                        <div className="w-1/2 p-1 pl-2">
-                            Turno: <span className="font-normal ml-2">{activeFichaData.col.shift}</span>
-                        </div>
-                    </div>
-                    <div className="p-1 pl-2">
-                        Função: <span className="font-normal ml-2">{activeFichaData.col.role}</span>
+                    
+                    {/* Área da Foto */}
+                    <div className="w-28 border-l border-black flex flex-col items-center justify-center p-1 bg-slate-50">
+                       {latestPhoto ? (
+                           <img src={latestPhoto} className="w-20 h-24 object-cover border border-slate-400 shadow-sm" alt="Biometria" />
+                       ) : (
+                           <div className="w-20 h-24 border border-slate-300 bg-slate-200 flex items-center justify-center text-center p-1">
+                               <p className="text-[8px] text-slate-400 font-bold">SEM FOTO</p>
+                           </div>
+                       )}
+                       <p className="text-[6px] text-center font-bold mt-1 text-slate-500 uppercase">Biometria Recente</p>
                     </div>
                 </div>
 

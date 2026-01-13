@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { Collaborator } from '../types';
 import { generateId } from '../utils/helpers';
-import { UserPlus, X, User, Briefcase, UserCheck, Building2, Save, Mail, Clock, ShieldAlert, Crown } from 'lucide-react';
+import { UserPlus, X, User, Briefcase, UserCheck, Building2, Save, Mail, Clock, ShieldAlert, Crown, Building } from 'lucide-react';
 
 interface CollaboratorFormProps {
   onSave: (collaborator: Collaborator) => void;
@@ -32,6 +32,7 @@ export const CollaboratorForm: React.FC<CollaboratorFormProps> = ({ onSave, onCa
     sector: '',
     role: '',
     branch: '',
+    agency: '', // Campo Agência
     shift: 'T1',
     managerName: '',
     managerEmail: '',
@@ -49,6 +50,12 @@ export const CollaboratorForm: React.FC<CollaboratorFormProps> = ({ onSave, onCa
   const uniqueCoordinators = useMemo(() => {
     const names = existingCollaborators.map(c => c.coordinatorName).filter(Boolean);
     return Array.from(new Set(names)).sort();
+  }, [existingCollaborators]);
+
+  // Gera lista única de Agências já cadastradas para sugestão
+  const uniqueAgencies = useMemo(() => {
+    const agencies = existingCollaborators.map(c => c.agency).filter(Boolean);
+    return Array.from(new Set(agencies)).sort();
   }, [existingCollaborators]);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -116,6 +123,25 @@ export const CollaboratorForm: React.FC<CollaboratorFormProps> = ({ onSave, onCa
                   </select>
                 </div>
               </div>
+
+               {/* CAMPO AGÊNCIA NOVO */}
+               <div>
+                  <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2"><Building size={10} className="text-blue-400"/> Agência</label>
+                  <input 
+                      required 
+                      type="text" 
+                      list="agencies-list"
+                      className="w-full p-4 bg-slate-950 border border-slate-800 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-white text-sm font-bold" 
+                      value={formData.agency} 
+                      onChange={(e) => setFormData({ ...formData, agency: e.target.value })} 
+                      placeholder="Agência (Selecione ou Digite)" 
+                  />
+                  <datalist id="agencies-list">
+                    {uniqueAgencies.map((agency, i) => (
+                      <option key={i} value={agency} />
+                    ))}
+                  </datalist>
+               </div>
 
                <div>
                 <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">CPF (Apenas números)</label>

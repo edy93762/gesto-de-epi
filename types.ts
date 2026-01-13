@@ -6,10 +6,11 @@ export interface Collaborator {
   sector: string; 
   role: string; 
   branch: string; 
+  agency: string; // Novo campo: Agência
   shift: 'T1' | 'T2' | 'T3' | 'T4' | 'T5'; 
   managerName: string; // Gestor Imediato
   managerEmail: string; 
-  coordinatorName: string; // Novo campo: Coordenador
+  coordinatorName: string; // Coordenador
   hseName: string; // Responsável HSE
   active: boolean; 
 }

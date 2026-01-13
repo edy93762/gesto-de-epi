@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { ShieldCheck, UserPlus, ArrowRight, Lock, User } from 'lucide-react';
+import { ShieldCheck, UserPlus, ArrowRight, Lock, User, Eye, EyeOff } from 'lucide-react';
 
 interface LoginProps {
   onLogin: () => void;
@@ -10,6 +10,7 @@ interface LoginProps {
 export const Login: React.FC<LoginProps> = ({ onLogin, onPublicRegister }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
 
   const handleLogin = (e: React.FormEvent) => {
@@ -80,12 +81,19 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onPublicRegister }) => {
                <div className="relative">
                   <Lock className="absolute left-5 top-4 text-slate-500" size={18} />
                   <input 
-                    type="password" 
+                    type={showPassword ? "text" : "password"} 
                     placeholder="Senha"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl py-4 pl-14 pr-4 text-white font-bold outline-none focus:border-blue-500 transition-all placeholder:text-slate-600 focus:bg-slate-900"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl py-4 pl-14 pr-12 text-white font-bold outline-none focus:border-blue-500 transition-all placeholder:text-slate-600 focus:bg-slate-900"
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-4 text-slate-500 hover:text-white transition-colors p-1"
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
                </div>
             </div>
 

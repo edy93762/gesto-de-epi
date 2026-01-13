@@ -15,7 +15,8 @@ import {
   Package,
   FileEdit,
   Square,
-  CheckSquare
+  CheckSquare,
+  Building
 } from 'lucide-react';
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
@@ -199,7 +200,7 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
                      <p className="text-[10px] text-slate-500 font-bold uppercase truncate flex items-center gap-2">
                         <span><Building2 size={10} className="inline mr-1"/>{c.branch}</span>
                         <span>•</span>
-                        <span>CPF: {c.cpf || '---'}</span>
+                        <span><Building size={10} className="inline mr-1"/>{c.agency || 'S/ Agência'}</span>
                      </p>
                   </div>
                    <div className="px-3 py-1 bg-blue-900/30 rounded-lg border border-blue-500/20 text-[10px] font-black text-blue-400">
@@ -240,6 +241,7 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
                   <p className="text-xs font-black text-slate-500 uppercase tracking-widest mb-1">Colaborador</p>
                   <p className="text-lg font-black text-white uppercase leading-none">{selectedCol?.name}</p>
                   <p className="text-xs font-bold text-slate-400 mt-1">{selectedCol?.role} • {selectedCol?.shift}</p>
+                  <p className="text-[10px] font-bold text-slate-500 mt-1 flex items-center gap-1"><Building size={10} /> {selectedCol?.agency || 'Sem Agência'}</p>
                </div>
                <CheckCircle2 className="ml-auto text-emerald-500" size={24} />
             </div>
@@ -418,11 +420,16 @@ export const NewDeliveryForm: React.FC<NewDeliveryFormProps> = ({
                         Unidade: <span className="font-normal ml-2">{selectedCol?.branch}</span>
                     </div>
                     <div className="w-1/2 p-1 pl-2">
-                        Turno: <span className="font-normal ml-2">{selectedCol?.shift}</span>
+                        Agência: <span className="font-normal ml-2">{selectedCol?.agency || '-'}</span>
                     </div>
                 </div>
-                <div className="p-1 pl-2">
-                    Função: <span className="font-normal ml-2">{selectedCol?.role}</span>
+                <div className="flex border-b border-black">
+                    <div className="w-1/2 border-r border-black p-1 pl-2">
+                        Função: <span className="font-normal ml-2">{selectedCol?.role}</span>
+                    </div>
+                    <div className="w-1/2 p-1 pl-2">
+                        Turno: <span className="font-normal ml-2">{selectedCol?.shift}</span>
+                    </div>
                 </div>
             </div>
 
